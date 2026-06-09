@@ -1,12 +1,33 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "./actions";
+import { resolveTrialView, type TrialSnapshot } from "@/lib/trial/status";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Resolve trial state ONLY when signed in. If not signed in we render a
+  // message + link below and never touch the RPC.
+  let view: ReturnType<typeof resolveTrialView> | null = null;
+  let profileUnavailable = false;
+
+  if (user) {
+    // Lazily expire the trial if due, then read the refreshed profile row.
+    const { data: profile, error } = await supabase.rpc(
+      "fn_resolve_trial_status"
+    );
+
+    if (!error && profile) {
+      view = resolveTrialView(profile as TrialSnapshot);
+    } else {
+      profileUnavailable = true;
+    }
+  }
+
+  const tierIsFull = view?.accessTier === "Full";
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-obsidian">
@@ -47,37 +68,8 @@ export default async function DashboardPage() {
 
       {/* Body */}
       <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-16">
-        {user ? (
-          <div className="w-full max-w-lg">
-            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-orange/80">
-              Session Active
-            </p>
-            <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-pearl">
-              Welcome to your desk.
-            </h1>
-            <p className="mt-3 text-sm leading-relaxed text-muted sm:hidden">
-              Signed in as{" "}
-              <span className="text-pearl">{user.email}</span>
-            </p>
-
-            <div className="mt-8 rounded-lg border border-pearl/10 bg-graphite/70 p-5 font-mono text-xs">
-              <div className="flex items-center justify-between border-b border-pearl/10 pb-3 uppercase tracking-[0.2em] text-muted">
-                <span>Session</span>
-                <span className="text-orange">● authenticated</span>
-              </div>
-              <dl className="mt-3 space-y-2">
-                <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-muted">EMAIL</dt>
-                  <dd className="truncate text-pearl">{user.email}</dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-muted">USER ID</dt>
-                  <dd className="truncate text-pearl/70">{user.id}</dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-        ) : (
+        {!user ? (
+          /* ---- Not signed in: no redirect, no RPC ---- */
           <div className="w-full max-w-md text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted">
               No Session
@@ -94,6 +86,70 @@ export default async function DashboardPage() {
             >
               Go to login <span aria-hidden>→</span>
             </Link>
+          </div>
+        ) : view ? (
+          /* ---- Signed in: real trial state ---- */
+          <div className="w-full max-w-lg">
+            <p
+              className={`font-mono text-[10px] uppercase tracking-[0.28em] ${
+                tierIsFull ? "text-orange/80" : "text-muted"
+              }`}
+            >
+              Access · {view.accessTier}
+            </p>
+            <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-pearl">
+              {tierIsFull ? "Your desk is live." : "Access limited."}
+            </h1>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              {tierIsFull
+                ? `${view.daysRemaining} day${
+                    view.daysRemaining === 1 ? "" : "s"
+                  } remaining in your trial.`
+                : "Your trial period has ended."}
+            </p>
+
+            <div className="mt-8 rounded-lg border border-pearl/10 bg-graphite/70 p-5 font-mono text-xs">
+              <div className="flex items-center justify-between border-b border-pearl/10 pb-3 uppercase tracking-[0.2em] text-muted">
+                <span>Account</span>
+                <span className={tierIsFull ? "text-orange" : "text-muted"}>
+                  ● {view.accessTier.toLowerCase()} access
+                </span>
+              </div>
+              <dl className="mt-3 space-y-2">
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-muted">STATUS</dt>
+                  <dd className="text-pearl">{view.statusLabel}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-muted">DAYS LEFT</dt>
+                  <dd className="text-pearl">{view.daysRemaining}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-muted">ACCESS</dt>
+                  <dd className={tierIsFull ? "text-orange" : "text-pearl"}>
+                    {view.accessTier}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-muted">EMAIL</dt>
+                  <dd className="truncate text-pearl">{user.email}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        ) : (
+          /* ---- Signed in but no profile row yet / unavailable ---- */
+          <div className="w-full max-w-md text-center">
+            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted">
+              {profileUnavailable ? "Profile Unavailable" : "Setting Up"}
+            </p>
+            <h1 className="mt-3 font-display text-3xl font-semibold text-pearl">
+              Preparing your desk.
+            </h1>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              We couldn&apos;t load your profile just yet. Refresh in a moment —
+              if it persists, sign out and back in.
+            </p>
           </div>
         )}
       </div>
