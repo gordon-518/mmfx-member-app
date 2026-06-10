@@ -7,6 +7,16 @@ import { grantRetrial, verifyDeposit } from "./actions";
 // re-trial granting. All rules live in the database functions — this page is
 // a convenience layer and never the gate.
 
+const STATUSES = [
+  "trial_active",
+  "trial_expired",
+  "member_active",
+  "re_trial_active",
+  "re_trial_expired",
+] as const;
+
+const BROKERS = ["octa", "dupoin", "elev8"] as const;
+
 interface AdminProfileRow {
   id: string;
   email: string;
@@ -58,8 +68,15 @@ export default async function AdminPage({
   const failure = typeof error === "string" ? error : null;
   const targetEmail = typeof target === "string" ? target : null;
   const emailQuery = typeof q === "string" ? q.trim() : "";
-  const statusFilter = typeof status === "string" ? status : "";
-  const brokerFilter = typeof broker === "string" ? broker : "";
+  // Allowlist filter params — the <select>s are not a trust boundary.
+  const statusFilter =
+    typeof status === "string" && (STATUSES as readonly string[]).includes(status)
+      ? status
+      : "";
+  const brokerFilter =
+    typeof broker === "string" && (BROKERS as readonly string[]).includes(broker)
+      ? broker
+      : "";
 
   let query = supabase
     .from("profiles")
@@ -81,6 +98,19 @@ export default async function AdminPage({
   const { data: profiles, error: listError } = await query;
 
   const rows = (profiles ?? []) as AdminProfileRow[];
+
+  // Threaded through action forms so a verify/grant keeps the current view.
+  const hiddenFilters = (
+    <>
+      {emailQuery && <input type="hidden" name="filter_q" value={emailQuery} />}
+      {statusFilter && (
+        <input type="hidden" name="filter_status" value={statusFilter} />
+      )}
+      {brokerFilter && (
+        <input type="hidden" name="filter_broker" value={brokerFilter} />
+      )}
+    </>
+  );
 
   return (
     <main className="min-h-screen bg-obsidian px-6 py-10 text-pearl">
@@ -127,11 +157,11 @@ export default async function AdminPage({
           className="border border-pearl/20 bg-graphite px-2 py-1.5"
         >
           <option value="">status: all</option>
-          <option value="trial_active">trial_active</option>
-          <option value="trial_expired">trial_expired</option>
-          <option value="member_active">member_active</option>
-          <option value="re_trial_active">re_trial_active</option>
-          <option value="re_trial_expired">re_trial_expired</option>
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
         </select>
         <select
           name="broker"
@@ -139,9 +169,11 @@ export default async function AdminPage({
           className="border border-pearl/20 bg-graphite px-2 py-1.5"
         >
           <option value="">broker: all</option>
-          <option value="octa">octa</option>
-          <option value="dupoin">dupoin</option>
-          <option value="elev8">elev8</option>
+          {BROKERS.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
         </select>
         <button
           type="submit"
@@ -202,6 +234,7 @@ export default async function AdminPage({
                       <form action={verifyDeposit} className="flex flex-wrap items-center gap-1.5">
                         <input type="hidden" name="target_user_id" value={p.id} />
                         <input type="hidden" name="target_email" value={p.email} />
+                        {hiddenFilters}
                         <select
                           name="broker"
                           required
@@ -211,9 +244,11 @@ export default async function AdminPage({
                           <option value="" disabled>
                             broker
                           </option>
-                          <option value="octa">octa</option>
-                          <option value="dupoin">dupoin</option>
-                          <option value="elev8">elev8</option>
+                          {BROKERS.map((b) => (
+                            <option key={b} value={b}>
+                              {b}
+                            </option>
+                          ))}
                         </select>
                         <input
                           name="amount"
@@ -242,6 +277,7 @@ export default async function AdminPage({
                       <form action={grantRetrial}>
                         <input type="hidden" name="target_user_id" value={p.id} />
                         <input type="hidden" name="target_email" value={p.email} />
+                        {hiddenFilters}
                         <button
                           type="submit"
                           className="border border-pearl/30 px-2 py-1 hover:border-orange hover:text-orange"

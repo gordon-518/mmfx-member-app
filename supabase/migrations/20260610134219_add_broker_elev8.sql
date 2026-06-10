@@ -9,7 +9,7 @@
 -- ============================================================================
 
 alter table public.profiles
-  drop constraint profiles_broker_check;
+  drop constraint if exists profiles_broker_check;
 
 alter table public.profiles
   add constraint profiles_broker_check check (
@@ -80,3 +80,8 @@ $$;
 
 comment on function public.fn_verify_deposit(uuid, text, numeric, boolean) is
   'Admin-only: record a verified qualifying deposit ($500+, partnered broker octa/dupoin/elev8, IB-confirmed) and flip the target to member_active. Rules enforced here, not in the UI.';
+
+-- Re-assert privileges so this migration stands alone on a clean database
+-- (create or replace preserves ACLs only when the function already exists).
+revoke execute on function public.fn_verify_deposit(uuid, text, numeric, boolean) from public;
+grant  execute on function public.fn_verify_deposit(uuid, text, numeric, boolean) to authenticated;
