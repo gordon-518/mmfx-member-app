@@ -29,7 +29,8 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 | `deposit_verified_by` | `text` | — | yes | `manual`, `broker_postback`, or `webhook`. Launch uses `manual`. |
 | `ib_link_confirmed` | `boolean` | `false` | no | Whether the deposit is attributed to our IB link. Separate from deposit amount — a $500 deposit without IB attribution does NOT qualify. |
 | `last_activity_at` | `timestamptz` | — | yes | Last app activity (login, page view). For engagement tracking. |
-| `downgraded_at` | `timestamptz` | — | yes | When the user was downgraded. Used in re-trial eligibility computation. Null if never downgraded. |
+| `downgraded_at` | `timestamptz` | — | yes | When the user was downgraded. Used in re-trial eligibility computation. Null if never downgraded. Cleared on member upgrade and re-trial grant. |
+| `is_admin` | `boolean` | `false` | no | Admin flag (Day 4). Set manually in SQL only, never from the app. Gates the admin SELECT policy and the admin-only functions via `is_admin()`. |
 | `created_at` | `timestamptz` | `now()` | no | Row creation time. |
 | `updated_at` | `timestamptz` | `now()` | no | Updated via trigger on every row change. |
 
