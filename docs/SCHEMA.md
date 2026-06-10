@@ -31,6 +31,7 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 | `last_activity_at` | `timestamptz` | — | yes | Last app activity (login, page view). For engagement tracking. |
 | `downgraded_at` | `timestamptz` | — | yes | When the user was downgraded. Used in re-trial eligibility computation. Null if never downgraded. Cleared on member upgrade and re-trial grant. |
 | `is_admin` | `boolean` | `false` | no | Admin flag (Day 4). Set manually in SQL only, never from the app. Gates the admin SELECT policy and the admin-only functions via `is_admin()`. |
+| `tradingview_username` | `text` | — | yes | TradingView handle the user submits to request indicator access (Day 6). Set only by `fn_set_tradingview_username` on the user's own row; indicator granting is manual. |
 | `created_at` | `timestamptz` | `now()` | no | Row creation time. |
 | `updated_at` | `timestamptz` | `now()` | no | Updated via trigger on every row change. |
 

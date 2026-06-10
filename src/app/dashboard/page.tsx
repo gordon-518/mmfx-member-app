@@ -28,16 +28,14 @@ const CARDS: MemberCard[] = [
     eyebrow: "Tools",
     title: "Indicators",
     desc: "The TradingView suite, keyed to your username.",
-    href: "#",
-    comingSoon: true,
+    href: "/indicators",
   },
   {
     key: "strategies",
     eyebrow: "Tools",
     title: "Strategies",
     desc: "Backtestable setups with rules you can audit.",
-    href: "#",
-    comingSoon: true,
+    href: "/strategies",
   },
   {
     key: "library",

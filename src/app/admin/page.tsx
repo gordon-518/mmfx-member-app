@@ -30,6 +30,7 @@ interface AdminProfileRow {
   deposit_verified_by: string | null;
   ib_link_confirmed: boolean;
   is_admin: boolean;
+  tradingview_username: string | null;
 }
 
 function fmt(ts: string | null): string {
@@ -81,7 +82,7 @@ export default async function AdminPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, email, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin"
+      "id, email, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username"
     )
     .order("created_at", { ascending: true });
 
@@ -201,6 +202,7 @@ export default async function AdminPage({
               <th className="px-2 py-2">Trial ends</th>
               <th className="px-2 py-2">Downgraded</th>
               <th className="px-2 py-2">Deposit</th>
+              <th className="px-2 py-2">TradingView</th>
               <th className="px-2 py-2">Mark deposit</th>
               <th className="px-2 py-2">Re-trial</th>
               <th className="px-2 py-2">Edit</th>
@@ -227,6 +229,13 @@ export default async function AdminPage({
                           p.ib_link_confirmed ? "yes" : "no"
                         } · ${p.deposit_verified_by}`
                       : "—"}
+                  </td>
+                  <td className="px-2 py-3">
+                    {p.tradingview_username ? (
+                      <span className="text-pearl">{p.tradingview_username}</span>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
                   </td>
                   <td className="px-2 py-3">
                     {p.account_status === "member_active" ? (
@@ -372,7 +381,7 @@ export default async function AdminPage({
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-2 py-6 text-muted">
+                <td colSpan={10} className="px-2 py-6 text-muted">
                   No profiles.
                 </td>
               </tr>

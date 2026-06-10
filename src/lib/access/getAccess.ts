@@ -21,6 +21,7 @@ export interface AccessProfile {
   downgraded_at: string | null;
   member_status: "active" | "inactive";
   is_admin: boolean;
+  tradingview_username: string | null;
 }
 
 export type Access =
