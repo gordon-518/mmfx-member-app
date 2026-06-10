@@ -15,7 +15,8 @@ export type AccessTier = "Full" | "Limited";
 
 export interface TrialSnapshot {
   account_status: AccountStatus;
-  trial_ends_at: string | Date;
+  /** Null for members — the clock is cleared on the flip to member_active. */
+  trial_ends_at: string | Date | null;
 }
 
 const MS_PER_DAY = 86_400_000;
@@ -26,11 +27,12 @@ const FULL_WHILE_ACTIVE: ReadonlySet<AccountStatus> = new Set([
   "re_trial_active",
 ]);
 
-/** Whole days until trial_ends_at, rounded up, never negative. */
+/** Whole days until trial_ends_at, rounded up, never negative. Null -> 0. */
 export function daysRemaining(
-  trialEndsAt: string | Date,
+  trialEndsAt: string | Date | null,
   now: Date = new Date()
 ): number {
+  if (trialEndsAt == null) return 0;
   const end = new Date(trialEndsAt).getTime();
   if (Number.isNaN(end)) return 0;
   const diffDays = (end - now.getTime()) / MS_PER_DAY;
@@ -50,6 +52,8 @@ export function accessTier(
   if (snapshot.account_status === "member_active") return "Full";
 
   if (FULL_WHILE_ACTIVE.has(snapshot.account_status)) {
+    // No clock on an active-trial state can never count as Full.
+    if (snapshot.trial_ends_at == null) return "Limited";
     const end = new Date(snapshot.trial_ends_at).getTime();
     return !Number.isNaN(end) && now.getTime() < end ? "Full" : "Limited";
   }

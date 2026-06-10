@@ -18,7 +18,7 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 | `email` | `text` | — | no | Denormalized from `auth.users` for query convenience. |
 | `full_name` | `text` | — | yes | Display name. |
 | `signup_at` | `timestamptz` | `now()` | no | When the user first signed up. |
-| `trial_ends_at` | `timestamptz` | — | no | Set at signup to `signup_at + 14 days`. Stored, never computed on the fly. |
+| `trial_ends_at` | `timestamptz` | — | yes | Set at signup to `signup_at + 14 days`. Stored, never computed on the fly. **Null for members** — cleared on the flip to `member_active` (2026-06-10). A CHECK guarantees `trial_active`/`re_trial_active` always have a clock. |
 | `trial_count` | `integer` | `1` | no | Lifetime trial count. Initial signup = 1, re-trial bumps to 2. Hard cap of 2. |
 | `account_status` | `text` | `'trial_active'` | no | One of: `trial_active`, `trial_expired`, `member_active`, `re_trial_active`, `re_trial_expired`. See state machine below. |
 | `member_status` | `text` | `'inactive'` | no | `active` or `inactive`. Set to `active` on qualifying deposit. Exists for future activity-gating — not enforced at launch. |

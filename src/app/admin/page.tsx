@@ -22,7 +22,7 @@ interface AdminProfileRow {
   email: string;
   account_status: AccountStatus;
   trial_count: number;
-  trial_ends_at: string;
+  trial_ends_at: string | null;
   downgraded_at: string | null;
   broker: string | null;
   deposit_amount: number | null;

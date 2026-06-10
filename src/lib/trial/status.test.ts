@@ -49,6 +49,27 @@ describe("accessTier — time-check guard", () => {
     expect(accessTier(snap, at(365 * DAY))).toBe("Full"); // long past clock
   });
 
+  it("member_active with a null clock (the post-flip state) is Full", () => {
+    expect(
+      accessTier(
+        { account_status: "member_active", trial_ends_at: null },
+        END
+      )
+    ).toBe("Full");
+  });
+
+  it("an active-trial state with a null clock can never be Full", () => {
+    expect(
+      accessTier({ account_status: "trial_active", trial_ends_at: null }, END)
+    ).toBe("Limited");
+    expect(
+      accessTier(
+        { account_status: "re_trial_active", trial_ends_at: null },
+        END
+      )
+    ).toBe("Limited");
+  });
+
   it("trial_expired and re_trial_expired are Limited (even before the clock)", () => {
     expect(
       accessTier(
@@ -76,6 +97,10 @@ describe("daysRemaining", () => {
 
   it("clamps at 0 for a past date (now after trial_ends_at)", () => {
     expect(daysRemaining(endIso, at(10 * DAY))).toBe(0);
+  });
+
+  it("is 0 for a null clock (members)", () => {
+    expect(daysRemaining(null, END)).toBe(0);
   });
 
   it("rounds partial days up (≈14 just after a 14-day trial starts)", () => {

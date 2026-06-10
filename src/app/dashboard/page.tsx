@@ -101,11 +101,13 @@ export default async function DashboardPage() {
               {tierIsFull ? "Your desk is live." : "Access limited."}
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              {tierIsFull
-                ? `${view.daysRemaining} day${
-                    view.daysRemaining === 1 ? "" : "s"
-                  } remaining in your trial.`
-                : "Your trial period has ended."}
+              {view.accountStatus === "member_active"
+                ? "Membership active — full access."
+                : tierIsFull
+                  ? `${view.daysRemaining} day${
+                      view.daysRemaining === 1 ? "" : "s"
+                    } remaining in your trial.`
+                  : "Your trial period has ended."}
             </p>
 
             <div className="mt-8 rounded-lg border border-pearl/10 bg-graphite/70 p-5 font-mono text-xs">
@@ -121,8 +123,16 @@ export default async function DashboardPage() {
                   <dd className="text-pearl">{view.statusLabel}</dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-muted">DAYS LEFT</dt>
-                  <dd className="text-pearl">{view.daysRemaining}</dd>
+                  <dt className="text-muted">
+                    {view.accountStatus === "member_active"
+                      ? "MEMBERSHIP"
+                      : "DAYS LEFT"}
+                  </dt>
+                  <dd className="text-pearl">
+                    {view.accountStatus === "member_active"
+                      ? "permanent"
+                      : view.daysRemaining}
+                  </dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-4">
                   <dt className="text-muted">ACCESS</dt>
