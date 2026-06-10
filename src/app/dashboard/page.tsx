@@ -1,33 +1,145 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getAccess } from "@/lib/access";
+import { LockedOverlay } from "@/lib/access/LockedOverlay";
 import { signOut } from "./actions";
-import { resolveTrialView, type TrialSnapshot } from "@/lib/trial/status";
+import { StatusHeader } from "./StatusHeader";
+
+// ---------------------------------------------------------------------------
+// PLACEHOLDERS — Gordon fills these in (Telegram invite / Zoom registration).
+const SIGNALS_URL = "#"; // TODO: Telegram signals channel invite link
+const LIVE_CLASSES_URL = "#"; // TODO: Zoom live-class registration link
+// ---------------------------------------------------------------------------
+
+interface MemberCard {
+  key: string;
+  eyebrow: string;
+  title: string;
+  desc: string;
+  href: string;
+  external?: boolean;
+  comingSoon?: boolean;
+}
+
+// Every member surface, gated as one grid. Content pages land Day 6–7 —
+// until then their cards carry the "soon" state rather than dead links.
+const CARDS: MemberCard[] = [
+  {
+    key: "indicators",
+    eyebrow: "Tools",
+    title: "Indicators",
+    desc: "The TradingView suite, keyed to your username.",
+    href: "#",
+    comingSoon: true,
+  },
+  {
+    key: "strategies",
+    eyebrow: "Tools",
+    title: "Strategies",
+    desc: "Backtestable setups with rules you can audit.",
+    href: "#",
+    comingSoon: true,
+  },
+  {
+    key: "library",
+    eyebrow: "Library",
+    title: "eBook Library",
+    desc: "MM System, Decision Tree, If-Then, Cheat Sheet.",
+    href: "#",
+    comingSoon: true,
+  },
+  {
+    key: "course",
+    eyebrow: "Education",
+    title: "Video Course",
+    desc: "The full curriculum, session by session.",
+    href: "#",
+    comingSoon: true,
+  },
+  {
+    key: "signals",
+    eyebrow: "Live",
+    title: "Signals",
+    desc: "Three to five high-conviction calls a day.",
+    href: SIGNALS_URL,
+    external: true,
+  },
+  {
+    key: "live-classes",
+    eyebrow: "Live",
+    title: "Live Classes",
+    desc: "Two sessions a week, London and New York.",
+    href: LIVE_CLASSES_URL,
+    external: true,
+  },
+  {
+    key: "know-your-style",
+    eyebrow: "Bots",
+    title: "Know Your Style",
+    desc: "Find the trading profile you'll actually stick to.",
+    href: "#",
+    comingSoon: true,
+  },
+  {
+    key: "fundamental-desk",
+    eyebrow: "Bots",
+    title: "Fundamental Analysis Desk",
+    desc: "Macro context for the pairs you trade.",
+    href: "#",
+    comingSoon: true,
+  },
+];
+
+function CardBody({ card }: { card: MemberCard }) {
+  return (
+    <div className="flex h-full flex-col rounded-lg border border-pearl/10 bg-graphite/70 p-5">
+      <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted">
+        {card.eyebrow}
+      </p>
+      <h3 className="mt-2 font-display text-lg font-semibold text-pearl">
+        {card.title}
+      </h3>
+      <p className="mt-1.5 text-xs leading-relaxed text-muted">{card.desc}</p>
+      <p className="mt-auto pt-4 font-mono text-[11px] uppercase tracking-[0.2em]">
+        {card.comingSoon ? (
+          <span className="text-muted">● coming to your member area</span>
+        ) : card.external ? (
+          <span className="text-orange">open ↗</span>
+        ) : (
+          <span className="text-orange">open →</span>
+        )}
+      </p>
+    </div>
+  );
+}
+
+function UnlockedCard({ card }: { card: MemberCard }) {
+  if (card.comingSoon) {
+    return <CardBody card={card} />;
+  }
+  if (card.external) {
+    return (
+      <a
+        href={card.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block h-full transition-transform duration-150 hover:-translate-y-0.5 [&>div]:hover:border-orange/50"
+      >
+        <CardBody card={card} />
+      </a>
+    );
+  }
+  return (
+    <Link
+      href={card.href}
+      className="block h-full transition-transform duration-150 hover:-translate-y-0.5 [&>div]:hover:border-orange/50"
+    >
+      <CardBody card={card} />
+    </Link>
+  );
+}
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Resolve trial state ONLY when signed in. If not signed in we render a
-  // message + link below and never touch the RPC.
-  let view: ReturnType<typeof resolveTrialView> | null = null;
-  let profileUnavailable = false;
-
-  if (user) {
-    // Lazily expire the trial if due, then read the refreshed profile row.
-    const { data: profile, error } = await supabase.rpc(
-      "fn_resolve_trial_status"
-    );
-
-    if (!error && profile) {
-      view = resolveTrialView(profile as TrialSnapshot);
-    } else {
-      profileUnavailable = true;
-    }
-  }
-
-  const tierIsFull = view?.accessTier === "Full";
+  const access = await getAccess();
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-obsidian">
@@ -49,10 +161,11 @@ export default async function DashboardPage() {
           </span>
         </div>
 
-        {user && (
+        {access.signedIn && access.profile && (
           <div className="flex items-center gap-4">
             <span className="hidden font-mono text-xs text-muted sm:inline">
-              Signed in as <span className="text-pearl">{user.email}</span>
+              Signed in as{" "}
+              <span className="text-pearl">{access.profile.email}</span>
             </span>
             <form action={signOut}>
               <button
@@ -66,10 +179,9 @@ export default async function DashboardPage() {
         )}
       </header>
 
-      {/* Body */}
-      <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-16">
-        {!user ? (
-          /* ---- Not signed in: no redirect, no RPC ---- */
+      {!access.signedIn ? (
+        /* ---- Not signed in: message + link, no redirect ---- */
+        <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-16">
           <div className="w-full max-w-md text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted">
               No Session
@@ -87,82 +199,49 @@ export default async function DashboardPage() {
               Go to login <span aria-hidden>→</span>
             </Link>
           </div>
-        ) : view ? (
-          /* ---- Signed in: real trial state ---- */
-          <div className="w-full max-w-lg">
-            <p
-              className={`font-mono text-[10px] uppercase tracking-[0.28em] ${
-                tierIsFull ? "text-orange/80" : "text-muted"
-              }`}
-            >
-              Access · {view.accessTier}
-            </p>
-            <h1 className="mt-3 font-display text-4xl font-semibold leading-tight text-pearl">
-              {tierIsFull ? "Your desk is live." : "Access limited."}
-            </h1>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
-              {view.accountStatus === "member_active"
-                ? "Membership active — full access."
-                : tierIsFull
-                  ? `${view.daysRemaining} day${
-                      view.daysRemaining === 1 ? "" : "s"
-                    } remaining in your trial.`
-                  : "Your trial period has ended."}
-            </p>
-
-            <div className="mt-8 rounded-lg border border-pearl/10 bg-graphite/70 p-5 font-mono text-xs">
-              <div className="flex items-center justify-between border-b border-pearl/10 pb-3 uppercase tracking-[0.2em] text-muted">
-                <span>Account</span>
-                <span className={tierIsFull ? "text-orange" : "text-muted"}>
-                  ● {view.accessTier.toLowerCase()} access
-                </span>
-              </div>
-              <dl className="mt-3 space-y-2">
-                <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-muted">STATUS</dt>
-                  <dd className="text-pearl">{view.statusLabel}</dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-muted">
-                    {view.accountStatus === "member_active"
-                      ? "MEMBERSHIP"
-                      : "DAYS LEFT"}
-                  </dt>
-                  <dd className="text-pearl">
-                    {view.accountStatus === "member_active"
-                      ? "permanent"
-                      : view.daysRemaining}
-                  </dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-muted">ACCESS</dt>
-                  <dd className={tierIsFull ? "text-orange" : "text-pearl"}>
-                    {view.accessTier}
-                  </dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-muted">EMAIL</dt>
-                  <dd className="truncate text-pearl">{user.email}</dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-        ) : (
-          /* ---- Signed in but no profile row yet / unavailable ---- */
+        </div>
+      ) : !access.profile ? (
+        /* ---- Signed in, profile unavailable ---- */
+        <div className="relative z-10 flex flex-1 items-center justify-center px-6 py-16">
           <div className="w-full max-w-md text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted">
-              {profileUnavailable ? "Profile Unavailable" : "Setting Up"}
+              Setting Up
             </p>
             <h1 className="mt-3 font-display text-3xl font-semibold text-pearl">
               Preparing your desk.
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              We couldn&apos;t load your profile just yet. Refresh in a moment —
-              if it persists, sign out and back in.
+              We couldn&apos;t load your profile just yet. Refresh in a moment
+              — if it persists, sign out and back in.
             </p>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* ---- The member hub: status strip + gated grid ---- */
+        <div className="relative z-10 flex-1">
+          <StatusHeader
+            status={access.profile.account_status}
+            daysLeft={access.daysLeft}
+          />
+
+          <div className="mx-auto max-w-5xl px-6 py-10 sm:px-10">
+            <p className="mb-5 font-mono text-[10px] uppercase tracking-[0.28em] text-muted">
+              Member Surfaces
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {CARDS.map((card) =>
+                access.tier === "Full" ? (
+                  <UnlockedCard key={card.key} card={card} />
+                ) : (
+                  <LockedOverlay key={card.key}>
+                    <CardBody card={card} />
+                  </LockedOverlay>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
