@@ -53,17 +53,32 @@ export default async function AdminPage({
     );
   }
 
-  const { ok, error, target } = await searchParams;
+  const { ok, error, target, q, status, broker } = await searchParams;
   const notice = typeof ok === "string" ? ok : null;
   const failure = typeof error === "string" ? error : null;
   const targetEmail = typeof target === "string" ? target : null;
+  const emailQuery = typeof q === "string" ? q.trim() : "";
+  const statusFilter = typeof status === "string" ? status : "";
+  const brokerFilter = typeof broker === "string" ? broker : "";
 
-  const { data: profiles, error: listError } = await supabase
+  let query = supabase
     .from("profiles")
     .select(
       "id, email, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin"
     )
     .order("created_at", { ascending: true });
+
+  if (emailQuery) {
+    // Escape the chars PostgREST treats as LIKE wildcards.
+    query = query.ilike(
+      "email",
+      `%${emailQuery.replace(/[%_\\]/g, "\\$&")}%`
+    );
+  }
+  if (statusFilter) query = query.eq("account_status", statusFilter);
+  if (brokerFilter) query = query.eq("broker", brokerFilter);
+
+  const { data: profiles, error: listError } = await query;
 
   const rows = (profiles ?? []) as AdminProfileRow[];
 
@@ -92,6 +107,57 @@ export default async function AdminPage({
           Failed to load profiles: {listError.message}
         </p>
       )}
+
+      {/* Search + filters (GET — state lives in the URL) */}
+      <form
+        method="get"
+        action="/admin"
+        className="mb-5 flex flex-wrap items-center gap-2 font-mono text-xs"
+      >
+        <input
+          type="search"
+          name="q"
+          defaultValue={emailQuery}
+          placeholder="search email…"
+          className="w-56 border border-pearl/20 bg-graphite px-2 py-1.5 placeholder:text-muted/60"
+        />
+        <select
+          name="status"
+          defaultValue={statusFilter}
+          className="border border-pearl/20 bg-graphite px-2 py-1.5"
+        >
+          <option value="">status: all</option>
+          <option value="trial_active">trial_active</option>
+          <option value="trial_expired">trial_expired</option>
+          <option value="member_active">member_active</option>
+          <option value="re_trial_active">re_trial_active</option>
+          <option value="re_trial_expired">re_trial_expired</option>
+        </select>
+        <select
+          name="broker"
+          defaultValue={brokerFilter}
+          className="border border-pearl/20 bg-graphite px-2 py-1.5"
+        >
+          <option value="">broker: all</option>
+          <option value="octa">octa</option>
+          <option value="dupoin">dupoin</option>
+          <option value="elev8">elev8</option>
+        </select>
+        <button
+          type="submit"
+          className="border border-orange/60 px-3 py-1.5 text-orange hover:bg-orange hover:text-black"
+        >
+          Search
+        </button>
+        {(emailQuery || statusFilter || brokerFilter) && (
+          <a href="/admin" className="px-2 py-1.5 text-muted hover:text-pearl">
+            clear
+          </a>
+        )}
+        <span className="ml-auto text-muted">
+          {rows.length} result{rows.length === 1 ? "" : "s"}
+        </span>
+      </form>
 
       <div className="overflow-x-auto">
         <table className="w-full border-collapse font-mono text-xs">
@@ -147,14 +213,16 @@ export default async function AdminPage({
                           </option>
                           <option value="octa">octa</option>
                           <option value="dupoin">dupoin</option>
+                          <option value="elev8">elev8</option>
                         </select>
                         <input
                           name="amount"
                           type="number"
                           step="0.01"
-                          min="0"
+                          min="500"
+                          defaultValue="500"
                           required
-                          placeholder="amount"
+                          placeholder="min 500"
                           className="w-20 border border-pearl/20 bg-graphite px-1.5 py-1"
                         />
                         <label className="flex items-center gap-1 text-muted">

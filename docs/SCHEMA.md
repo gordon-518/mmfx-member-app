@@ -23,7 +23,7 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 | `account_status` | `text` | `'trial_active'` | no | One of: `trial_active`, `trial_expired`, `member_active`, `re_trial_active`, `re_trial_expired`. See state machine below. |
 | `member_status` | `text` | `'inactive'` | no | `active` or `inactive`. Set to `active` on qualifying deposit. Exists for future activity-gating — not enforced at launch. |
 | `last_known_trading_activity` | `timestamptz` | — | yes | Last known trade date from broker data. For future activity-gating. Null until first data received. |
-| `broker` | `text` | — | yes | `octa` or `dupoin`. Null until deposit is submitted. |
+| `broker` | `text` | — | yes | `octa`, `dupoin` or `elev8`. Null until deposit is submitted. |
 | `deposit_amount` | `numeric` | — | yes | Dollar amount of verified deposit. Qualifying threshold is $500. |
 | `deposit_verified_at` | `timestamptz` | — | yes | When the deposit was verified. Null = no verified deposit. |
 | `deposit_verified_by` | `text` | — | yes | `manual`, `broker_postback`, or `webhook`. Launch uses `manual`. |
@@ -38,7 +38,7 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 
 - `account_status` checked against allowed values: `trial_active`, `trial_expired`, `member_active`, `re_trial_active`, `re_trial_expired`.
 - `member_status` checked against: `active`, `inactive`.
-- `broker` checked against: `octa`, `dupoin`.
+- `broker` checked against: `octa`, `dupoin`, `elev8`.
 - `deposit_verified_by` checked against: `manual`, `broker_postback`, `webhook`.
 - `trial_count` checked: `>= 1 AND <= 2`.
 
@@ -90,7 +90,7 @@ No other transitions exist. `member_active` is a terminal state at launch. `re_t
 
 A deposit qualifies when ALL of the following are true:
 1. `deposit_amount >= 500`
-2. `broker` is one of the partnered brokers (`octa`, `dupoin`)
+2. `broker` is one of the partnered brokers (`octa`, `dupoin`, `elev8`)
 3. `ib_link_confirmed = true` (attributed to our IB link)
 4. `deposit_verified_at` is set
 5. `deposit_verified_by` is set
