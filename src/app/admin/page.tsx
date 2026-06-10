@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { canGrantRetrial } from "@/lib/trial/admin";
 import type { AccountStatus } from "@/lib/trial/status";
-import { grantRetrial, verifyDeposit } from "./actions";
+import { grantRetrial, updateMember, verifyDeposit } from "./actions";
 
 // Deliberately plain: a functional table for manual deposit verification and
 // re-trial granting. All rules live in the database functions — this page is
@@ -203,6 +203,7 @@ export default async function AdminPage({
               <th className="px-2 py-2">Deposit</th>
               <th className="px-2 py-2">Mark deposit</th>
               <th className="px-2 py-2">Re-trial</th>
+              <th className="px-2 py-2">Edit</th>
             </tr>
           </thead>
           <tbody>
@@ -293,12 +294,85 @@ export default async function AdminPage({
                       </span>
                     )}
                   </td>
+                  <td className="px-2 py-3">
+                    {/* Manual override editor — bypasses the deposit/re-trial
+                        business rules by design. Empty fields = unchanged. */}
+                    <details>
+                      <summary className="cursor-pointer text-muted hover:text-orange">
+                        edit
+                      </summary>
+                      <form
+                        action={updateMember}
+                        className="mt-2 flex w-44 flex-col gap-1.5 border border-pearl/15 bg-graphite/70 p-2"
+                      >
+                        <input type="hidden" name="target_user_id" value={p.id} />
+                        <input type="hidden" name="target_email" value={p.email} />
+                        {hiddenFilters}
+                        <label className="text-muted">
+                          status
+                          <select
+                            name="status"
+                            defaultValue=""
+                            className="mt-0.5 w-full border border-pearl/20 bg-graphite px-1.5 py-1"
+                          >
+                            <option value="">(unchanged)</option>
+                            {STATUSES.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-muted">
+                          broker
+                          <select
+                            name="broker"
+                            defaultValue=""
+                            className="mt-0.5 w-full border border-pearl/20 bg-graphite px-1.5 py-1"
+                          >
+                            <option value="">(unchanged)</option>
+                            {BROKERS.map((b) => (
+                              <option key={b} value={b}>
+                                {b}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-muted">
+                          trial ends
+                          <input
+                            type="date"
+                            name="trial_ends_at"
+                            className="mt-0.5 w-full border border-pearl/20 bg-graphite px-1.5 py-1"
+                          />
+                        </label>
+                        <label className="text-muted">
+                          trial count
+                          <select
+                            name="trial_count"
+                            defaultValue=""
+                            className="mt-0.5 w-full border border-pearl/20 bg-graphite px-1.5 py-1"
+                          >
+                            <option value="">(unchanged)</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                          </select>
+                        </label>
+                        <button
+                          type="submit"
+                          className="mt-1 border border-orange/60 px-2 py-1 text-orange hover:bg-orange hover:text-black"
+                        >
+                          Save
+                        </button>
+                      </form>
+                    </details>
+                  </td>
                 </tr>
               );
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-2 py-6 text-muted">
+                <td colSpan={9} className="px-2 py-6 text-muted">
                   No profiles.
                 </td>
               </tr>

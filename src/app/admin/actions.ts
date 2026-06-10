@@ -81,6 +81,48 @@ export async function verifyDeposit(formData: FormData) {
   });
 }
 
+export async function updateMember(formData: FormData) {
+  const targetUserId = String(formData.get("target_user_id") ?? "");
+  const targetEmail = String(formData.get("target_email") ?? "");
+  const filters = filterParams(formData);
+
+  if (!targetUserId) {
+    backTo({ ...filters, error: "Missing target user", target: targetEmail });
+  }
+
+  // Empty form values mean "leave unchanged" -> null params to the function.
+  const status = String(formData.get("status") ?? "");
+  const broker = String(formData.get("broker") ?? "");
+  const trialEndsAt = String(formData.get("trial_ends_at") ?? "");
+  const trialCount = String(formData.get("trial_count") ?? "");
+
+  if (
+    trialEndsAt &&
+    Number.isNaN(new Date(trialEndsAt).getTime())
+  ) {
+    backTo({ ...filters, error: "Invalid trial end date", target: targetEmail });
+  }
+
+  const supabase = await requireAdmin(filters, targetEmail);
+
+  const { error } = await supabase.rpc("fn_admin_update_member", {
+    target_user_id: targetUserId,
+    p_status: status || null,
+    p_broker: broker || null,
+    p_trial_ends_at: trialEndsAt
+      ? new Date(trialEndsAt).toISOString()
+      : null,
+    p_trial_count: trialCount ? Number(trialCount) : null,
+  });
+
+  if (error) {
+    backTo({ ...filters, error: error.message, target: targetEmail });
+  }
+
+  revalidatePath("/admin");
+  backTo({ ...filters, ok: `Updated ${targetEmail}`, target: targetEmail });
+}
+
 export async function grantRetrial(formData: FormData) {
   const targetUserId = String(formData.get("target_user_id") ?? "");
   const targetEmail = String(formData.get("target_email") ?? "");

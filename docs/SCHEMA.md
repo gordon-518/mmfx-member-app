@@ -86,6 +86,8 @@ re_trial_expired       v
 
 No other transitions exist. `member_active` is a terminal state at launch. `re_trial_expired` is a terminal state (no further trials).
 
+**Admin manual override (added 2026-06-10, Gordon's decision):** the admin dashboard is the single source of truth for member state. `fn_admin_update_member` lets an admin set any *valid* status/broker/trial fields directly, with bookkeeping kept consistent (`member_status`, `downgraded_at`, lapsed trial clocks restart at +14 days). It deliberately bypasses the deposit and re-trial business rules; `fn_verify_deposit` and `fn_grant_retrial` remain the rule-enforced paths for the normal flows.
+
 ### Qualifying deposit
 
 A deposit qualifies when ALL of the following are true:
