@@ -49,8 +49,7 @@ const CARDS: MemberCard[] = [
     eyebrow: "Education",
     title: "Video Course",
     desc: "The full curriculum, session by session.",
-    href: "#",
-    comingSoon: true,
+    href: "/course",
   },
   {
     key: "signals",
