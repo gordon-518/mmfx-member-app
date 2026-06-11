@@ -42,8 +42,7 @@ const CARDS: MemberCard[] = [
     eyebrow: "Library",
     title: "eBook Library",
     desc: "MM System, Decision Tree, If-Then, Cheat Sheet.",
-    href: "#",
-    comingSoon: true,
+    href: "/library",
   },
   {
     key: "course",
