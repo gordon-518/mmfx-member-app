@@ -2,6 +2,36 @@ import { createClient } from "@/lib/supabase/server";
 import { canGrantRetrial } from "@/lib/trial/admin";
 import type { AccountStatus } from "@/lib/trial/status";
 import { grantRetrial, updateMember, verifyDeposit } from "./actions";
+import {
+  addDailyAnalysis,
+  addLiveClass,
+  deleteDailyAnalysis,
+  deleteLiveClass,
+} from "./contentActions";
+
+interface AnalysisRow {
+  id: string;
+  published_on: string;
+  title: string;
+  gumlet_id: string;
+  description: string | null;
+  bias: string | null;
+  session_tag: string | null;
+  is_published: boolean;
+  cover_path: string | null;
+  report_path: string | null;
+}
+
+interface ClassRow {
+  id: string;
+  starts_at: string;
+  title: string;
+  zoom_url: string;
+}
+
+function fmtDateTime(ts: string): string {
+  return new Date(ts).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+}
 
 // Deliberately plain: a functional table for manual deposit verification and
 // re-trial granting. All rules live in the database functions — this page is
@@ -64,9 +94,20 @@ export default async function AdminPage({
     );
   }
 
-  const { ok, error, target, q, status, broker } = await searchParams;
-  const notice = typeof ok === "string" ? ok : null;
-  const failure = typeof error === "string" ? error : null;
+  const { ok, error, target, q, status, broker, content_ok, content_error } =
+    await searchParams;
+  const notice =
+    typeof ok === "string"
+      ? ok
+      : typeof content_ok === "string"
+        ? content_ok
+        : null;
+  const failure =
+    typeof error === "string"
+      ? error
+      : typeof content_error === "string"
+        ? content_error
+        : null;
   const targetEmail = typeof target === "string" ? target : null;
   const emailQuery = typeof q === "string" ? q.trim() : "";
   // Allowlist filter params — the <select>s are not a trust boundary.
@@ -99,6 +140,24 @@ export default async function AdminPage({
   const { data: profiles, error: listError } = await query;
 
   const rows = (profiles ?? []) as AdminProfileRow[];
+
+  // Admin-managed content (admin sees all rows via the is_admin policy).
+  const { data: analysisData } = await supabase
+    .from("daily_analysis")
+    .select(
+      "id, published_on, title, gumlet_id, description, bias, session_tag, is_published, cover_path, report_path"
+    )
+    .order("published_on", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const analysisRows = (analysisData ?? []) as AnalysisRow[];
+
+  const { data: classData } = await supabase
+    .from("live_classes")
+    .select("id, starts_at, title, zoom_url")
+    .order("starts_at", { ascending: true })
+    .limit(50);
+  const classRows = (classData ?? []) as ClassRow[];
 
   // Threaded through action forms so a verify/grant keeps the current view.
   const hiddenFilters = (
@@ -389,6 +448,136 @@ export default async function AdminPage({
           </tbody>
         </table>
       </div>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Daily Analysis — admin add / list / delete                        */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="mt-12">
+        <h2 className="mb-4 font-display text-lg font-bold">
+          Daily <span className="text-orange">Analysis</span>
+        </h2>
+        <form
+          action={addDailyAnalysis}
+          className="mb-5 flex flex-wrap items-end gap-2 font-mono text-xs"
+        >
+          <label className="flex flex-col gap-1 text-muted">
+            published on
+            <input type="date" name="published_on" className="border border-pearl/20 bg-graphite px-2 py-1.5 text-pearl" />
+          </label>
+          <label className="flex flex-col gap-1 text-muted">
+            title
+            <input name="title" required placeholder="title" className="w-56 border border-pearl/20 bg-graphite px-2 py-1.5 text-pearl placeholder:text-muted/50" />
+          </label>
+          <label className="flex flex-col gap-1 text-muted">
+            gumlet id / url
+            <input name="gumlet_id" required placeholder="gumlet id or embed url" className="w-48 border border-pearl/20 bg-graphite px-2 py-1.5 text-pearl placeholder:text-muted/50" />
+          </label>
+          <label className="flex flex-col gap-1 text-muted">
+            session
+            <input name="session_tag" defaultValue="London" placeholder="London" className="w-28 border border-pearl/20 bg-graphite px-2 py-1.5 text-pearl placeholder:text-muted/50" />
+          </label>
+          <label className="flex flex-col gap-1 text-muted">
+            bias
+            <select name="bias" defaultValue="" className="border border-pearl/20 bg-graphite px-2 py-1.5 text-pearl">
+              <option value="">none</option>
+              <option value="bullish">bullish</option>
+              <option value="bearish">bearish</option>
+              <option value="neutral">neutral</option>
+            </select>
+          </label>
+          <label className="flex flex-1 flex-col gap-1 text-muted">
+            description
+            <input name="description" placeholder="optional description" className="min-w-48 border border-pearl/20 bg-graphite px-2 py-1.5 text-pearl placeholder:text-muted/50" />
+          </label>
+          <label className="flex flex-col gap-1 text-muted">
+            cover (png/jpg)
+            <input type="file" name="cover" accept="image/png,image/jpeg" className="w-44 text-[10px] text-muted file:mr-2 file:border file:border-pearl/20 file:bg-graphite file:px-2 file:py-1 file:text-pearl" />
+          </label>
+          <label className="flex flex-col gap-1 text-muted">
+            report (pdf)
+            <input type="file" name="report" accept="application/pdf" className="w-44 text-[10px] text-muted file:mr-2 file:border file:border-pearl/20 file:bg-graphite file:px-2 file:py-1 file:text-pearl" />
+          </label>
+          <label className="flex items-center gap-1.5 text-muted">
+            <input type="checkbox" name="is_published" defaultChecked /> published
+          </label>
+          <button type="submit" className="border border-orange/60 px-3 py-1.5 text-orange hover:bg-orange hover:text-black">
+            Add
+          </button>
+        </form>
+        <div className="space-y-1.5 font-mono text-xs">
+          {analysisRows.length === 0 && <p className="text-muted">No analysis entries.</p>}
+          {analysisRows.map((a) => (
+            <div key={a.id} className="flex items-center gap-3 border-b border-pearl/10 py-2">
+              <span className="w-24 shrink-0 text-muted">{a.published_on}</span>
+              {!a.is_published && <span className="shrink-0 text-muted/60">[draft]</span>}
+              {a.session_tag && <span className="shrink-0 text-muted/70">{a.session_tag}</span>}
+              {a.bias && <span className="shrink-0 text-orange">{a.bias}</span>}
+              <span className="flex-1 truncate text-pearl">{a.title}</span>
+              <span className="shrink-0 text-muted/60">
+                {a.cover_path ? "🖼" : "—"} {a.report_path ? "📄" : "—"}
+              </span>
+              <form action={deleteDailyAnalysis}>
+                <input type="hidden" name="id" value={a.id} />
+                <button type="submit" className="border border-pearl/20 px-2 py-1 text-muted hover:border-orange/60 hover:text-orange">
+                  Delete
+                </button>
+              </form>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Live Classes — admin add / list / delete                          */}
+      {/* ---------------------------------------------------------------- */}
+      <section className="mt-12">
+        <h2 className="mb-4 font-display text-lg font-bold">
+          Live <span className="text-orange">Classes</span>
+        </h2>
+        <form
+          action={addLiveClass}
+          className="mb-5 flex flex-wrap items-end gap-2 font-mono text-xs"
+        >
+          <label className="flex flex-col gap-1 text-muted">
+            starts at
+            <input type="datetime-local" name="starts_at" required className="border border-pearl/20 bg-graphite px-2 py-1.5 text-pearl" />
+          </label>
+          <label className="flex flex-col gap-1 text-muted">
+            title
+            <input name="title" required placeholder="title" className="w-56 border border-pearl/20 bg-graphite px-2 py-1.5 text-pearl placeholder:text-muted/50" />
+          </label>
+          <label className="flex flex-1 flex-col gap-1 text-muted">
+            zoom url
+            <input name="zoom_url" required type="url" placeholder="https://zoom.us/j/…" className="min-w-64 border border-pearl/20 bg-graphite px-2 py-1.5 text-pearl placeholder:text-muted/50" />
+          </label>
+          <button type="submit" className="border border-orange/60 px-3 py-1.5 text-orange hover:bg-orange hover:text-black">
+            Add
+          </button>
+        </form>
+        <div className="space-y-1.5 font-mono text-xs">
+          {classRows.length === 0 && <p className="text-muted">No live classes.</p>}
+          {classRows.map((cl) => (
+            <div key={cl.id} className="flex items-center gap-3 border-b border-pearl/10 py-2">
+              <span className="w-40 shrink-0 text-muted">{fmtDateTime(cl.starts_at)}</span>
+              <span className="flex-1 truncate text-pearl">{cl.title}</span>
+              <a
+                href={cl.zoom_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="max-w-xs shrink-0 truncate text-muted/70 underline decoration-pearl/20 hover:text-orange"
+              >
+                {cl.zoom_url}
+              </a>
+              <form action={deleteLiveClass}>
+                <input type="hidden" name="id" value={cl.id} />
+                <button type="submit" className="border border-pearl/20 px-2 py-1 text-muted hover:border-orange/60 hover:text-orange">
+                  Delete
+                </button>
+              </form>
+            </div>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }

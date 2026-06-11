@@ -4,12 +4,6 @@ import { LockedOverlay } from "@/lib/access/LockedOverlay";
 import { signOut } from "./actions";
 import { StatusHeader } from "./StatusHeader";
 
-// ---------------------------------------------------------------------------
-// PLACEHOLDERS — Gordon fills these in (Telegram invite / Zoom registration).
-const SIGNALS_URL = "#"; // TODO: Telegram signals channel invite link
-const LIVE_CLASSES_URL = "#"; // TODO: Zoom live-class registration link
-// ---------------------------------------------------------------------------
-
 interface MemberCard {
   key: string;
   eyebrow: string;
@@ -52,36 +46,39 @@ const CARDS: MemberCard[] = [
     href: "/course",
   },
   {
+    key: "daily-analysis",
+    eyebrow: "Desk",
+    title: "Daily Analysis",
+    desc: "The read on Gold, session by session.",
+    href: "/daily-analysis",
+  },
+  {
     key: "signals",
     eyebrow: "Live",
     title: "Signals",
     desc: "Three to five high-conviction calls a day.",
-    href: SIGNALS_URL,
-    external: true,
+    href: "/signals",
   },
   {
     key: "live-classes",
     eyebrow: "Live",
     title: "Live Classes",
     desc: "Two sessions a week, London and New York.",
-    href: LIVE_CLASSES_URL,
-    external: true,
+    href: "/live-classes",
   },
   {
     key: "know-your-style",
     eyebrow: "Bots",
     title: "Know Your Style",
     desc: "Find the trading profile you'll actually stick to.",
-    href: "#",
-    comingSoon: true,
+    href: "/bots/know-your-style",
   },
   {
     key: "fundamental-desk",
     eyebrow: "Bots",
     title: "Fundamental Analysis Desk",
     desc: "Macro context for the pairs you trade.",
-    href: "#",
-    comingSoon: true,
+    href: "/bots/fundamental",
   },
 ];
 
