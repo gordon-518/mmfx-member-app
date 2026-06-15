@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
-import { Chakra_Petch, Sora, JetBrains_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const chakra = Chakra_Petch({
+// Display — characterful, warm, modern. Body — clean, friendly, legible.
+const display = Bricolage_Grotesque({
   variable: "--font-display",
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
   subsets: ["latin"],
 });
 
-const sora = Sora({
+const sans = Hanken_Grotesk({
   variable: "--font-sans",
   subsets: ["latin"],
 });
 
+// Mono kept for legacy (terminal) pages until they're migrated.
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
@@ -21,7 +23,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Market Makers FX — Member Access",
   description:
-    "Secure desk access for Market Makers FX. Forex education · signals · community.",
+    "Member access for Market Makers FX — gold trading education, signals, and community.",
 };
 
 export default function RootLayout({
@@ -32,7 +34,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${chakra.variable} ${sora.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
