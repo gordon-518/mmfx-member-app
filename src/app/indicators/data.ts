@@ -9,6 +9,8 @@ export interface Indicator {
   type: string;
   signal: string;
   tvUrl?: string;
+  /** Set when no <slug>-cover.png exists yet — the card shows a branded fallback. */
+  noCover?: boolean;
 }
 
 export const INDICATORS: Indicator[] = [
@@ -18,8 +20,8 @@ export const INDICATORS: Indicator[] = [
   { name: "MM Echo Predictor", slug: "echo-predictor", type: "ML Classifier", signal: "Bar-color direction bias", tvUrl: "https://www.tradingview.com/script/cFyNYi1E-MM-Echo-Predictor/" },
   { name: "MM Trend Rail", slug: "trend-rail", type: "Trend", signal: "Trail direction + flip", tvUrl: "https://www.tradingview.com/script/tEs31VWM-MM-Trend-Rail/" },
   { name: "MM Pivot Trend", slug: "pivot-trend", type: "Trend", signal: "Early reversal detection", tvUrl: "https://www.tradingview.com/script/1ztDth3L-MM-Pivot-Trend/" },
-  { name: "MM Session VWAP", slug: "session-vwap", type: "Volume", signal: "Session fair value + AMD" },
-  { name: "MM Auto Trendlines", slug: "auto-trendlines", type: "Structure", signal: "Break-and-retest patterns" },
+  { name: "MM MTF Minicharts", slug: "mtf-minicharts", type: "Multi-Timeframe", signal: "Six timeframes beside live price", tvUrl: "https://www.tradingview.com/script/EFN8WkXI-MM-MTF-Minicharts/" },
+  { name: "MM Auto Trendlines", slug: "auto-trendlines", type: "Structure", signal: "Break-and-retest patterns", tvUrl: "https://www.tradingview.com/script/2ovm0ORy-MM-Auto-Trendlines/" },
   { name: "MM Adaptive MA", slug: "adaptive-ma", type: "Trend", signal: "Slope direction + efficiency ratio", tvUrl: "https://www.tradingview.com/script/oM5iK4vt-MM-Adaptive-MA/" },
   { name: "MM Reversion Bands", slug: "reversion-bands", type: "Statistical", signal: "Outer-band stretch signals", tvUrl: "https://www.tradingview.com/script/INJR52ux-MM-Reversion-Bands/" },
 ];

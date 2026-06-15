@@ -133,14 +133,25 @@ export default async function IndicatorsPage({
           {INDICATORS.map((ind) => {
             const inner = (
               <>
-                <div className="relative aspect-video w-full bg-obsidian">
-                  <Image
-                    src={`/indicators/${ind.slug}-cover.png`}
-                    alt={`${ind.name} chart preview`}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover"
-                  />
+                <div className="relative flex aspect-video w-full items-center justify-center bg-obsidian">
+                  {ind.noCover ? (
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <span className="font-display text-lg font-bold tracking-tight text-pearl">
+                        MM <span className="text-orange">FX</span>
+                      </span>
+                      <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted">
+                        {ind.type}
+                      </span>
+                    </div>
+                  ) : (
+                    <Image
+                      src={`/indicators/${ind.slug}-cover.png`}
+                      alt={`${ind.name} chart preview`}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover"
+                    />
+                  )}
                 </div>
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
