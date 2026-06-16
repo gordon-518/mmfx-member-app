@@ -59,3 +59,6 @@ export const LogoutIcon = (p: I) => (
 export const SparkIcon = (p: I) => (
   <svg {...base(p)}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" /></svg>
 );
+export const NewsIcon = (p: I) => (
+  <svg {...base(p)}><path d="M4 5h12v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5Z" /><path d="M16 9h3a1 1 0 0 1 1 1v8a1 1 0 0 1-2 0" /><path d="M7 8.5h6M7 11.5h6M7 14.5h4" /></svg>
+);

@@ -3,6 +3,7 @@ import { getAccess } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardClient } from "./DashboardClient";
 import type { SpotlightSlide } from "./Spotlight";
+import { getNews, type NewsItem } from "@/lib/forexNews";
 
 function Centered({
   eyebrow,
@@ -113,6 +114,7 @@ export default async function DashboardPage() {
   // a single upgrade-nudge slide instead of gated content.
   let slides: SpotlightSlide[];
   let brief: DashboardBrief | null = null;
+  let news: NewsItem[] = [];
   if (locked) {
     slides = [
       {
@@ -184,6 +186,10 @@ export default async function DashboardPage() {
       latestDate: latest ? fmtDay(latest.published_on) : null,
       nextClassInDays: nextClass ? daysUntil(nextClass.starts_at) : null,
     };
+
+    // Top gold/macro headlines for the dashboard teaser (cached fetch shared
+    // with /news, so no extra quota burn).
+    news = (await getNews()).slice(0, 6);
   }
 
   return (
@@ -194,6 +200,7 @@ export default async function DashboardPage() {
       tier={access.tier}
       slides={slides}
       brief={brief}
+      news={news}
     />
   );
 }

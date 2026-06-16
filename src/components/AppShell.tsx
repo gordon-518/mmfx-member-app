@@ -7,7 +7,7 @@ import { signOut } from "@/app/dashboard/actions";
 import type { AccountStatus, AccessTier } from "@/lib/trial/status";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
-  AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon,
+  AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon,
 } from "./icons";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -19,6 +19,7 @@ const NAV: { label: string; href: string; icon: Icon }[] = [
   { label: "Library", href: "/library", icon: LibraryIcon },
   { label: "Course", href: "/course", icon: CourseIcon },
   { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
+  { label: "News & Articles", href: "/news", icon: NewsIcon },
   { label: "Signals", href: "/signals", icon: SignalsIcon },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
   { label: "Know Your Style", href: "/bots/know-your-style", icon: StyleIcon },

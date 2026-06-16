@@ -5,12 +5,12 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { headerContent } from "./headerContent";
 import type { AccountStatus, AccessTier } from "@/lib/trial/status";
-import { ArrowIcon, LockIcon, LibraryIcon, AnalysisIcon, LiveIcon, SignalsIcon } from "@/components/icons";
+import { ArrowIcon, LockIcon, LibraryIcon, AnalysisIcon, LiveIcon, SignalsIcon, NewsIcon } from "@/components/icons";
 import { Spotlight, type SpotlightSlide } from "./Spotlight";
 import { MarketBar } from "./MarketBar";
-import { EconomicCalendar } from "./EconomicCalendar";
 import { STAGES, FOUNDATIONS, type RailCard } from "./rails";
 import type { DashboardBrief } from "./page";
+import type { NewsItem } from "@/lib/forexNews";
 
 function titleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -118,6 +118,77 @@ function FeatureCard({ card, locked }: { card: RailCard; locked: boolean }) {
   );
 }
 
+const SENT_STYLE: Record<string, string> = {
+  Positive: "bg-[#E1F5EE] text-[#0F6E56]",
+  Negative: "bg-[#FCEBEB] text-[#A32D2D]",
+  Neutral: "bg-paper text-subtle",
+};
+
+function fmtNewsDate(d: string): string {
+  const t = new Date(d);
+  return Number.isNaN(t.getTime())
+    ? ""
+    : t.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+}
+
+function NewsTeaser({ items }: { items: NewsItem[] }) {
+  return (
+    <div className="rise mt-10" style={{ animationDelay: "0.3s" }}>
+      <div className="mb-4 flex items-baseline justify-between gap-3">
+        <h3 className="flex items-center gap-2 font-display text-lg font-bold tracking-tight text-ink">
+          <NewsIcon width={18} height={18} className="text-accent-ink" /> Forex &amp; macro news
+        </h3>
+        <Link href="/news" className="text-[13px] font-semibold text-orange transition-colors hover:text-accent-ink">
+          View all →
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((n) => (
+          <a
+            key={n.url}
+            href={n.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition-all hover:-translate-y-0.5 hover:border-orange/30 hover:shadow-soft-lg"
+          >
+            <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden bg-accent-soft">
+              <NewsIcon width={26} height={26} className="text-accent-ink/40" />
+              {n.image && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={n.image}
+                  alt=""
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              )}
+              <span className={`absolute left-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${SENT_STYLE[n.sentiment] ?? "bg-paper text-subtle"}`}>
+                {n.sentiment}
+              </span>
+            </div>
+            <div className="flex flex-1 flex-col p-4">
+              <span className="text-[11px] text-faint">
+                {n.source}{fmtNewsDate(n.date) ? ` · ${fmtNewsDate(n.date)}` : ""}
+              </span>
+              <h4 className="mt-1 line-clamp-2 font-display text-[15px] font-bold leading-snug tracking-tight text-ink group-hover:text-accent-ink">
+                {n.title}
+              </h4>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                {n.topics.slice(0, 3).map((t) => (
+                  <span key={t} className="rounded-full bg-paper px-2 py-0.5 text-[10px] font-medium text-subtle">{t}</span>
+                ))}
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DashboardClient({
   email,
   accountStatus,
@@ -125,6 +196,7 @@ export function DashboardClient({
   tier,
   slides,
   brief,
+  news,
 }: {
   email: string;
   accountStatus: AccountStatus;
@@ -132,6 +204,7 @@ export function DashboardClient({
   tier: AccessTier;
   slides: SpotlightSlide[];
   brief: DashboardBrief | null;
+  news: NewsItem[];
 }) {
   const head = headerContent(accountStatus, daysLeft);
   const locked = tier !== "Full";
@@ -256,14 +329,8 @@ export function DashboardClient({
           </div>
         </div>
 
-        {/* Economic calendar — this week's gold movers */}
-        <div className="rise mt-10" style={{ animationDelay: "0.3s" }}>
-          <div className="mb-4 flex items-baseline justify-between gap-3">
-            <h3 className="font-display text-lg font-bold tracking-tight text-ink">This week on the calendar</h3>
-            <span className="hidden text-[13px] text-subtle sm:block">High-impact events that move gold</span>
-          </div>
-          <EconomicCalendar />
-        </div>
+        {/* Gold & macro headline news → /news */}
+        {news.length > 0 && <NewsTeaser items={news} />}
       </div>
     </AppShell>
   );
