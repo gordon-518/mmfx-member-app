@@ -15,6 +15,27 @@ export type CourseLevel = "Basic" | "Intermediate" | "Advanced";
 
 export const LEVELS: CourseLevel[] = ["Basic", "Intermediate", "Advanced"];
 
+// The curriculum spine — named modules that turn the 19 lessons into a path
+// (mindset → reading price → bias → entry → management) instead of three flat
+// difficulty buckets. Lessons belong to a module by their `number` (inclusive
+// range), so the lesson list stays the single source of order.
+export interface CourseModule {
+  id: number;
+  title: string;
+  summary: string;
+  from: number;
+  to: number;
+}
+
+export const MODULES: CourseModule[] = [
+  { id: 1, title: "Foundations", summary: "Mindset & gold basics", from: 0, to: 2 },
+  { id: 2, title: "Reading Price", summary: "Structure & core concepts", from: 3, to: 5 },
+  { id: 3, title: "The Institutional Edge", summary: "Liquidity & displacement", from: 6, to: 7 },
+  { id: 4, title: "Building Your Bias", summary: "Top-down analysis", from: 8, to: 9 },
+  { id: 5, title: "The Entry Model", summary: "Intraday framework to the trigger", from: 10, to: 14 },
+  { id: 6, title: "Managing & Routine", summary: "Risk, news & your daily SOP", from: 15, to: 18 },
+];
+
 export interface Lesson {
   slug: string;
   number: number;
