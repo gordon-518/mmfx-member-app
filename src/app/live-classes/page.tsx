@@ -1,5 +1,6 @@
-import Link from "next/link";
 import { requireFull } from "@/lib/access";
+import { AppShell } from "@/components/AppShell";
+import { ExternalIcon } from "@/components/icons";
 import { createClient } from "@/lib/supabase/server";
 
 interface ClassRow {
@@ -30,7 +31,7 @@ function splitByTime(rows: ClassRow[]): { upcoming: ClassRow[]; past: ClassRow[]
 
 export default async function LiveClassesPage() {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  await requireFull();
+  const profile = await requireFull();
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -41,64 +42,41 @@ export default async function LiveClassesPage() {
   const { upcoming, past } = splitByTime(all);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-obsidian">
-      {/* Atmosphere */}
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="session-grid absolute inset-0" />
-        <div className="absolute -right-40 -top-40 h-[30rem] w-[30rem] rounded-full bg-orange/10 blur-[150px]" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange/40 to-transparent" />
-      </div>
-
-      {/* Top bar */}
-      <header className="relative z-10 flex items-center justify-between border-b border-pearl/10 px-6 py-5 sm:px-10">
-        <Link href="/dashboard" className="flex items-baseline gap-3">
-          <span className="font-display text-lg font-bold tracking-tight text-pearl">
-            MARKET MAKERS <span className="text-orange">FX</span>
-          </span>
-          <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-muted sm:inline">
-            Live Classes
-          </span>
-        </Link>
-        <Link
-          href="/dashboard"
-          className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted transition-colors hover:text-orange"
-        >
-          ← Desk
-        </Link>
-      </header>
-
-      <div className="relative z-10 mx-auto max-w-3xl px-6 py-10 sm:px-10">
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full">
+      <div className="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
-        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-orange/80">
-          Live · London / New York
-        </p>
-        <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-pearl sm:text-4xl">
-          Live Classes
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-          Twice a week, live on the charts. Times are shown in UTC.
-        </p>
+        <div className="rise">
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
+            Live · London / New York
+          </p>
+          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">
+            Live Classes
+          </h1>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">
+            Twice a week, live on the charts. Times are shown in UTC.
+          </p>
+        </div>
 
         {/* Upcoming */}
-        <p className="mb-4 mt-10 font-mono text-[10px] uppercase tracking-[0.28em] text-orange/80">
+        <p className="rise mb-4 mt-9 text-[12px] font-semibold uppercase tracking-wider text-orange">
           Upcoming
         </p>
         {upcoming.length === 0 ? (
-          <p className="rounded-lg border border-pearl/10 bg-graphite/40 px-5 py-8 text-center font-mono text-sm text-muted">
+          <p className="rise rounded-2xl border border-line bg-card px-5 py-10 text-center text-[14px] text-subtle shadow-soft">
             No classes scheduled yet. Check back soon.
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="rise space-y-3">
             {upcoming.map((c) => (
               <div
                 key={c.id}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-pearl/10 bg-graphite/70 p-5"
+                className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-card p-5 shadow-soft"
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
+                  <p className="text-[12px] font-semibold uppercase tracking-wide text-subtle">
                     {fmt(c.starts_at)}
                   </p>
-                  <h3 className="mt-1 font-display text-lg font-semibold text-pearl">
+                  <h3 className="mt-1 font-display text-[18px] font-bold tracking-tight text-ink">
                     {c.title}
                   </h3>
                 </div>
@@ -107,9 +85,9 @@ export default async function LiveClassesPage() {
                     href={c.zoom_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-orange px-5 py-3 font-display text-sm font-semibold uppercase tracking-wider text-black transition-transform duration-150 hover:-translate-y-px"
+                    className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
                   >
-                    Join the live class ↗
+                    Join the live class <ExternalIcon width={15} height={15} />
                   </a>
                 )}
               </div>
@@ -120,19 +98,19 @@ export default async function LiveClassesPage() {
         {/* Past (no join button) */}
         {past.length > 0 && (
           <>
-            <p className="mb-4 mt-10 font-mono text-[10px] uppercase tracking-[0.28em] text-muted">
+            <p className="mb-4 mt-10 text-[12px] font-semibold uppercase tracking-wider text-faint">
               Past
             </p>
             <div className="space-y-2">
               {past.map((c) => (
                 <div
                   key={c.id}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-pearl/10 bg-graphite/40 px-5 py-3"
+                  className="flex items-center justify-between gap-4 rounded-xl border border-line bg-card/50 px-5 py-3"
                 >
-                  <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
+                  <p className="text-[12px] font-semibold uppercase tracking-wide text-faint">
                     {fmt(c.starts_at)}
                   </p>
-                  <p className="min-w-0 flex-1 truncate text-right text-sm text-muted">
+                  <p className="min-w-0 flex-1 truncate text-right text-[14px] text-subtle">
                     {c.title}
                   </p>
                 </div>
@@ -141,6 +119,6 @@ export default async function LiveClassesPage() {
           </>
         )}
       </div>
-    </main>
+    </AppShell>
   );
 }

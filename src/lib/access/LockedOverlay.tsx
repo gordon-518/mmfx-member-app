@@ -26,20 +26,20 @@ export function LockedOverlay({
       : "/upgrade";
 
   return (
-    <div className="relative overflow-hidden rounded-lg">
+    <div className="relative overflow-hidden rounded-2xl">
       <div aria-hidden className="pointer-events-none select-none opacity-40 blur-[1.5px]">
         {children}
       </div>
-      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 bg-obsidian/60">
+      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2.5 bg-paper/70 backdrop-blur-sm">
         <span
           aria-hidden
-          className="font-mono text-[10px] uppercase tracking-[0.28em] text-muted"
+          className="text-[11px] font-semibold uppercase tracking-wider text-faint"
         >
-          ▪ Locked
+          Locked
         </span>
         <Link
           href={safeHref}
-          className="border border-orange/60 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.2em] text-orange transition-colors hover:bg-orange hover:text-black"
+          className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
         >
           {ctaLabel}
         </Link>

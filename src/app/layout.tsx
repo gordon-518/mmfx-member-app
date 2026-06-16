@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 
 // Display — characterful, warm, modern. Body — clean, friendly, legible.
@@ -11,12 +11,6 @@ const display = Bricolage_Grotesque({
 
 const sans = Hanken_Grotesk({
   variable: "--font-sans",
-  subsets: ["latin"],
-});
-
-// Mono kept for legacy (terminal) pages until they're migrated.
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-mono",
   subsets: ["latin"],
 });
 
@@ -34,7 +28,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${display.variable} ${sans.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
