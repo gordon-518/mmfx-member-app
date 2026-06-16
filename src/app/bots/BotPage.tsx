@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon } from "@/components/icons";
 import type { AccountStatus } from "@/lib/trial/status";
+import { BotNav } from "./BotNav";
 
 // Shared shell for the two gated bot pages: header + embedded bot iframe + an
 // always-visible "Open in new tab" launcher. The launcher is the reliable
@@ -57,6 +58,9 @@ export function BotPage({
             Open in new tab <ExternalIcon width={15} height={15} />
           </a>
         </div>
+
+        {/* Lets the embedded bot request in-app navigation (deep-link buttons). */}
+        {embeddable && <BotNav origin={new URL(botUrl).origin} />}
 
         {/* Embedded bot, or a clean launch panel when the bot blocks framing. */}
         <div className="rise relative min-h-[600px] flex-1 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
