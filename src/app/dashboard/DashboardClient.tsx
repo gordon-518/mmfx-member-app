@@ -1,76 +1,120 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import type { ComponentType, SVGProps } from "react";
-import { signOut } from "./actions";
+import { AppShell } from "@/components/AppShell";
 import { headerContent } from "./headerContent";
 import type { AccountStatus, AccessTier } from "@/lib/trial/status";
-import {
-  HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
-  AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon,
-  ArrowIcon, LockIcon, LogoutIcon,
-} from "./icons";
+import { ArrowIcon, LockIcon, LibraryIcon, AnalysisIcon, LiveIcon, SignalsIcon } from "@/components/icons";
+import { Spotlight, type SpotlightSlide } from "./Spotlight";
+import { MarketBar } from "./MarketBar";
+import { EconomicCalendar } from "./EconomicCalendar";
+import { STAGES, FOUNDATIONS, type RailCard } from "./rails";
+import type { DashboardBrief } from "./page";
 
-type Icon = ComponentType<SVGProps<SVGSVGElement>>;
-
-interface Surface {
-  key: string;
-  label: string;
-  title: string;
-  desc: string;
-  href: string;
-  icon: Icon;
-  wide?: boolean;
+function titleCase(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const SURFACES: Surface[] = [
-  { key: "daily-analysis", label: "Desk", title: "Daily Analysis", desc: "The read on gold, session by session — bias, levels and the thesis behind them.", href: "/daily-analysis", icon: AnalysisIcon, wide: true },
-  { key: "course", label: "Education", title: "Video Course", desc: "The full MM System curriculum, lesson by lesson.", href: "/course", icon: CourseIcon, wide: true },
-  { key: "indicators", label: "Tools", title: "Indicators", desc: "The TradingView suite, keyed to you.", href: "/indicators", icon: IndicatorsIcon },
-  { key: "strategies", label: "Tools", title: "Strategies", desc: "Backtestable setups you can audit.", href: "/strategies", icon: StrategiesIcon },
-  { key: "signals", label: "Live", title: "Signals", desc: "A few high-conviction calls a day.", href: "/signals", icon: SignalsIcon },
-  { key: "live-classes", label: "Live", title: "Live Classes", desc: "Twice a week, on the charts.", href: "/live-classes", icon: LiveIcon },
-  { key: "library", label: "Library", title: "eBook Library", desc: "The written system & references.", href: "/library", icon: LibraryIcon },
-  { key: "know-your-style", label: "Bots", title: "Know Your Style", desc: "Find your trader archetype.", href: "/bots/know-your-style", icon: StyleIcon },
-  { key: "fundamental-desk", label: "Bots", title: "Fundamental Desk", desc: "Live macro read on gold.", href: "/bots/fundamental", icon: DeskIcon },
-];
+function biasChip(bias: string | null): string {
+  if (bias === "bullish") return "bg-accent-soft text-accent-ink";
+  if (bias === "bearish") return "bg-ink/5 text-ink";
+  return "bg-paper text-subtle";
+}
 
-const NAV: { label: string; href: string; icon: Icon }[] = [
-  { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
-  { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
-  { label: "Strategies", href: "/strategies", icon: StrategiesIcon },
-  { label: "Library", href: "/library", icon: LibraryIcon },
-  { label: "Course", href: "/course", icon: CourseIcon },
-  { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
-  { label: "Signals", href: "/signals", icon: SignalsIcon },
-  { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
-  { label: "Know Your Style", href: "/bots/know-your-style", icon: StyleIcon },
-  { label: "Fundamental Desk", href: "/bots/fundamental", icon: DeskIcon },
-];
+function nextClassLabel(d: number | null): string {
+  if (d == null) return "None scheduled";
+  if (d === 0) return "Today";
+  if (d === 1) return "Tomorrow";
+  return `in ${d} days`;
+}
 
-const container = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.045, delayChildren: 0.04 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] as const } },
-};
-
-function Wordmark() {
+function BriefCard({
+  icon: Icon,
+  label,
+  value,
+  chip,
+  href,
+}: {
+  icon: typeof AnalysisIcon;
+  label: string;
+  value: string;
+  chip?: string;
+  href: string;
+}) {
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange shadow-soft">
-        <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
-          <path d="M2 13L6.5 7.5L9.5 10.5L16 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="16" cy="3" r="1.6" fill="white" />
-        </svg>
+    <Link
+      href={href}
+      className="group flex items-center gap-3 rounded-2xl border border-line bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-orange/30 hover:shadow-soft-lg"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
+        <Icon width={18} height={18} />
       </span>
-      <span className="font-display text-[15px] font-bold tracking-tight text-ink">
-        Market Makers <span className="text-orange">FX</span>
+      <span className="min-w-0">
+        <span className="block text-[11px] font-semibold uppercase tracking-wide text-faint">{label}</span>
+        {chip ? (
+          <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[13px] font-semibold ${chip}`}>
+            {value}
+          </span>
+        ) : (
+          <span className="mt-0.5 block truncate text-[15px] font-bold tracking-tight text-ink">{value}</span>
+        )}
       </span>
+    </Link>
+  );
+}
+
+function TodaysBrief({ brief }: { brief: DashboardBrief }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <BriefCard
+        icon={AnalysisIcon}
+        label="Gold bias today"
+        value={brief.bias ? titleCase(brief.bias) : "See the read"}
+        chip={brief.bias ? biasChip(brief.bias) : undefined}
+        href="/daily-analysis"
+      />
+      <BriefCard
+        icon={LiveIcon}
+        label="Next live class"
+        value={nextClassLabel(brief.nextClassInDays)}
+        href="/live-classes"
+      />
+      <BriefCard
+        icon={SignalsIcon}
+        label="Latest read"
+        value={brief.latestDate ? `${brief.latestDate}${brief.session ? ` · ${brief.session}` : ""}` : "Daily Analysis"}
+        href="/daily-analysis"
+      />
     </div>
+  );
+}
+
+function FeatureCard({ card, locked }: { card: RailCard; locked: boolean }) {
+  const href = locked ? "/upgrade" : card.href;
+  return (
+    <Link
+      href={href}
+      aria-label={locked ? `${card.title} — upgrade to unlock` : card.title}
+      className={`group flex items-start gap-3 rounded-xl border border-line bg-card p-3.5 shadow-soft transition-all hover:-translate-y-0.5 hover:border-orange/30 hover:shadow-soft-lg ${
+        locked ? "opacity-75 hover:opacity-100" : ""
+      }`}
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
+        <card.icon width={18} height={18} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-2">
+          <span className="font-display text-[14px] font-bold tracking-tight text-ink">{card.title}</span>
+          {locked ? (
+            <LockIcon width={14} height={14} className="shrink-0 text-faint" />
+          ) : (
+            <ArrowIcon width={15} height={15} className="shrink-0 text-faint transition-all group-hover:translate-x-0.5 group-hover:text-orange" />
+          )}
+        </span>
+        <span className="mt-0.5 block text-[12px] leading-snug text-subtle">{card.blurb}</span>
+      </span>
+    </Link>
   );
 }
 
@@ -79,184 +123,148 @@ export function DashboardClient({
   accountStatus,
   daysLeft,
   tier,
+  slides,
+  brief,
 }: {
   email: string;
   accountStatus: AccountStatus;
   daysLeft: number;
   tier: AccessTier;
+  slides: SpotlightSlide[];
+  brief: DashboardBrief | null;
 }) {
   const head = headerContent(accountStatus, daysLeft);
   const locked = tier !== "Full";
-  const isMember = accountStatus === "member_active";
   const firstName = email.split("@")[0];
 
   return (
-    <div className="min-h-screen bg-paper lg:grid lg:grid-cols-[260px_1fr]">
-      {/* ---------------- Sidebar ---------------- */}
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-card/60 px-4 py-6 lg:flex">
-        <div className="px-2">
-          <Wordmark />
+    <AppShell email={email} accountStatus={accountStatus} tier={tier}>
+      <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
+        {/* Live market bar */}
+        <div className="rise mb-6" style={{ animationDelay: "0s" }}>
+          <MarketBar />
         </div>
 
-        <nav className="mt-8 flex-1 space-y-0.5 overflow-y-auto">
-          {NAV.map((n) => {
-            const active = n.href === "/dashboard";
-            return (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
-                  active
-                    ? "bg-accent-soft text-accent-ink"
-                    : "text-subtle hover:bg-paper hover:text-ink"
-                }`}
-              >
-                <n.icon className={active ? "text-orange" : "text-faint group-hover:text-subtle"} />
-                {n.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="mt-4 border-t border-line pt-4">
-          <div className="flex items-center gap-3 rounded-xl px-2 py-1.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[13px] font-bold uppercase text-accent-ink">
-              {firstName.slice(0, 1)}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-medium text-ink">{email}</span>
-              <span className="block text-[11px] text-faint">
-                {isMember ? "Member" : tier === "Full" ? "Trial · Full access" : "Limited access"}
-              </span>
-            </span>
-            <form action={signOut}>
-              <button
-                type="submit"
-                aria-label="Sign out"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:bg-paper hover:text-ink"
-              >
-                <LogoutIcon />
-              </button>
-            </form>
-          </div>
-        </div>
-      </aside>
-
-      {/* ---------------- Main ---------------- */}
-      <main className="min-w-0">
-        {/* Mobile top bar */}
-        <div className="flex items-center justify-between border-b border-line px-5 py-4 lg:hidden">
-          <Wordmark />
-          <form action={signOut}>
-            <button type="submit" aria-label="Sign out" className="flex h-9 w-9 items-center justify-center rounded-lg text-subtle transition-colors hover:bg-card">
-              <LogoutIcon />
-            </button>
-          </form>
+        {/* Greeting */}
+        <div className="rise" style={{ animationDelay: "0.04s" }}>
+          <p className="text-[15px] text-subtle">Welcome back,</p>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink first-letter:uppercase">
+            {firstName}
+          </h1>
         </div>
 
-        <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
-          {/* Greeting */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
-            <p className="text-[15px] text-subtle">Welcome back,</p>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-ink first-letter:uppercase">
-              {firstName}
-            </h1>
-          </motion.div>
-
-          {/* Status hero */}
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
-            className={`mt-6 overflow-hidden rounded-2xl border p-6 shadow-soft sm:p-7 ${
-              head.cta?.kind === "push"
-                ? "border-orange/25 bg-gradient-to-br from-[#FFF1E9] to-card"
-                : "border-line bg-card"
-            }`}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-5">
-              <div className="min-w-0">
-                <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{head.eyebrow}</p>
-                <h2 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink">{head.title}</h2>
-                {head.body && <p className="mt-1.5 text-[14px] leading-relaxed text-subtle">{head.body}</p>}
-              </div>
-
-              {head.cta ? (
-                head.cta.kind === "push" ? (
-                  <Link href={head.cta.href} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg">
-                    {head.cta.label} <ArrowIcon width={16} height={16} />
-                  </Link>
-                ) : (
-                  <Link href={head.cta.href} className="shrink-0 text-[14px] font-semibold text-orange transition-colors hover:text-accent-ink">
-                    {head.cta.label} →
-                  </Link>
-                )
-              ) : (
-                <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent-soft px-4 py-2 text-[13px] font-semibold text-accent-ink">
-                  <span className="h-1.5 w-1.5 rounded-full bg-orange" /> Funded member
-                </span>
-              )}
+        {/* Status hero */}
+        <div
+          className={`rise mt-6 overflow-hidden rounded-2xl border p-6 shadow-soft sm:p-7 ${
+            head.cta?.kind === "push"
+              ? "border-orange/25 bg-gradient-to-br from-[#FFF1E9] to-card"
+              : "border-line bg-card"
+          }`}
+          style={{ animationDelay: "0.06s" }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div className="min-w-0">
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{head.eyebrow}</p>
+              <h2 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink">{head.title}</h2>
+              {head.body && <p className="mt-1.5 text-[14px] leading-relaxed text-subtle">{head.body}</p>}
             </div>
-          </motion.div>
 
-          {/* Surfaces — bento grid */}
-          <div className="mt-9 flex items-baseline justify-between">
-            <h3 className="font-display text-lg font-bold text-ink">Your desk</h3>
-            {locked && <span className="text-[13px] text-subtle">Unlock everything with full access</span>}
+            {head.cta ? (
+              head.cta.kind === "push" ? (
+                <Link href={head.cta.href} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg">
+                  {head.cta.label} <ArrowIcon width={16} height={16} />
+                </Link>
+              ) : (
+                <Link href={head.cta.href} className="shrink-0 text-[14px] font-semibold text-orange transition-colors hover:text-accent-ink">
+                  {head.cta.label} →
+                </Link>
+              )
+            ) : (
+              <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent-soft px-4 py-2 text-[13px] font-semibold text-accent-ink">
+                <span className="h-1.5 w-1.5 rounded-full bg-orange" /> Funded member
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Spotlight */}
+        <div className="rise mt-6" style={{ animationDelay: "0.12s" }}>
+          <Spotlight slides={slides} />
+        </div>
+
+        {/* Today's brief */}
+        {brief && (
+          <div className="rise mt-6" style={{ animationDelay: "0.16s" }}>
+            <TodaysBrief brief={brief} />
+          </div>
+        )}
+
+        {/* Workflow pipeline — the hook */}
+        <div className="rise mt-10" style={{ animationDelay: "0.18s" }}>
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="font-display text-lg font-bold tracking-tight text-ink">
+              Everything you need to trade profitably
+            </h3>
+            {locked && <span className="hidden text-[13px] text-subtle sm:block">Unlock it all with full access</span>}
           </div>
 
-          <motion.div
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            {SURFACES.map((s) => {
-              const span = s.wide ? "sm:col-span-2" : "";
-              const inner = (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
-                      <s.icon width={20} height={20} />
+          <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-stretch">
+            {STAGES.map((stage, idx) => (
+              <Fragment key={stage.n}>
+                <div className="flex-1 rounded-2xl border border-line bg-accent-soft/20 p-4">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[12px] font-bold text-accent-ink">
+                      {stage.n}
                     </span>
-                    {locked ? (
-                      <LockIcon width={16} height={16} className="text-faint" />
-                    ) : (
-                      <ArrowIcon width={18} height={18} className="text-faint transition-all group-hover:translate-x-0.5 group-hover:text-orange" />
-                    )}
+                    <div className="min-w-0">
+                      <div className="font-display text-[15px] font-bold tracking-tight text-ink">{stage.label}</div>
+                      <div className="text-[11px] text-faint">{stage.tagline}</div>
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">{s.label}</p>
-                    <h4 className="mt-1 font-display text-[17px] font-bold tracking-tight text-ink">{s.title}</h4>
-                    <p className="mt-1 text-[13px] leading-relaxed text-subtle">{s.desc}</p>
+                  <div className="mt-3 space-y-2.5">
+                    {stage.cards.map((c) => (
+                      <FeatureCard key={c.key} card={c} locked={locked} />
+                    ))}
                   </div>
-                </>
-              );
+                </div>
 
-              return (
-                <motion.div key={s.key} variants={item} className={span}>
-                  {locked ? (
-                    <Link
-                      href="/upgrade"
-                      className="group flex h-full cursor-pointer flex-col rounded-2xl border border-line bg-card p-5 opacity-75 shadow-soft transition-all hover:opacity-100 hover:shadow-soft-lg"
-                      aria-label={`${s.title} — upgrade to unlock`}
-                    >
-                      {inner}
-                    </Link>
-                  ) : (
-                    <Link
-                      href={s.href}
-                      className="group flex h-full cursor-pointer flex-col rounded-2xl border border-line bg-card p-5 shadow-soft transition-all hover:-translate-y-0.5 hover:border-orange/30 hover:shadow-soft-lg"
-                    >
-                      {inner}
-                    </Link>
-                  )}
-                </motion.div>
-              );
-            })}
-          </motion.div>
+                {idx < STAGES.length - 1 && (
+                  <div aria-hidden className="hidden shrink-0 items-center justify-center text-orange/60 lg:flex">
+                    <ArrowIcon width={20} height={20} />
+                  </div>
+                )}
+              </Fragment>
+            ))}
+          </div>
         </div>
-      </main>
-    </div>
+
+        {/* Foundations */}
+        <div className="rise mt-6 rounded-2xl border border-line bg-accent-soft/25 p-5" style={{ animationDelay: "0.24s" }}>
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
+              <LibraryIcon width={18} height={18} />
+            </span>
+            <div>
+              <h3 className="font-display text-[15px] font-bold tracking-tight text-ink">Foundations</h3>
+              <p className="text-[12px] text-faint">The skill under all three</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {FOUNDATIONS.map((c) => (
+              <FeatureCard key={c.key} card={c} locked={locked} />
+            ))}
+          </div>
+        </div>
+
+        {/* Economic calendar — this week's gold movers */}
+        <div className="rise mt-10" style={{ animationDelay: "0.3s" }}>
+          <div className="mb-4 flex items-baseline justify-between gap-3">
+            <h3 className="font-display text-lg font-bold tracking-tight text-ink">This week on the calendar</h3>
+            <span className="hidden text-[13px] text-subtle sm:block">High-impact events that move gold</span>
+          </div>
+          <EconomicCalendar />
+        </div>
+      </div>
+    </AppShell>
   );
 }
