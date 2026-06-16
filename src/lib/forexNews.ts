@@ -111,6 +111,92 @@ export async function getNews(pair?: string): Promise<NewsItem[]> {
   }
 }
 
+// ── Economic calendar ───────────────────────────────────────────────────
+// forexnewsapi's economic-calendar endpoint. We pull the next 7 days of
+// High+Medium-impact events (the market-movers — CPI, rate decisions, NFP).
+// The API returns newest-first and caps at 50, so a 7-day High/Medium window
+// (~20 events) is fully covered; we sort ascending for a real calendar.
+
+export type Impact = "High" | "Medium" | "Low";
+
+export interface CalEvent {
+  event: string;
+  country: string;
+  currency: string;
+  date: string; // RFC-2822
+  importance: Impact;
+  actual: string | null;
+  forecast: string | null;
+  previous: string | null;
+}
+
+interface ApiCalItem {
+  event_name?: string;
+  country?: string;
+  currency?: string;
+  date?: string;
+  importance?: string;
+  actual?: string | number | null;
+  forecast?: string | number | null;
+  previous?: string | number | null;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+// The `date` param wants MMDDYYYY.
+const mmddyyyy = (d: Date) => `${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}${d.getUTCFullYear()}`;
+
+function toStr(v: string | number | null | undefined): string | null {
+  return v === null || v === undefined || v === "" ? null : String(v);
+}
+
+function normalizeCal(raw: ApiCalItem): CalEvent | null {
+  if (!raw.event_name || !raw.date) return null;
+  const imp = raw.importance;
+  return {
+    event: raw.event_name,
+    country: raw.country ?? "",
+    currency: raw.currency ?? "",
+    date: raw.date,
+    importance: imp === "High" || imp === "Low" ? imp : "Medium",
+    actual: toStr(raw.actual),
+    forecast: toStr(raw.forecast),
+    previous: toStr(raw.previous),
+  };
+}
+
+export async function getEconomicCalendar(): Promise<CalEvent[]> {
+  const token = process.env.FOREXNEWSAPI_TOKEN;
+  if (!token) return process.env.NODE_ENV === "development" ? SAMPLE_CAL : [];
+
+  const now = new Date();
+  const end = new Date(now.getTime() + 7 * 86_400_000);
+  const range = `${mmddyyyy(now)}-${mmddyyyy(end)}`;
+
+  try {
+    const res = await fetch(
+      `https://forexnewsapi.com/api/v1/economic-calendar?date=${range}&importance=High,Medium&items=50&token=${token}`,
+      { next: { revalidate: REVALIDATE_SECONDS } }
+    );
+    if (!res.ok) return [];
+    const json = (await res.json()) as { data?: ApiCalItem[] };
+    const data = Array.isArray(json.data) ? json.data : [];
+    return data
+      .map(normalizeCal)
+      .filter((e): e is CalEvent => e !== null)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  } catch {
+    return [];
+  }
+}
+
+const SAMPLE_CAL: CalEvent[] = [
+  { event: "CPI y/y", country: "United States", currency: "USD", date: "Wed, 17 Jun 2026 08:30:00 -0400", importance: "High", actual: null, forecast: "3.0%", previous: "2.8%" },
+  { event: "Core CPI m/m", country: "United States", currency: "USD", date: "Wed, 17 Jun 2026 08:30:00 -0400", importance: "High", actual: null, forecast: "0.4%", previous: "0.7%" },
+  { event: "Official Bank Rate", country: "United Kingdom", currency: "GBP", date: "Thu, 18 Jun 2026 07:00:00 -0400", importance: "High", actual: null, forecast: "4.50%", previous: "4.50%" },
+  { event: "Retail Sales m/m", country: "United States", currency: "USD", date: "Thu, 18 Jun 2026 08:30:00 -0400", importance: "Medium", actual: null, forecast: "0.3%", previous: "0.1%" },
+  { event: "Overnight Rate", country: "Canada", currency: "CAD", date: "Fri, 19 Jun 2026 09:45:00 -0400", importance: "High", actual: null, forecast: "2.75%", previous: "2.75%" },
+];
+
 // Dev-only fallback so the page renders before the token is wired. Trimmed
 // from a real forexnewsapi response.
 const SAMPLE_NEWS: NewsItem[] = [

@@ -62,3 +62,6 @@ export const SparkIcon = (p: I) => (
 export const NewsIcon = (p: I) => (
   <svg {...base(p)}><path d="M4 5h12v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5Z" /><path d="M16 9h3a1 1 0 0 1 1 1v8a1 1 0 0 1-2 0" /><path d="M7 8.5h6M7 11.5h6M7 14.5h4" /></svg>
 );
+export const CalendarIcon = (p: I) => (
+  <svg {...base(p)}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 9h16M8 3v4M16 3v4" /><path d="M8 13h2M14 13h2M8 16.5h2M14 16.5h2" /></svg>
+);
