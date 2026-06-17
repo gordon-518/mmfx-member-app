@@ -58,7 +58,7 @@ export default async function IndicatorsPage({
                   required
                   maxLength={100}
                   placeholder="update username"
-                  className="w-56 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[14px] text-ink placeholder:text-faint focus:border-orange/40 focus:outline-none focus:ring-2 focus:ring-orange/15"
+                  className="w-full sm:w-56 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[14px] text-ink placeholder:text-faint focus:border-orange/40 focus:outline-none focus:ring-2 focus:ring-orange/15"
                 />
                 <button
                   type="submit"
@@ -85,7 +85,7 @@ export default async function IndicatorsPage({
                   required
                   maxLength={100}
                   placeholder="your TradingView username"
-                  className="w-72 rounded-xl border border-line bg-paper px-3.5 py-3 text-[14px] text-ink placeholder:text-faint focus:border-orange/40 focus:outline-none focus:ring-2 focus:ring-orange/15"
+                  className="w-full sm:w-72 rounded-xl border border-line bg-paper px-3.5 py-3 text-[14px] text-ink placeholder:text-faint focus:border-orange/40 focus:outline-none focus:ring-2 focus:ring-orange/15"
                 />
                 <button
                   type="submit"

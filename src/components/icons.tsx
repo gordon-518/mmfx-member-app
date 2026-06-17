@@ -65,3 +65,9 @@ export const NewsIcon = (p: I) => (
 export const CalendarIcon = (p: I) => (
   <svg {...base(p)}><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 9h16M8 3v4M16 3v4" /><path d="M8 13h2M14 13h2M8 16.5h2M14 16.5h2" /></svg>
 );
+export const MenuIcon = (p: I) => (
+  <svg {...base(p)}><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></svg>
+);
+export const CloseIcon = (p: I) => (
+  <svg {...base(p)}><path d="M6 6l12 12" /><path d="M18 6 6 18" /></svg>
+);
