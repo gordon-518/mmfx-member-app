@@ -34,17 +34,31 @@ const LOCKED_ITEMS: { label: string; icon: Icon }[] = [
 
 const ASSURANCES = ["No subscription", "No card on file", "No fee", "The deposit stays yours"];
 
-export default async function UpgradePage() {
+export default async function UpgradePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ geo?: string }>;
+}) {
   const access = await getAccess();
   if (!access.signedIn) {
     redirect("/login");
   }
 
-  const country = ((await headers()).get("x-vercel-ip-country") ?? "").toUpperCase();
-  const region = regionFor(country);
+  // Admins can preview any region with ?geo=XX (e.g. ?geo=MY, ?geo=US). The
+  // override is ignored for everyone else, so it can't be used to pick a broker.
+  const isAdmin = access.profile?.is_admin === true;
+  const { geo } = await searchParams;
+  const override = isAdmin && typeof geo === "string" && geo.trim() ? geo.trim().toUpperCase() : null;
+  const headerCountry = ((await headers()).get("x-vercel-ip-country") ?? "").toUpperCase();
+  const region = regionFor(override ?? headerCountry);
 
   return (
     <main className="min-h-screen bg-paper">
+      {override && (
+        <div className="bg-ink px-5 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wider text-white">
+          Admin preview · geo={override} → {region}
+        </div>
+      )}
       {/* Minimal top bar — focused conversion page, no member sidebar. */}
       <header className="flex items-center justify-between border-b border-line bg-card/60 px-5 py-4 sm:px-8">
         <Link href="/dashboard">
