@@ -48,21 +48,26 @@ function Check() {
   );
 }
 
-export function AuthScreen({ copy }: { copy: AuthCopy }) {
+export function AuthScreen({ copy, collectName = false }: { copy: AuthCopy; collectName?: boolean }) {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!email || status === "sending") return;
+    if (!email || (collectName && !name.trim()) || status === "sending") return;
     setStatus("sending");
     setErrorMsg("");
 
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/auth/confirm` },
+      options: {
+        emailRedirectTo: `${location.origin}/auth/confirm`,
+        // Captured on /signup; the handle_new_user trigger copies it into profiles.full_name.
+        ...(collectName ? { data: { full_name: name.trim() } } : {}),
+      },
     });
 
     if (error) {
@@ -161,6 +166,30 @@ export function AuthScreen({ copy }: { copy: AuthCopy }) {
               </p>
 
               <form onSubmit={handleSubmit} className="rise mt-8" style={{ animationDelay: "0.12s" }}>
+                {collectName && (
+                  <div className="mb-4">
+                    <label htmlFor="name" className="mb-2 block text-sm font-medium text-ink">
+                      Full name
+                    </label>
+                    <div className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-3.5 transition-all focus-within:border-orange focus-within:ring-2 focus-within:ring-orange/15">
+                      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="text-faint">
+                        <circle cx="10" cy="6.5" r="3" stroke="currentColor" strokeWidth="1.5" />
+                        <path d="M4 16.5a6 6 0 0 1 12 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                      <input
+                        id="name"
+                        type="text"
+                        autoComplete="name"
+                        required
+                        autoFocus
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Your name"
+                        className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-faint focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
                 <label htmlFor="email" className="mb-2 block text-sm font-medium text-ink">
                   Email address
                 </label>
@@ -181,7 +210,7 @@ export function AuthScreen({ copy }: { copy: AuthCopy }) {
                     inputMode="email"
                     autoComplete="email"
                     required
-                    autoFocus
+                    autoFocus={!collectName}
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);

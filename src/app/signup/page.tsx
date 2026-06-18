@@ -16,12 +16,12 @@ const SIGNUP_COPY: AuthCopy = {
   sentHeading: "Check your inbox",
   sentBodyPre: "We sent a secure activation link to ",
   sentBodyPost: ". Click it to open your desk — your 14 days start the moment you're in, no password needed.",
-  footnote: "No password. No card on file. Just your email.",
+  footnote: "No password. No card on file. Free for 14 days.",
   altPrompt: "Already a member?",
   altLabel: "Sign in",
   altHref: "/login",
 };
 
 export default function SignupPage() {
-  return <AuthScreen copy={SIGNUP_COPY} />;
+  return <AuthScreen copy={SIGNUP_COPY} collectName />;
 }

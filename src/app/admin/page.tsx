@@ -60,6 +60,7 @@ const BTN_GHOST =
 interface AdminProfileRow {
   id: string;
   email: string;
+  full_name: string | null;
   account_status: AccountStatus;
   trial_count: number;
   trial_ends_at: string | null;
@@ -133,7 +134,7 @@ export default async function AdminPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, email, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username"
+      "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username"
     )
     .order("created_at", { ascending: true });
 
@@ -277,11 +278,15 @@ export default async function AdminPage({
                 return (
                   <tr key={p.id} className="border-b border-line align-top last:border-b-0">
                     <td className="px-3 py-3">
-                      {p.email}
+                      {p.full_name && (
+                        <span className="block font-medium text-ink">{p.full_name}</span>
+                      )}
+                      <span className={p.full_name ? "text-subtle" : undefined}>{p.email}</span>
                       {p.is_admin && (
                         <span className="ml-1 font-semibold text-orange">(admin)</span>
                       )}
                     </td>
+
                     <td className="px-3 py-3">{p.account_status}</td>
                     <td className="px-3 py-3">{p.trial_count}</td>
                     <td className="px-3 py-3">{fmt(p.trial_ends_at)}</td>
