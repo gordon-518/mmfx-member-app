@@ -32,7 +32,11 @@ const LOCKED_ITEMS: { label: string; icon: Icon }[] = [
   { label: "Know Your Style & the Macro desk", icon: DeskIcon },
 ];
 
-const ASSURANCES = ["No subscription", "No card on file", "No fee", "The deposit stays yours"];
+// Broker regions: the deposit-you-own model (no fee). US/UK: a paid one-time
+// lifetime membership (the brokers can't host them) — so the copy must differ,
+// or it would falsely claim "no fee" to people who do pay.
+const ASSURANCES_BROKER = ["No subscription", "No card on file", "No fee", "The deposit stays yours"];
+const ASSURANCES_CONTACT = ["One-time payment", "Lifetime access", "No recurring fees", "Details on Telegram"];
 
 export default async function UpgradePage({
   searchParams,
@@ -51,6 +55,8 @@ export default async function UpgradePage({
   const override = isAdmin && typeof geo === "string" && geo.trim() ? geo.trim().toUpperCase() : null;
   const headerCountry = ((await headers()).get("x-vercel-ip-country") ?? "").toUpperCase();
   const region = regionFor(override ?? headerCountry);
+  const isContact = region === "contact";
+  const assurances = isContact ? ASSURANCES_CONTACT : ASSURANCES_BROKER;
 
   return (
     <main className="min-h-screen bg-paper">
@@ -104,14 +110,23 @@ export default async function UpgradePage({
           ))}
         </ul>
 
-        {/* The reframe */}
+        {/* The reframe — region-aware (broker deposit model vs US/UK lifetime fee) */}
         <div className="mt-12">
           <p className="font-display text-2xl font-bold leading-snug tracking-tight text-ink sm:text-[28px]">
-            Keeping all of it isn&apos;t a $500 purchase. It&apos;s{" "}
-            <span className="text-orange">$500 that stays yours.</span>
+            {isContact ? (
+              <>
+                In your region, access is a one-time{" "}
+                <span className="text-orange">lifetime membership.</span>
+              </>
+            ) : (
+              <>
+                Keeping all of it isn&apos;t a $500 purchase. It&apos;s{" "}
+                <span className="text-orange">$500 that stays yours.</span>
+              </>
+            )}
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            {ASSURANCES.map((a) => (
+            {assurances.map((a) => (
               <span
                 key={a}
                 className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-3.5 py-1.5 text-[12.5px] font-medium text-ink"
@@ -123,12 +138,23 @@ export default async function UpgradePage({
           </div>
         </div>
 
-        {/* The mechanism — founder voice, trimmed */}
+        {/* The mechanism — founder voice, region-aware */}
         <blockquote className="mt-10 rounded-2xl border border-line bg-accent-soft/40 p-6">
           <p className="text-[16px] leading-relaxed text-ink">
-            I don&apos;t charge traders for education, and I never will. When you
-            fund your own account, the broker funds your seat — your money goes
-            into your trading, not a subscription.
+            {isContact ? (
+              <>
+                Where you are, the brokers I work with can&apos;t take clients — so
+                I can&apos;t fund your seat through a deposit like I do elsewhere.
+                Instead it&apos;s a single lifetime payment, and we&apos;ll sort the
+                details with you directly on Telegram.
+              </>
+            ) : (
+              <>
+                I don&apos;t charge traders for education, and I never will. When you
+                fund your own account, the broker funds your seat — your money goes
+                into your trading, not a subscription.
+              </>
+            )}
           </p>
         </blockquote>
 
