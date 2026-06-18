@@ -3,7 +3,7 @@
 import { useState, type ComponentType, type ReactNode, type SVGProps } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  UserPlusIcon, WalletIcon, ChatIcon, CheckIcon, SwapIcon, SparkIcon,
+  UserPlusIcon, WalletIcon, ChatIcon, CheckIcon, SwapIcon, SparkIcon, TelegramIcon, WhatsAppIcon,
 } from "@/components/icons";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -30,7 +30,7 @@ const CONTACT_WHATSAPP_URL =
 const CONTACT_TELEGRAM_URL = "https://t.me/m/GIf6KqN9ZWZl";
 // -----------------------------------------------------------------------------
 
-type Cta = { label: string; href: string; primary?: boolean };
+type Cta = { label: string; href: string; primary?: boolean; icon?: Icon };
 type Step = {
   icon: Icon;
   title: string;
@@ -43,9 +43,12 @@ function CtaButton({ cta }: { cta: Cta }) {
   const cls = cta.primary
     ? "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto"
     : "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto";
+  const Icon = cta.icon;
   return (
     <a href={cta.href} target="_blank" rel="noopener noreferrer" className={cls}>
-      {cta.label} <span aria-hidden>{cta.primary ? "→" : "↗"}</span>
+      {Icon && <Icon className="h-[17px] w-[17px]" />}
+      {cta.label}
+      {!Icon && <span aria-hidden>{cta.primary ? "→" : "↗"}</span>}
     </a>
   );
 }
@@ -148,8 +151,8 @@ function newAccountSteps(region: "octa" | "dupoin"): Step[] {
       title: "Send us your details",
       body: <>Once you&apos;ve funded, message us with {DETAILS_LINE} so we can match your account and switch you on.</>,
       ctas: [
-        { label: "WhatsApp", href: WHATSAPP_URL, primary: true },
-        { label: "Telegram", href: TELEGRAM_URL },
+        { label: "WhatsApp", href: WHATSAPP_URL, primary: true, icon: WhatsAppIcon },
+        { label: "Telegram", href: TELEGRAM_URL, icon: TelegramIcon },
       ],
     },
     {
@@ -190,10 +193,10 @@ function octaSwitchSteps(): Step[] {
     {
       icon: ChatIcon,
       title: "Send us your details",
-      body: <>Message @MM_3000 with {DETAILS_LINE} so we can add you. It switches over within about an hour.</>,
+      body: <>Message our support with {DETAILS_LINE} so we can add you. It switches over within about an hour.</>,
       ctas: [
-        { label: "Message @MM_3000", href: TELEGRAM_SWITCH, primary: true },
-        { label: "WhatsApp", href: WHATSAPP_URL },
+        { label: "Telegram", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon },
+        { label: "WhatsApp", href: WHATSAPP_URL, icon: WhatsAppIcon },
       ],
     },
     {
@@ -220,10 +223,10 @@ function dupoinSwitchSteps(): Step[] {
     {
       icon: ChatIcon,
       title: "Send us your Full Name + UID",
-      body: <>Message @MM_3000 and we&apos;ll process the partner switch with Dupoin by hand.</>,
+      body: <>Message our support and we&apos;ll process the partner switch with Dupoin by hand.</>,
       ctas: [
-        { label: "Message @MM_3000", href: TELEGRAM_SWITCH, primary: true },
-        { label: "WhatsApp", href: WHATSAPP_URL },
+        { label: "Telegram", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon },
+        { label: "WhatsApp", href: WHATSAPP_URL, icon: WhatsAppIcon },
       ],
     },
     {
@@ -252,10 +255,12 @@ function ContactCard() {
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto">
-            Contact us on WhatsApp <span aria-hidden>→</span>
+            <WhatsAppIcon className="h-[17px] w-[17px]" />
+            Contact us on WhatsApp
           </a>
           <a href={CONTACT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto">
-            Telegram ↗
+            <TelegramIcon className="h-[17px] w-[17px]" />
+            Telegram
           </a>
         </div>
       </div>
