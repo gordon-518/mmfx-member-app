@@ -1,17 +1,42 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getAccess } from "@/lib/access";
 import { Wordmark } from "@/components/AppShell";
 
 // ---------------------------------------------------------------------------
-// PLACEHOLDERS — Gordon swaps these in before launch. One broker for now;
-// geo-based routing comes later.
-const BROKER_SIGNUP_URL = "#BROKER_SIGNUP_URL"; // TODO: partner signup link
-const BROKER_NAME = "[Broker]"; // TODO: e.g. "Octa"
+// Broker IB funnel — GEO-ROUTED. Each visitor sees only their region's path;
+// there is intentionally no broker picker. See memory `mmfx-broker-funnel`.
+//   • Malaysia / Indonesia  → Octa / Elev8 (they can serve MY/ID)
+//   • United States / UK    → contact us (brokers can't serve them)
+//   • Everyone else (+ unknown) → Dupoin (best partner terms, worldwide)
+const OCTA_SIGNUP = "https://clickto.trade/bT8tAZDKvQY?ib=47807426";
+const DUPOIN_SIGNUP = "https://dupoin.me/ett5od077";
+const OCTA_CHANGE_IB = "https://my.octabroker.com/change-partner-request/";
+const ELEV8_CHANGE_IB = "https://my.elev8.com/change-partner-request/";
+const IB_NUMBER = "47807426";
+const SWITCH_REASON = "They are assisting me in my trading with signals and analysis.";
+const WHATSAPP_URL =
+  "https://wa.me/6588035858?text=Hi%20MMFX%2C%20requesting%20upgrade.%20Broker%3A%20%5BOcta%2FDupoin%5D%20Account%23%3A%20%5Bnumber%5D%20Tier%3A%20%5BTeam%20MM%2FMentorship%5D";
+const TELEGRAM_URL = "https://t.me/m/QBXboWUEMWRl";
+const TELEGRAM_SWITCH = "https://t.me/MM_3000";
 // ---------------------------------------------------------------------------
 
+type Region = "octa" | "dupoin" | "contact";
+function regionFor(country: string): Region {
+  if (country === "MY" || country === "ID") return "octa";
+  if (country === "US" || country === "GB") return "contact";
+  return "dupoin"; // rest of world + unknown
+}
+
+const PRIMARY_BTN =
+  "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-8 py-4 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto";
+const SECONDARY_BTN =
+  "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-3 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto";
+
 // Copy on this page is APPROVED VERBATIM (day5 brief). Do not rewrite, soften,
-// or add profit/return language. The risk footer stays.
+// or add profit/return language. The risk footer stays. Only the broker CTA
+// block below the reassurance line is region-aware mechanism, not pitch copy.
 
 const LOCKED_ITEMS = [
   "Your TradingView indicators",
@@ -23,11 +48,122 @@ const LOCKED_ITEMS = [
   "Know Your Style and the Fundamental Analysis desk",
 ];
 
+/** Expandable "switch your IB" steps for existing Octa / Elev8 clients. */
+function OctaSwitch() {
+  return (
+    <details className="group mt-8 overflow-hidden rounded-2xl border border-line bg-card text-left">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 text-[14px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
+        <span>Already trade with Octa or Elev8? Switch your IB to us instead</span>
+        <span aria-hidden className="shrink-0 text-faint transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="space-y-4 border-t border-line px-6 py-5 text-[15px] leading-relaxed text-subtle">
+        <p>Keep your existing account — just move your introducing broker to us. It switches over within about an hour.</p>
+        <ol className="space-y-4">
+          <li>
+            <span className="font-medium text-ink">1. Open the change-partner form</span>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <a href={OCTA_CHANGE_IB} target="_blank" rel="noopener noreferrer" className={SECONDARY_BTN}>Octa form ↗</a>
+              <a href={ELEV8_CHANGE_IB} target="_blank" rel="noopener noreferrer" className={SECONDARY_BTN}>Elev8 form ↗</a>
+            </div>
+          </li>
+          <li>
+            <span className="font-medium text-ink">2. Enter our IB number</span>
+            <div className="mt-2 select-all rounded-lg border border-line bg-paper px-3 py-2 font-mono text-[15px] text-ink">{IB_NUMBER}</div>
+          </li>
+          <li>
+            <span className="font-medium text-ink">3. Reason for switching</span>
+            <div className="mt-2 rounded-lg border border-line bg-paper px-3 py-2 text-[14px] text-ink">“{SWITCH_REASON}”</div>
+          </li>
+          <li>
+            <span className="font-medium text-ink">4. Hold at least $500</span>{" "}in the account so access can be restored.
+          </li>
+          <li>
+            <span className="font-medium text-ink">5. Send us your details</span>{" "}on Telegram so we can add you — full name, Telegram username, trading account number, account balance, country, and TradingView username.
+            <div className="mt-2">
+              <a href={TELEGRAM_SWITCH} target="_blank" rel="noopener noreferrer" className={SECONDARY_BTN}>Message @MM_3000 ↗</a>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </details>
+  );
+}
+
+/** Expandable "switch your IB" steps for existing Dupoin clients (manual). */
+function DupoinSwitch() {
+  return (
+    <details className="group mt-8 overflow-hidden rounded-2xl border border-line bg-card text-left">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 text-[14px] font-semibold text-ink [&::-webkit-details-marker]:hidden">
+        <span>Already trade with Dupoin? Switch your IB to us instead</span>
+        <span aria-hidden className="shrink-0 text-faint transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="space-y-4 border-t border-line px-6 py-5 text-[15px] leading-relaxed text-subtle">
+        <p>Keep your existing account — we&apos;ll move your introducing broker to us. We process this one by hand with Dupoin.</p>
+        <ol className="space-y-4">
+          <li>
+            <span className="font-medium text-ink">1. Hold at least $500</span>{" "}in the account so access can be restored.
+          </li>
+          <li>
+            <span className="font-medium text-ink">2. Find your Dupoin UID</span>{" "}— it&apos;s shown next to your name in your Dupoin profile.
+          </li>
+          <li>
+            <span className="font-medium text-ink">3. Send us your Full Name and Dupoin UID</span>{" "}on Telegram and we&apos;ll process the switch with Dupoin.
+            <div className="mt-2">
+              <a href={TELEGRAM_SWITCH} target="_blank" rel="noopener noreferrer" className={SECONDARY_BTN}>Message @MM_3000 ↗</a>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </details>
+  );
+}
+
+/** Broker CTA for MY/ID (Octa/Elev8) and the rest of the world (Dupoin). */
+function BrokerCTA({ region }: { region: "octa" | "dupoin" }) {
+  const signup = region === "octa" ? OCTA_SIGNUP : DUPOIN_SIGNUP;
+  return (
+    <div className="text-center">
+      <a href={signup} target="_blank" rel="noopener noreferrer" className={PRIMARY_BTN}>
+        Open your account — restore full access <span aria-hidden>→</span>
+      </a>
+      <p className="mt-4 text-[15px] leading-relaxed text-subtle">
+        Deposit $500 with your broker, send your confirmation, and your access is switched back on.
+      </p>
+      {region === "octa" ? <OctaSwitch /> : <DupoinSwitch />}
+    </div>
+  );
+}
+
+/** Contact CTA for US/UK, where the partnered brokers can't operate. */
+function ContactCTA() {
+  return (
+    <div className="rounded-2xl border border-line bg-card p-6 text-center shadow-soft">
+      <p className="font-display text-xl font-bold tracking-tight text-ink">
+        Access in your region is arranged directly
+      </p>
+      <p className="mt-3 text-[15px] leading-relaxed text-subtle">
+        Reach out and we&apos;ll get you set up.
+      </p>
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className={PRIMARY_BTN}>
+          Contact us on WhatsApp <span aria-hidden>→</span>
+        </a>
+        <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className={SECONDARY_BTN}>
+          Telegram ↗
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default async function UpgradePage() {
   const access = await getAccess();
   if (!access.signedIn) {
     redirect("/login");
   }
+
+  const country = ((await headers()).get("x-vercel-ip-country") ?? "").toUpperCase();
+  const region = regionFor(country);
 
   return (
     <main className="min-h-screen bg-paper">
@@ -102,18 +238,9 @@ export default async function UpgradePage() {
           desk that stays open.
         </p>
 
-        {/* CTA */}
-        <div className="mt-10 text-center">
-          <a
-            href={BROKER_SIGNUP_URL}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-8 py-4 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
-          >
-            Fund your account — restore full access <span aria-hidden>→</span>
-          </a>
-          <p className="mt-4 text-[15px] leading-relaxed text-subtle">
-            Deposit $500 with {BROKER_NAME}, send your confirmation, and your
-            access is switched back on.
-          </p>
+        {/* CTA — geo-routed broker funnel */}
+        <div className="mt-10">
+          {region === "contact" ? <ContactCTA /> : <BrokerCTA region={region} />}
         </div>
 
         {/* Compliance footer — verbatim, do not remove */}
