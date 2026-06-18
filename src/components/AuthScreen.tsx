@@ -79,7 +79,8 @@ export function AuthScreen({ copy, collectName = false }: { copy: AuthCopy; coll
   }
 
   return (
-    <main className="grid min-h-screen grid-cols-1 bg-paper lg:grid-cols-[5fr_6fr]">
+    <main className="flex justify-center bg-paper">
+      <div className="grid min-h-screen w-full max-w-6xl grid-cols-1 lg:grid-cols-[5fr_6fr]">
       {/* ---------- Brand panel (desktop) ---------- */}
       <aside className="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
         <div aria-hidden className="pointer-events-none absolute inset-0">
@@ -254,6 +255,7 @@ export function AuthScreen({ copy, collectName = false }: { copy: AuthCopy; coll
           )}
         </div>
       </section>
+      </div>
     </main>
   );
 }
