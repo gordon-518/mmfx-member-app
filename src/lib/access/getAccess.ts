@@ -14,6 +14,7 @@ import {
 export interface AccessProfile {
   id: string;
   email: string;
+  full_name: string | null;
   account_status: AccountStatus;
   /** Null for members — cleared on the flip to member_active. */
   trial_ends_at: string | null;

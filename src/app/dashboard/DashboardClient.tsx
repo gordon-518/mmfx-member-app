@@ -191,6 +191,7 @@ function NewsTeaser({ items }: { items: NewsItem[] }) {
 
 export function DashboardClient({
   email,
+  fullName,
   accountStatus,
   daysLeft,
   tier,
@@ -199,6 +200,7 @@ export function DashboardClient({
   news,
 }: {
   email: string;
+  fullName: string | null;
   accountStatus: AccountStatus;
   daysLeft: number;
   tier: AccessTier;
@@ -208,7 +210,8 @@ export function DashboardClient({
 }) {
   const head = headerContent(accountStatus, daysLeft);
   const locked = tier !== "Full";
-  const firstName = email.split("@")[0];
+  // Greet by real first name when we have it; fall back to the email handle.
+  const firstName = fullName?.trim() ? fullName.trim().split(/\s+/)[0] : email.split("@")[0];
 
   return (
     <AppShell email={email} accountStatus={accountStatus} tier={tier}>

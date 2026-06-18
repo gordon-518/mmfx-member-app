@@ -195,6 +195,7 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       email={access.profile.email}
+      fullName={access.profile.full_name}
       accountStatus={access.profile.account_status}
       daysLeft={access.daysLeft}
       tier={access.tier}

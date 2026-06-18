@@ -260,6 +260,7 @@ export default async function AdminPage({
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-faint">
+                <th className="px-3 py-2.5">Name</th>
                 <th className="px-3 py-2.5">Email</th>
                 <th className="px-3 py-2.5">Status</th>
                 <th className="px-3 py-2.5">Trials</th>
@@ -277,16 +278,13 @@ export default async function AdminPage({
                 const retrialOk = canGrantRetrial(p);
                 return (
                   <tr key={p.id} className="border-b border-line align-top last:border-b-0">
+                    <td className="px-3 py-3 font-medium text-ink">{p.full_name || "—"}</td>
                     <td className="px-3 py-3">
-                      {p.full_name && (
-                        <span className="block font-medium text-ink">{p.full_name}</span>
-                      )}
-                      <span className={p.full_name ? "text-subtle" : undefined}>{p.email}</span>
+                      {p.email}
                       {p.is_admin && (
                         <span className="ml-1 font-semibold text-orange">(admin)</span>
                       )}
                     </td>
-
                     <td className="px-3 py-3">{p.account_status}</td>
                     <td className="px-3 py-3">{p.trial_count}</td>
                     <td className="px-3 py-3">{fmt(p.trial_ends_at)}</td>
