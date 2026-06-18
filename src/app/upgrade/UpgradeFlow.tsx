@@ -20,6 +20,14 @@ const WHATSAPP_URL =
   "https://wa.me/6588035858?text=Hi%20MMFX%2C%20requesting%20upgrade.%20Broker%3A%20%5BOcta%2FDupoin%5D%20Account%23%3A%20%5Bnumber%5D%20Tier%3A%20%5BTeam%20MM%2FMentorship%5D";
 const TELEGRAM_URL = "https://t.me/m/QBXboWUEMWRl";
 const TELEGRAM_SWITCH = "https://t.me/MM_3000";
+// US/UK contact path — these visitors can't open a partnered broker account, so
+// the WhatsApp message + Telegram thread are dedicated to arranging access.
+const CONTACT_WHATSAPP_URL =
+  "https://wa.me/6588035858?text=" +
+  encodeURIComponent(
+    "Hi MMFX, I'd like full access. I'm in the US/UK and can't open a partnered broker account — how can I get set up?"
+  );
+const CONTACT_TELEGRAM_URL = "https://t.me/m/GIf6KqN9ZWZl";
 // -----------------------------------------------------------------------------
 
 type Cta = { label: string; href: string; primary?: boolean };
@@ -237,10 +245,10 @@ function ContactCard() {
           The partnered brokers can&apos;t operate where you are — so we set you up personally. Reach out and we&apos;ll take it from there.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto">
+          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto">
             Contact us on WhatsApp <span aria-hidden>→</span>
           </a>
-          <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto">
+          <a href={CONTACT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto">
             Telegram ↗
           </a>
         </div>
