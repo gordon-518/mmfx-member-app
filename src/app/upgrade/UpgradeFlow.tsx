@@ -191,7 +191,10 @@ function octaSwitchSteps(): Step[] {
       icon: ChatIcon,
       title: "Send us your details",
       body: <>Message @MM_3000 with {DETAILS_LINE} so we can add you. It switches over within about an hour.</>,
-      ctas: [{ label: "Message @MM_3000", href: TELEGRAM_SWITCH, primary: true }],
+      ctas: [
+        { label: "Message @MM_3000", href: TELEGRAM_SWITCH, primary: true },
+        { label: "WhatsApp", href: WHATSAPP_URL },
+      ],
     },
     {
       icon: CheckIcon,
@@ -218,7 +221,10 @@ function dupoinSwitchSteps(): Step[] {
       icon: ChatIcon,
       title: "Send us your Full Name + UID",
       body: <>Message @MM_3000 and we&apos;ll process the partner switch with Dupoin by hand.</>,
-      ctas: [{ label: "Message @MM_3000", href: TELEGRAM_SWITCH, primary: true }],
+      ctas: [
+        { label: "Message @MM_3000", href: TELEGRAM_SWITCH, primary: true },
+        { label: "WhatsApp", href: WHATSAPP_URL },
+      ],
     },
     {
       icon: CheckIcon,
