@@ -9,7 +9,7 @@ import type { AccountStatus, AccessTier } from "@/lib/trial/status";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
   AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon,
-  MenuIcon, CloseIcon,
+  MenuIcon, CloseIcon, SparkIcon,
 } from "./icons";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -35,18 +35,20 @@ function isActive(pathname: string, href: string) {
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Wordmark() {
+export function Wordmark({ iconOnly = false }: { iconOnly?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange shadow-soft">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange shadow-soft">
         <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
           <path d="M2 13L6.5 7.5L9.5 10.5L16 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           <circle cx="16" cy="3" r="1.6" fill="white" />
         </svg>
       </span>
-      <span className="font-display text-[15px] font-bold tracking-tight text-ink">
-        Market Makers <span className="text-orange">FX</span>
-      </span>
+      {!iconOnly && (
+        <span className="font-display text-[15px] font-bold tracking-tight text-ink whitespace-nowrap">
+          Market Makers <span className="text-orange">FX</span>
+        </span>
+      )}
     </div>
   );
 }
@@ -114,6 +116,33 @@ function UserCard({
   );
 }
 
+/** "Upgrade now" CTA for non-members. `bar` = compact pill for the mobile top
+ *  bar (top-right); `panel` = full-width button for the desktop sidebar + drawer. */
+function UpgradeCta({ variant, onNavigate }: { variant: "bar" | "panel"; onNavigate?: () => void }) {
+  if (variant === "bar") {
+    return (
+      <Link
+        href="/upgrade"
+        onClick={onNavigate}
+        className="flex h-9 items-center gap-1.5 rounded-lg bg-orange px-3 text-[12.5px] font-semibold text-white shadow-soft transition-colors hover:bg-[#f24e12]"
+      >
+        <SparkIcon className="h-3.5 w-3.5" />
+        Upgrade
+      </Link>
+    );
+  }
+  return (
+    <Link
+      href="/upgrade"
+      onClick={onNavigate}
+      className="flex items-center justify-center gap-2 rounded-xl bg-orange px-3 py-2.5 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+    >
+      <SparkIcon className="h-4 w-4" />
+      Upgrade now
+    </Link>
+  );
+}
+
 /**
  * The warm-premium app shell — persistent left sidebar (desktop) + a mobile top
  * bar with a slide-out navigation drawer, wrapping every gated member page. The
@@ -170,6 +199,11 @@ export function AppShell({
           <NavLinks pathname={pathname} />
         </nav>
 
+        {!isMember && (
+          <div className="mt-4">
+            <UpgradeCta variant="panel" />
+          </div>
+        )}
         <div className="mt-4 border-t border-line pt-4">
           <UserCard email={email} firstName={firstName} isMember={isMember} tier={tier} />
         </div>
@@ -190,18 +224,21 @@ export function AppShell({
               <MenuIcon />
             </button>
             <Link href="/dashboard">
-              <Wordmark />
+              <Wordmark iconOnly />
             </Link>
           </div>
-          <form action={signOut}>
-            <button
-              type="submit"
-              aria-label="Sign out"
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-subtle transition-colors hover:bg-paper hover:text-ink"
-            >
-              <LogoutIcon />
-            </button>
-          </form>
+          <div className="flex items-center gap-2">
+            {!isMember && <UpgradeCta variant="bar" />}
+            <form action={signOut}>
+              <button
+                type="submit"
+                aria-label="Sign out"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-subtle transition-colors hover:bg-paper hover:text-ink"
+              >
+                <LogoutIcon />
+              </button>
+            </form>
+          </div>
         </div>
 
         {children}
@@ -251,6 +288,11 @@ export function AppShell({
                 <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} />
               </nav>
 
+              {!isMember && (
+                <div className="mt-4">
+                  <UpgradeCta variant="panel" onNavigate={() => setMenuOpen(false)} />
+                </div>
+              )}
               <div className="mt-4 border-t border-line pt-4">
                 <UserCard email={email} firstName={firstName} isMember={isMember} tier={tier} />
               </div>
