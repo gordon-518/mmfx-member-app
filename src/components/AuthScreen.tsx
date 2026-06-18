@@ -79,16 +79,18 @@ export function AuthScreen({ copy, collectName = false }: { copy: AuthCopy; coll
   }
 
   return (
-    <main className="flex justify-center bg-paper">
-      <div className="grid min-h-screen w-full max-w-6xl grid-cols-1 lg:grid-cols-[5fr_6fr]">
-      {/* ---------- Brand panel (desktop) ---------- */}
-      <aside className="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#FFF4EC] via-paper to-[#FFFBF8]" />
-          <div className="absolute -left-24 top-1/4 h-[28rem] w-[28rem] rounded-full bg-orange/15 blur-[130px]" />
-          <div className="absolute -right-20 bottom-0 h-[22rem] w-[22rem] rounded-full bg-[#FFD9C6]/40 blur-[120px]" />
-        </div>
+    <main className="relative flex min-h-screen justify-center overflow-hidden bg-paper">
+      {/* Full-bleed warm atmosphere on <main> — its edges are the viewport, not
+          a capped panel, so there's no visible seam. Content sits centered on top. */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(52rem_44rem_at_27%_16%,#FFEEE2,transparent_70%)]" />
+        <div className="absolute left-[6%] top-1/4 h-[28rem] w-[28rem] rounded-full bg-orange/12 blur-[140px]" />
+        <div className="absolute bottom-0 left-[20%] h-[24rem] w-[24rem] rounded-full bg-[#FFD9C6]/30 blur-[130px]" />
+      </div>
 
+      <div className="relative grid min-h-screen w-full max-w-6xl grid-cols-1 lg:grid-cols-[5fr_6fr]">
+      {/* ---------- Brand panel (desktop) ---------- */}
+      <aside className="hidden lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
         <div className="rise relative">
           <Logo />
         </div>
