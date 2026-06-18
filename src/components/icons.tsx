@@ -71,3 +71,18 @@ export const MenuIcon = (p: I) => (
 export const CloseIcon = (p: I) => (
   <svg {...base(p)}><path d="M6 6l12 12" /><path d="M18 6 6 18" /></svg>
 );
+export const CheckIcon = (p: I) => (
+  <svg {...base(p)}><path d="m5 12.5 4.5 4.5L19 7" /></svg>
+);
+export const WalletIcon = (p: I) => (
+  <svg {...base(p)}><path d="M4 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" /><path d="M4 9.5h13a2 2 0 0 1 2 2V13" /><circle cx="16.5" cy="13.5" r="1.1" fill="currentColor" stroke="none" /></svg>
+);
+export const ChatIcon = (p: I) => (
+  <svg {...base(p)}><path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4 19.5l1.3-4.1A7.5 7.5 0 1 1 20 11.5Z" /><path d="M9 11h6M9 8.5h4" /></svg>
+);
+export const SwapIcon = (p: I) => (
+  <svg {...base(p)}><path d="M7 4 3.5 7.5 7 11" /><path d="M3.5 7.5H15a4 4 0 0 1 4 4" /><path d="M17 20l3.5-3.5L17 13" /><path d="M20.5 16.5H9a4 4 0 0 1-4-4" /></svg>
+);
+export const UserPlusIcon = (p: I) => (
+  <svg {...base(p)}><circle cx="9.5" cy="8" r="3.3" /><path d="M3.5 19.5a6 6 0 0 1 12 0" /><path d="M19 7.5v5M16.5 10h5" /></svg>
+);
