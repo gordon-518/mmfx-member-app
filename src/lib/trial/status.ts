@@ -9,7 +9,8 @@ export type AccountStatus =
   | "trial_expired"
   | "member_active"
   | "re_trial_active"
-  | "re_trial_expired";
+  | "re_trial_expired"
+  | "member_expired";
 
 export type AccessTier = "Full" | "Limited";
 
@@ -67,6 +68,7 @@ const STATUS_LABELS: Record<AccountStatus, string> = {
   member_active: "Member",
   re_trial_active: "Re-trial active",
   re_trial_expired: "Re-trial expired",
+  member_expired: "Member expired",
 };
 
 /** Human-readable label for a status; falls back to the raw value. */

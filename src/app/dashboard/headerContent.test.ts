@@ -57,4 +57,10 @@ describe("headerContent", () => {
     expect(c.body).toMatch(/no further trials/i);
     expect(c.cta?.kind).toBe("push");
   });
+
+  it("member_expired: membership-removed framing with push CTA", () => {
+    const c = headerContent("member_expired", 0);
+    expect(c.eyebrow).toBe("Membership ended");
+    expect(c.cta?.kind).toBe("push");
+  });
 });

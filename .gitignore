@@ -43,3 +43,6 @@ next-env.d.ts
 # python (ui-ux-pro-max skill)
 __pycache__/
 *.pyc
+
+# local brainstorm/skill scratch
+.superpowers/

@@ -40,15 +40,15 @@ export default async function IndicatorsPage({
           {hasUsername ? (
             <div>
               <span className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3 py-1 text-[12px] font-semibold text-accent-ink">
-                <span className="h-1.5 w-1.5 rounded-full bg-orange" /> Access requested · pending
+                <span className="h-1.5 w-1.5 rounded-full bg-orange" /> Access granted · automated
               </span>
               <p className="mt-3 text-[15px] leading-relaxed text-ink">
-                Access requested for{" "}
+                Access has been automatically granted to{" "}
                 <span className="font-semibold text-accent-ink">
                   {profile.tradingview_username}
                 </span>{" "}
-                — pending. Indicators are granted on TradingView; you&apos;ll be
-                added shortly.
+                on TradingView. You should see all 10 indicators available in
+                your account within 1–3 hours.
               </p>
               {/* Optional: let them correct the handle */}
               <form action={setTradingViewUsername} className="mt-4 flex flex-wrap items-center gap-2">

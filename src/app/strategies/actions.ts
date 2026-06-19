@@ -8,11 +8,7 @@ import type { AccountStatus } from "@/lib/trial/status";
 
 const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
 
-// Relays to fn_set_tradingview_username, which writes the caller's OWN row
-// only (SECURITY DEFINER). Rules/validation live in the function; this just
-// surfaces the outcome back to /indicators.
-
-export async function setTradingViewUsername(formData: FormData) {
+export async function setTradingViewUsernameFromStrategies(formData: FormData) {
   const username = String(formData.get("tradingview_username") ?? "");
 
   const supabase = await createClient();
@@ -28,7 +24,7 @@ export async function setTradingViewUsername(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/indicators?tv_error=${encodeURIComponent(error.message)}`);
+    redirect(`/strategies?tv_error=${encodeURIComponent(error.message)}`);
   }
 
   // Grant TV access immediately — non-blocking, cron is the safety net
@@ -44,9 +40,9 @@ export async function setTradingViewUsername(formData: FormData) {
       await grantTVAccess(username.trim(), expiresAt);
     }
   } catch (e) {
-    console.error("[tv-sync] setTradingViewUsername:", e);
+    console.error("[tv-sync] setTradingViewUsernameFromStrategies:", e);
   }
 
-  revalidatePath("/indicators");
-  redirect("/indicators");
+  revalidatePath("/strategies");
+  redirect("/strategies");
 }

@@ -84,6 +84,12 @@ describe("accessTier — time-check guard", () => {
       )
     ).toBe("Limited");
   });
+
+  it("member_expired is Limited", () => {
+    expect(
+      accessTier({ account_status: "member_expired", trial_ends_at: null })
+    ).toBe("Limited");
+  });
 });
 
 describe("daysRemaining", () => {

@@ -79,5 +79,12 @@ export function headerContent(
         body: "No further trials are available on this account.",
         cta: { href: "/upgrade", label: "Restore full access", kind: "push" },
       };
+    case "member_expired":
+      return {
+        eyebrow: "Membership ended",
+        title: "Your membership has been removed",
+        body: "Contact us if you think this is a mistake.",
+        cta: { href: "/upgrade", label: "Restore your access", kind: "push" },
+      };
   }
 }

@@ -45,6 +45,7 @@ const STATUSES = [
   "member_active",
   "re_trial_active",
   "re_trial_expired",
+  "member_expired",
 ] as const;
 
 const BROKERS = ["octa", "dupoin", "elev8"] as const;

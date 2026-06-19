@@ -3,6 +3,35 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { grantTVAccess, revokeTVAccess } from "@/lib/tv/client";
+import type { AccountStatus } from "@/lib/trial/status";
+
+const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
+
+// Fire-and-forget TV sync after any admin status change. Failures are logged
+// but never block the admin action — the daily cron is the safety net.
+async function syncTV(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  targetUserId: string
+) {
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("tradingview_username, account_status, trial_ends_at")
+      .eq("id", targetUserId)
+      .single();
+    if (!data?.tradingview_username) return;
+    const status = data.account_status as AccountStatus;
+    if (TV_ACTIVE.has(status)) {
+      const expiresAt = status === "member_active" ? null : data.trial_ends_at;
+      await grantTVAccess(data.tradingview_username, expiresAt);
+    } else {
+      await revokeTVAccess(data.tradingview_username);
+    }
+  } catch (e) {
+    console.error("[tv-sync] admin action failed:", e);
+  }
+}
 
 // Both actions relay to the SECURITY DEFINER functions — every rule (admin
 // check, qualifying deposit, re-trial eligibility) is enforced in the
@@ -73,6 +102,8 @@ export async function verifyDeposit(formData: FormData) {
     backTo({ ...filters, error: error.message, target: targetEmail });
   }
 
+  await syncTV(supabase, targetUserId);
+
   revalidatePath("/admin");
   backTo({
     ...filters,
@@ -119,6 +150,8 @@ export async function updateMember(formData: FormData) {
     backTo({ ...filters, error: error.message, target: targetEmail });
   }
 
+  if (status) await syncTV(supabase, targetUserId);
+
   revalidatePath("/admin");
   backTo({ ...filters, ok: `Updated ${targetEmail}`, target: targetEmail });
 }
@@ -141,6 +174,8 @@ export async function grantRetrial(formData: FormData) {
   if (error) {
     backTo({ ...filters, error: error.message, target: targetEmail });
   }
+
+  await syncTV(supabase, targetUserId);
 
   revalidatePath("/admin");
   backTo({
