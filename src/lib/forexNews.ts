@@ -164,17 +164,44 @@ function normalizeCal(raw: ApiCalItem): CalEvent | null {
   };
 }
 
-export async function getEconomicCalendar(): Promise<CalEvent[]> {
+// Week navigation bounds. The forexnewsapi economic-calendar only carries a
+// rolling window — reliable data runs ~3 months back and only ~1 month ahead
+// (scheduled releases thin out fast beyond that). Clamp the navigator to that
+// window so users never page into a guaranteed-empty range.
+export const WEEK_MIN = -12; // ~3 months back
+export const WEEK_MAX = 4; //   ~1 month forward
+
+export function clampWeek(offset: number): number {
+  if (!Number.isFinite(offset)) return 0;
+  return Math.max(WEEK_MIN, Math.min(WEEK_MAX, Math.trunc(offset)));
+}
+
+// Monday→Sunday range for a week offset (0 = current week), anchored in UTC so
+// the server-rendered label and the API request agree regardless of host TZ.
+export function getWeekRange(offset: number): { start: Date; end: Date } {
+  const now = new Date();
+  const daysSinceMon = (now.getUTCDay() + 6) % 7; // Sun=0 → 6, Mon=1 → 0, …
+  const monday = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() - daysSinceMon
+  );
+  const start = new Date(monday + offset * 7 * 86_400_000);
+  const end = new Date(start.getTime() + 6 * 86_400_000);
+  return { start, end };
+}
+
+export async function getEconomicCalendar(offset = 0): Promise<CalEvent[]> {
   const token = process.env.FOREXNEWSAPI_TOKEN;
   if (!token) return process.env.NODE_ENV === "development" ? SAMPLE_CAL : [];
 
-  const now = new Date();
-  const end = new Date(now.getTime() + 7 * 86_400_000);
-  const range = `${mmddyyyy(now)}-${mmddyyyy(end)}`;
+  const { start, end } = getWeekRange(clampWeek(offset));
+  const range = `${mmddyyyy(start)}-${mmddyyyy(end)}`;
 
   try {
     const res = await fetch(
-      `https://forexnewsapi.com/api/v1/economic-calendar?date=${range}&importance=High,Medium&items=50&token=${token}`,
+      // items=100 is the API's per-page max; a single week never exceeds it.
+      `https://forexnewsapi.com/api/v1/economic-calendar?date=${range}&importance=High,Medium&items=100&token=${token}`,
       { next: { revalidate: REVALIDATE_SECONDS } }
     );
     if (!res.ok) return [];
