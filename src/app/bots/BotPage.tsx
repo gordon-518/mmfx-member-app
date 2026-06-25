@@ -15,6 +15,7 @@ export function BotPage({
   title,
   description,
   botUrl,
+  embedUrl,
   embeddable = true,
 }: {
   email: string;
@@ -23,6 +24,10 @@ export function BotPage({
   title: string;
   description: string;
   botUrl: string;
+  // Optional separate URL for the iframe (e.g. an "?app=1" embedded mode),
+  // while the "Open in new tab" launcher stays on the plain botUrl. Defaults
+  // to botUrl. Must share botUrl's origin so the postMessage guards still hold.
+  embedUrl?: string;
   // Some bots block framing (X-Frame-Options / CSP). For those, set false so
   // we render a clean launch panel instead of a dead/broken iframe.
   embeddable?: boolean;
@@ -31,6 +36,10 @@ export function BotPage({
   // stray javascript: value can never slip through this reusable shell.
   if (!botUrl.startsWith("https://")) {
     throw new Error(`BotPage: botUrl must be an https URL, got "${botUrl}"`);
+  }
+  const iframeSrc = embedUrl ?? botUrl;
+  if (!iframeSrc.startsWith("https://")) {
+    throw new Error(`BotPage: embedUrl must be an https URL, got "${iframeSrc}"`);
   }
 
   return (
@@ -66,7 +75,7 @@ export function BotPage({
         <div className="rise relative min-h-[600px] flex-1 overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
           {embeddable ? (
             <iframe
-              src={botUrl}
+              src={iframeSrc}
               title={title}
               loading="lazy"
               referrerPolicy="origin"

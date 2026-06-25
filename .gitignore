@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# raw user-data exports (PII — never commit)
+scripts/softr-users.csv
+*.csv
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

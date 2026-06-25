@@ -75,8 +75,8 @@ export default async function IndicatorsPage({
               </p>
               <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-subtle">
                 Enter your TradingView username to get access to all 10
-                indicators. We grant access manually — you&apos;ll be added
-                shortly.
+                indicators. Access is granted automatically — you&apos;ll be
+                added within a few hours.
               </p>
               <form action={setTradingViewUsername} className="mt-4 flex flex-wrap items-center gap-2">
                 <input

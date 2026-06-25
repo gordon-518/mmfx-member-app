@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isDisposableEmail } from "@/lib/disposableEmails";
+import { computeFingerprint } from "@/lib/fingerprint";
 
 type Status = "idle" | "sending" | "sent" | "error";
 
@@ -57,6 +59,14 @@ export function AuthScreen({ copy, collectName = false }: { copy: AuthCopy; coll
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!email || (collectName && !name.trim()) || status === "sending") return;
+
+    // Layer 1 anti-abuse: block throwaway/temp-mail domains at signup.
+    if (collectName && isDisposableEmail(email)) {
+      setErrorMsg("Please use a permanent email address — temporary inboxes aren't supported.");
+      setStatus("error");
+      return;
+    }
+
     setStatus("sending");
     setErrorMsg("");
 
@@ -65,8 +75,12 @@ export function AuthScreen({ copy, collectName = false }: { copy: AuthCopy; coll
       email,
       options: {
         emailRedirectTo: `${location.origin}/auth/confirm`,
-        // Captured on /signup; the handle_new_user trigger copies it into profiles.full_name.
-        ...(collectName ? { data: { full_name: name.trim() } } : {}),
+        // On signup we capture the name + a device fingerprint; the
+        // handle_new_user trigger copies both into the profile (fingerprint is
+        // a soft trial-abuse signal surfaced in /admin).
+        ...(collectName
+          ? { data: { full_name: name.trim(), fingerprint: computeFingerprint() } }
+          : {}),
       },
     });
 
@@ -252,6 +266,17 @@ export function AuthScreen({ copy, collectName = false }: { copy: AuthCopy; coll
                 <Link href={copy.altHref} className="font-semibold text-orange transition-colors hover:text-accent-ink">
                   {copy.altLabel} →
                 </Link>
+              </p>
+              <p className="rise mt-6 text-center text-[12px] leading-relaxed text-faint" style={{ animationDelay: "0.2s" }}>
+                By continuing you agree to our{" "}
+                <Link href="/terms" className="underline decoration-line-strong underline-offset-2 hover:text-accent-ink">
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="underline decoration-line-strong underline-offset-2 hover:text-accent-ink">
+                  Privacy Policy
+                </Link>
+                .
               </p>
             </>
           )}

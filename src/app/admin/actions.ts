@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { grantTVAccess, revokeTVAccess } from "@/lib/tv/client";
+import { grantTVAccess, revokeTVAccess, setTVSession, testTVSession } from "@/lib/tv/client";
+import { syncSendpulseAudiences } from "@/lib/sendpulseSync";
 import type { AccountStatus } from "@/lib/trial/status";
 
 const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
@@ -183,4 +184,68 @@ export async function grantRetrial(formData: FormData) {
     ok: `Re-trial granted to ${targetEmail}`,
     target: targetEmail,
   });
+}
+
+// Manual TradingView session refresh — the fallback for when programmatic
+// login is CAPTCHA-blocked. Admin pastes a fresh sessionid + sessionid_sign
+// from their browser; we store it and immediately test it.
+export async function saveTvSession(formData: FormData) {
+  const sessionid = String(formData.get("sessionid") ?? "").trim();
+  const sign = String(formData.get("sessionid_sign") ?? "").trim();
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect(`/admin?error=${encodeURIComponent("Not authenticated")}`);
+  }
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (isAdmin !== true) {
+    redirect(`/admin?error=${encodeURIComponent("Not authorized")}`);
+  }
+
+  if (!sessionid || !sign) {
+    redirect(`/admin?error=${encodeURIComponent("Paste both sessionid and sessionid_sign")}`);
+  }
+
+  await setTVSession(sessionid, sign);
+  const test = await testTVSession();
+
+  revalidatePath("/admin");
+  if (test.ok) {
+    redirect(`/admin?ok=${encodeURIComponent("TradingView session saved — live ✓")}`);
+  }
+  redirect(
+    `/admin?ok=${encodeURIComponent(`Session saved, but the test call failed: ${test.detail ?? "unknown"}`)}`
+  );
+}
+
+// Manually run the SendPulse audience sync (tags every contact with their
+// membership status for segmentation). Also runs nightly via cron.
+export async function runSendpulseSync() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect(`/admin?error=${encodeURIComponent("Not authenticated")}`);
+  }
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (isAdmin !== true) {
+    redirect(`/admin?error=${encodeURIComponent("Not authorized")}`);
+  }
+
+  const r = await syncSendpulseAudiences();
+
+  revalidatePath("/admin");
+  if (r.error) {
+    redirect(`/admin?error=${encodeURIComponent(`SendPulse sync failed: ${r.error}`)}`);
+  }
+  const c = r.counts;
+  redirect(
+    `/admin?ok=${encodeURIComponent(
+      `SendPulse synced ${r.synced}/${r.total} — member ${c.member ?? 0}, trial ${c.trial ?? 0}, expired ${c.expired ?? 0}, removed ${c.removed ?? 0}`
+    )}`
+  );
 }

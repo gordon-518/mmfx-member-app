@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/tv-sync",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/sendpulse-sync",
+      "schedule": "0 3 * * *"
     }
   ]
 }
