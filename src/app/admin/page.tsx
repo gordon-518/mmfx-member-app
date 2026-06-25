@@ -200,15 +200,7 @@ export default async function AdminPage({
         <Link href="/dashboard">
           <Wordmark />
         </Link>
-        <div className="flex items-center gap-4">
-          <Link
-            href="/stats"
-            className="rounded-lg border border-line-strong px-3 py-1.5 text-[13px] font-medium text-subtle transition-colors hover:border-orange/40 hover:text-accent-ink"
-          >
-            Stats →
-          </Link>
-          <span className="text-[13px] text-subtle">{user.email}</span>
-        </div>
+        <span className="text-[13px] text-subtle">{user.email}</span>
       </header>
 
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
