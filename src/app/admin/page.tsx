@@ -3,7 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { Wordmark } from "@/components/AppShell";
 import { canGrantRetrial } from "@/lib/trial/admin";
 import type { AccountStatus } from "@/lib/trial/status";
-import { grantRetrial, updateMember, verifyDeposit } from "./actions";
+import {
+  grantRetrial,
+  runSendpulseSync,
+  saveTvSession,
+  updateMember,
+  verifyDeposit,
+} from "./actions";
+import { getTVSessionInfo } from "@/lib/tv/client";
 import {
   addDailyAnalysis,
   addLiveClass,
@@ -171,6 +178,9 @@ export default async function AdminPage({
     .limit(50);
   const classRows = (classData ?? []) as ClassRow[];
 
+  // TradingView session status (for the manual-refresh panel).
+  const tvSession = await getTVSessionInfo();
+
   // Threaded through action forms so a verify/grant keeps the current view.
   const hiddenFilters = (
     <>
@@ -190,7 +200,15 @@ export default async function AdminPage({
         <Link href="/dashboard">
           <Wordmark />
         </Link>
-        <span className="text-[13px] text-subtle">{user.email}</span>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/admin/growth"
+            className="rounded-lg border border-line-strong px-3 py-1.5 text-[13px] font-medium text-subtle transition-colors hover:border-orange/40 hover:text-accent-ink"
+          >
+            Growth →
+          </Link>
+          <span className="text-[13px] text-subtle">{user.email}</span>
+        </div>
       </header>
 
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
@@ -214,6 +232,71 @@ export default async function AdminPage({
             Failed to load profiles: {listError.message}
           </p>
         )}
+
+        {/* TradingView session — manual refresh fallback for when the app's
+            programmatic login is CAPTCHA-blocked. */}
+        <section className="mt-6 rounded-xl border border-line bg-card/60 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-[15px] font-bold tracking-tight text-ink">
+              TradingView session
+            </h2>
+            <span className="text-[12px] text-subtle">
+              {tvSession.updatedAt
+                ? `Last refreshed ${fmtDateTime(tvSession.updatedAt)}`
+                : "No session stored yet"}
+            </span>
+          </div>
+          <p className="mt-1.5 max-w-2xl text-[12px] leading-relaxed text-faint">
+            Grants run on a stored session, so the app rarely needs to log in. If
+            you get a login/CAPTCHA failure email, paste a fresh cookie from
+            tradingview.com (DevTools → Application → Cookies → copy{" "}
+            <span className="font-medium text-subtle">sessionid</span> and{" "}
+            <span className="font-medium text-subtle">sessionid_sign</span>).
+          </p>
+          <form
+            action={saveTvSession}
+            className="mt-3 flex flex-wrap items-end gap-2 text-[13px]"
+          >
+            <input
+              name="sessionid"
+              placeholder="sessionid"
+              required
+              autoComplete="off"
+              className={`w-64 ${INPUT}`}
+            />
+            <input
+              name="sessionid_sign"
+              placeholder="sessionid_sign"
+              required
+              autoComplete="off"
+              className={`w-64 ${INPUT}`}
+            />
+            <button type="submit" className={BTN_PRIMARY}>
+              Save &amp; test
+            </button>
+          </form>
+        </section>
+
+        {/* SendPulse audience sync — tag contacts by status for segmentation. */}
+        <section className="mt-4 rounded-xl border border-line bg-card/60 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-[15px] font-bold tracking-tight text-ink">
+                SendPulse audience sync
+              </h2>
+              <p className="mt-1.5 max-w-2xl text-[12px] leading-relaxed text-faint">
+                Tags every contact in the SendPulse signups list with their
+                status (member / trial / expired / removed) for segmentation.
+                Runs nightly — use this to refresh now.
+              </p>
+            </div>
+            <form action={runSendpulseSync}>
+              <button type="submit" className={BTN_PRIMARY}>
+                Run sync now
+              </button>
+            </form>
+          </div>
+        </section>
 
         {/* Search + filters (GET — state lives in the URL) */}
         <form
