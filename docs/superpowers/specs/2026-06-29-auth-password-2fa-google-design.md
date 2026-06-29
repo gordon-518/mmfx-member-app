@@ -100,16 +100,25 @@ src/components/auth/
 
 Performed via Management API (`SUPABASE_ACCESS_TOKEN`) + Google Cloud console.
 
-1. **Email templates** — "Confirm signup" and "Reset password" rewritten to show
-   `{{ .Token }}` (the 6-digit code) instead of `{{ .ConfirmationURL }}`. This is
-   the load-bearing change. **Template-only PATCH** — must not touch the SMTP
-   block (changing the SMTP password resets the email rate limit to 2/hr).
-2. **Google provider** — enabled with a Google Cloud OAuth Web client.
-   Authorized redirect URI: `https://dldrcitoeoxzfctsqlmo.supabase.co/auth/v1/callback`.
-   Requires Client ID + Secret from Gordon's Google Cloud account (the only
-   external dependency / blocker, and only for the Google button).
-3. **Password policy** — min length 8; client-side validation mirrors it.
-4. **Redirect allow-list** — confirm `app.marketmakersfx.net` is allowed (it is).
+1. **Email templates** — "Confirm signup" (`mailer_templates_confirmation_content`)
+   and "Reset password" (`mailer_templates_recovery_content`) rewritten to show
+   `{{ .Token }}` (the code) instead of `{{ .ConfirmationURL }}`. This is the
+   load-bearing change. **Template-only PATCH** — must not touch the SMTP block
+   (changing the SMTP password resets the email rate limit to 2/hr).
+   - Set `mailer_otp_length` from `8` → `6` to match the design.
+   - `mailer_otp_exp` is `3600` (1h) — keep.
+   - `mailer_autoconfirm` is `false` and `mailer_allow_unverified_email_sign_ins`
+     is `false` — correct, keep (forces email verification before password login).
+2. **Google provider** — ✅ DONE 2026-06-29. `external_google_enabled: true`,
+   client `543871590340-deku950mcbg1o21n5li2cvhmur0270d1.apps.googleusercontent.com`,
+   secret stored in Supabase. Google-console redirect URI must be
+   `https://dldrcitoeoxzfctsqlmo.supabase.co/auth/v1/callback`; OAuth app must be
+   Published (not "Testing").
+3. **Password policy** — `password_min_length` `6` → `8`; client-side validation
+   mirrors it. (Optionally enable `password_hibp_enabled` later — deferred.)
+4. **Redirect allow-list** — confirmed: `uri_allow_list` already includes
+   `https://app.marketmakersfx.net/**` (and localhost + vercel preview).
+   `site_url` is `https://app.marketmakersfx.net`. No change needed.
 
 ## Migration of existing passwordless users
 
