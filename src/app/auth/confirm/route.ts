@@ -3,16 +3,14 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { clientIp, recordSignupIp } from "@/lib/signupIp";
 
-// Magic-link / email-confirmation landing.
+// OAuth / email-confirmation landing.
 //
-// PRIMARY: the token_hash flow (verifyOtp). This works on ANY device or
-// browser — there's no PKCE "code verifier" tied to the originating browser,
-// so "request on laptop, open email on phone" works, and the link isn't
-// invalidated by requesting another. The email templates link here with
-// ?token_hash=...&type=...
+// PRIMARY (current): the PKCE ?code= flow (exchangeCodeForSession). This is how
+// "Continue with Google" returns — Google redirects back here with ?code=.
 //
-// FALLBACK: the legacy PKCE ?code= path, kept so links already sitting in
-// inboxes (sent before this change) still work.
+// FALLBACK: the token_hash flow (verifyOtp), kept so any in-flight links from
+// the retired magic-link era (?token_hash=...&type=...) still resolve. The live
+// signup/reset flows now verify their 6-digit codes in-page and never land here.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
