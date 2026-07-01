@@ -8,6 +8,7 @@ import type { AccountStatus, AccessTier } from "@/lib/trial/status";
 import { ArrowIcon, LockIcon, LibraryIcon, AnalysisIcon, LiveIcon, SignalsIcon, NewsIcon } from "@/components/icons";
 import { Spotlight, type SpotlightSlide } from "./Spotlight";
 import { MarketBar } from "./MarketBar";
+import { KnowYourStyleOnboarding } from "./KnowYourStyleOnboarding";
 import { STAGES, FOUNDATIONS, type RailCard } from "./rails";
 import type { DashboardBrief } from "./page";
 import type { NewsItem } from "@/lib/forexNews";
@@ -198,6 +199,7 @@ export function DashboardClient({
   slides,
   brief,
   news,
+  showKysOnboarding = false,
 }: {
   email: string;
   fullName: string | null;
@@ -207,6 +209,7 @@ export function DashboardClient({
   slides: SpotlightSlide[];
   brief: DashboardBrief | null;
   news: NewsItem[];
+  showKysOnboarding?: boolean;
 }) {
   const head = headerContent(accountStatus, daysLeft);
   const locked = tier !== "Full";
@@ -216,6 +219,14 @@ export function DashboardClient({
   return (
     <AppShell email={email} accountStatus={accountStatus} tier={tier}>
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
+        {/* Know Your Style onboarding — the first thing a new trader sees, until
+            they've completed it. */}
+        {showKysOnboarding && (
+          <div className="mb-6">
+            <KnowYourStyleOnboarding />
+          </div>
+        )}
+
         {/* Live market bar */}
         <div className="rise mb-6" style={{ animationDelay: "0s" }}>
           <MarketBar />

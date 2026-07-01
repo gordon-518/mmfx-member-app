@@ -109,6 +109,9 @@ export default async function DashboardPage() {
   }
 
   const locked = access.tier !== "Full";
+  // Full-access users who haven't finished Know Your Style get the onboarding
+  // hero pinned atop the desk (see KnowYourStyleOnboarding).
+  const showKysOnboarding = !locked && !access.profile.kys_completed_at;
 
   // Build the spotlight server-side from real, timely content. Locked users get
   // a single upgrade-nudge slide instead of gated content.
@@ -202,6 +205,7 @@ export default async function DashboardPage() {
       slides={slides}
       brief={brief}
       news={news}
+      showKysOnboarding={showKysOnboarding}
     />
   );
 }
