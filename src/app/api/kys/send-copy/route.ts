@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAccess } from "@/lib/access";
 import { sendEmail, addContactToBook } from "@/lib/sendpulse";
+import { createClient } from "@/lib/supabase/server";
 
 // "Send me a copy" from the Know Your Style bot. KYS posts the user's finished
 // result HTML up to us; we email it to the LOGGED-IN account's own address.
@@ -67,6 +68,15 @@ export async function POST(req: Request) {
     } catch {
       /* best-effort — the email already went out */
     }
+  }
+
+  // Record completion on the user's profile (drives the dashboard onboarding
+  // hero). Best-effort — never affects the email result.
+  try {
+    const supabase = await createClient();
+    await supabase.rpc("fn_mark_kys_completed", { p_archetype: archetype });
+  } catch {
+    /* best-effort — the email already went out */
   }
 
   return NextResponse.json({ ok: true });
