@@ -15,18 +15,20 @@ import {
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
 const NAV: { label: string; href: string; icon: Icon }[] = [
+  // Home hub first, then ordered by moat (top = highest): recurring proprietary
+  // habit-drivers → exclusive IP/tools → commodity reference feeds.
   { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
-  { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
-  { label: "Strategies", href: "/strategies", icon: StrategiesIcon },
-  { label: "Library", href: "/library", icon: LibraryIcon },
-  { label: "Course", href: "/course", icon: CourseIcon },
   { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
-  { label: "News & Articles", href: "/news", icon: NewsIcon },
-  { label: "Economic Calendar", href: "/calendar", icon: CalendarIcon },
   { label: "Signals", href: "/signals", icon: SignalsIcon },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
+  { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
+  { label: "Strategies", href: "/strategies", icon: StrategiesIcon },
+  { label: "Course", href: "/course", icon: CourseIcon },
   { label: "Know Your Style", href: "/bots/know-your-style", icon: StyleIcon },
   { label: "Fundamental Desk", href: "/bots/fundamental", icon: DeskIcon },
+  { label: "Library", href: "/library", icon: LibraryIcon },
+  { label: "News & Articles", href: "/news", icon: NewsIcon },
+  { label: "Economic Calendar", href: "/calendar", icon: CalendarIcon },
 ];
 
 function isActive(pathname: string, href: string) {
