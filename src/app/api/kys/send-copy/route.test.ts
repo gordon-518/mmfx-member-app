@@ -1,15 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { getAccessMock, sendEmailMock, addContactToBookMock } = vi.hoisted(() => ({
+const { getAccessMock, sendEmailMock, addContactToBookMock, rpcMock } = vi.hoisted(() => ({
   getAccessMock: vi.fn(),
   sendEmailMock: vi.fn(),
   addContactToBookMock: vi.fn(),
+  rpcMock: vi.fn(),
 }));
 
 vi.mock("@/lib/access", () => ({ getAccess: getAccessMock }));
 vi.mock("@/lib/sendpulse", () => ({
   sendEmail: sendEmailMock,
   addContactToBook: addContactToBookMock,
+}));
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(async () => ({ rpc: rpcMock })),
 }));
 
 import { POST } from "./route";
@@ -38,6 +42,8 @@ beforeEach(() => {
   getAccessMock.mockReset();
   sendEmailMock.mockReset();
   addContactToBookMock.mockReset();
+  rpcMock.mockReset();
+  rpcMock.mockResolvedValue({ error: null });
   process.env.SENDPULSE_KYS_BOOK_ID = "kysbook";
 });
 
@@ -114,6 +120,32 @@ describe("POST /api/kys/send-copy", () => {
     expect(email).toBe("me@example.com");
     expect(vars.kys_archetype).toBe("The Sniper");
     expect(vars.kys_last_used).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("records completion on the profile via fn_mark_kys_completed", async () => {
+    getAccessMock.mockResolvedValue(fullMember);
+    sendEmailMock.mockResolvedValue({ ok: true, detail: {} });
+
+    await POST(req(validBody));
+    expect(rpcMock).toHaveBeenCalledWith("fn_mark_kys_completed", {
+      p_archetype: "The Sniper",
+    });
+  });
+
+  it("completion-recording failure never blocks the email — still ok:true", async () => {
+    getAccessMock.mockResolvedValue(fullMember);
+    sendEmailMock.mockResolvedValue({ ok: true, detail: {} });
+    rpcMock.mockRejectedValue(new Error("db down"));
+    const res = await POST(req(validBody));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+  });
+
+  it("does not record completion when the email fails", async () => {
+    getAccessMock.mockResolvedValue(fullMember);
+    sendEmailMock.mockResolvedValue({ ok: false, detail: "boom" });
+    await POST(req(validBody));
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 
   it("send failure → 500, no tagging", async () => {

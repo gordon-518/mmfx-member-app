@@ -28,7 +28,11 @@ const SP_SECRET = val("SENDPULSE_API_SECRET");
 const SEND = process.argv.includes("--send");
 const beforeArg = (process.argv.find((a) => a.startsWith("--before=")) || "").split("=")[1];
 const CUTOVER = beforeArg || new Date().toISOString();
-const SKIP = new Set(["gordon@marketmakersfx.net", "hello@marketmakersfx.net"]);
+const SKIP = new Set([
+  "gordon@marketmakersfx.net",
+  "hello@marketmakersfx.net",
+  "gordongoh30@gmail.com", // Gordon's signup-test account (already has a password)
+]);
 
 const FROM = { name: "Market Makers FX", email: "hello@marketmakersfx.net" };
 const SUBJECT = "Action needed: set your Market Makers FX password";
