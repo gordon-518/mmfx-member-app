@@ -23,6 +23,9 @@ export interface AccessProfile {
   member_status: "active" | "inactive";
   is_admin: boolean;
   tradingview_username: string | null;
+  /** Set when the user completes Know Your Style ("Send me a copy"). */
+  kys_completed_at: string | null;
+  kys_archetype: string | null;
 }
 
 export type Access =
