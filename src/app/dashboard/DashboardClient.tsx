@@ -219,14 +219,6 @@ export function DashboardClient({
   return (
     <AppShell email={email} accountStatus={accountStatus} tier={tier}>
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
-        {/* Know Your Style onboarding — the first thing a new trader sees, until
-            they've completed it. */}
-        {showKysOnboarding && (
-          <div className="mb-6">
-            <KnowYourStyleOnboarding />
-          </div>
-        )}
-
         {/* Live market bar */}
         <div className="rise mb-6" style={{ animationDelay: "0s" }}>
           <MarketBar />
@@ -283,6 +275,14 @@ export function DashboardClient({
         {brief && (
           <div className="rise mt-6" style={{ animationDelay: "0.16s" }}>
             <TodaysBrief brief={brief} />
+          </div>
+        )}
+
+        {/* Know Your Style onboarding — sits above the workflow pipeline, until
+            the trader has completed it. */}
+        {showKysOnboarding && (
+          <div className="mt-10">
+            <KnowYourStyleOnboarding />
           </div>
         )}
 
