@@ -49,7 +49,7 @@ export function KnowYourStyleOnboarding() {
                 <path d="M3 8h9M8.5 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Link>
-            <span className="text-[13px] text-faint">~2 min · 6 questions</span>
+            <span className="text-[13px] text-faint">~3 min · 14 questions</span>
           </div>
         </div>
         <span className="hidden h-24 w-24 shrink-0 items-center justify-center rounded-3xl bg-accent-soft text-orange sm:flex">
