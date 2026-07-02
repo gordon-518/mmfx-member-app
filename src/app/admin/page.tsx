@@ -11,6 +11,7 @@ import {
   verifyDeposit,
 } from "./actions";
 import { getTVSessionInfo } from "@/lib/tv/client";
+import { UserAdmin } from "./UserAdmin";
 import {
   addDailyAnalysis,
   addLiveClass,
@@ -296,6 +297,17 @@ export default async function AdminPage({
               </button>
             </form>
           </div>
+        </section>
+
+        {/* User management — look up one user, then ban (reversible) or delete. */}
+        <section className="mt-4 rounded-xl border border-line bg-card/60 p-4">
+          <h2 className="font-display text-[15px] font-bold tracking-tight text-ink">
+            User management
+          </h2>
+          <p className="mt-1.5 mb-3 max-w-2xl text-[12px] leading-relaxed text-faint">
+            Look up an account by exact email, then ban (reversible) or delete it.
+          </p>
+          <UserAdmin />
         </section>
 
         {/* Search + filters (GET — state lives in the URL) */}
