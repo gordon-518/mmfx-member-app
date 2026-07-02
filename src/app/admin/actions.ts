@@ -43,7 +43,7 @@ async function syncTV(
 // back to /admin via query params; active filters are threaded through so
 // an action doesn't dump the admin out of a filtered view.
 
-const FILTER_KEYS = ["q", "status", "broker"] as const;
+const FILTER_KEYS = ["q", "status", "broker", "country"] as const;
 
 function filterParams(formData: FormData): Record<string, string> {
   const params: Record<string, string> = {};

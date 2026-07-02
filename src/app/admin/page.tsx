@@ -12,6 +12,7 @@ import {
 } from "./actions";
 import { getTVSessionInfo } from "@/lib/tv/client";
 import { UserAdmin } from "./UserAdmin";
+import { COUNTRIES, countryName } from "@/lib/countries";
 import {
   addDailyAnalysis,
   addLiveClass,
@@ -81,6 +82,7 @@ interface AdminProfileRow {
   ib_link_confirmed: boolean;
   is_admin: boolean;
   tradingview_username: string | null;
+  country: string | null;
 }
 
 function fmt(ts: string | null): string {
@@ -114,7 +116,7 @@ export default async function AdminPage({
     );
   }
 
-  const { ok, error, target, q, status, broker, content_ok, content_error } =
+  const { ok, error, target, q, status, broker, country, content_ok, content_error } =
     await searchParams;
   const notice =
     typeof ok === "string"
@@ -139,11 +141,15 @@ export default async function AdminPage({
     typeof broker === "string" && (BROKERS as readonly string[]).includes(broker)
       ? broker
       : "";
+  const countryFilter =
+    typeof country === "string" && COUNTRIES.some((c) => c.code === country.toUpperCase())
+      ? country.toUpperCase()
+      : "";
 
   let query = supabase
     .from("profiles")
     .select(
-      "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username"
+      "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country"
     )
     .order("created_at", { ascending: true });
 
@@ -156,6 +162,7 @@ export default async function AdminPage({
   }
   if (statusFilter) query = query.eq("account_status", statusFilter);
   if (brokerFilter) query = query.eq("broker", brokerFilter);
+  if (countryFilter) query = query.eq("country", countryFilter);
 
   const { data: profiles, error: listError } = await query;
 
@@ -191,6 +198,9 @@ export default async function AdminPage({
       )}
       {brokerFilter && (
         <input type="hidden" name="filter_broker" value={brokerFilter} />
+      )}
+      {countryFilter && (
+        <input type="hidden" name="filter_country" value={countryFilter} />
       )}
     </>
   );
@@ -339,10 +349,18 @@ export default async function AdminPage({
               </option>
             ))}
           </select>
+          <select name="country" defaultValue={countryFilter} className={INPUT}>
+            <option value="">country: all</option>
+            {COUNTRIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
+              </option>
+            ))}
+          </select>
           <button type="submit" className={BTN_PRIMARY}>
             Search
           </button>
-          {(emailQuery || statusFilter || brokerFilter) && (
+          {(emailQuery || statusFilter || brokerFilter || countryFilter) && (
             <a href="/admin" className="px-2 py-1.5 text-subtle hover:text-ink">
               clear
             </a>
@@ -359,6 +377,7 @@ export default async function AdminPage({
                 <th className="px-3 py-2.5">Name</th>
                 <th className="px-3 py-2.5">Email</th>
                 <th className="px-3 py-2.5">Status</th>
+                <th className="px-3 py-2.5">Country</th>
                 <th className="px-3 py-2.5">Trials</th>
                 <th className="px-3 py-2.5">Trial ends</th>
                 <th className="px-3 py-2.5">Downgraded</th>
@@ -382,6 +401,13 @@ export default async function AdminPage({
                       )}
                     </td>
                     <td className="px-3 py-3">{p.account_status}</td>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      {p.country ? (
+                        <span title={p.country}>{countryName(p.country)}</span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="px-3 py-3">{p.trial_count}</td>
                     <td className="px-3 py-3">{fmt(p.trial_ends_at)}</td>
                     <td className="px-3 py-3">{fmt(p.downgraded_at)}</td>
