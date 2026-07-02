@@ -125,6 +125,25 @@ export async function sendCapiEvent(
   }
 }
 
+// Fire the two signup conversions together (signup instantly starts the 14-day
+// trial, so both happen at one moment). Shared by the OAuth confirm route and
+// the in-page email-OTP server action.
+export async function sendSignupConversions(
+  user: CapiUser,
+  attr?: { feature?: string; cid?: string; geo?: string },
+  sourceUrl?: string,
+) {
+  const customData: Record<string, unknown> = {
+    ...(attr?.feature ? { content_name: attr.feature } : {}),
+    ...(attr?.cid ? { cid: attr.cid } : {}),
+    ...(attr?.geo ? { geo: attr.geo } : {}),
+  };
+  await Promise.allSettled([
+    sendCapiEvent({ eventName: "CompleteRegistration", actionSource: "website", eventSourceUrl: sourceUrl, user, customData }),
+    sendCapiEvent({ eventName: "StartTrial", actionSource: "website", eventSourceUrl: sourceUrl, user, customData }),
+  ]);
+}
+
 // Split a single "full name" field into first/last for match quality.
 export function splitName(full?: string | null): { firstName?: string; lastName?: string } {
   const name = (full ?? "").trim();

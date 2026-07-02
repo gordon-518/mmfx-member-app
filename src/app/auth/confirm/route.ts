@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { type EmailOtpType, type User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { clientIp, recordSignupIp } from "@/lib/signupIp";
-import { sendCapiEvent, fbcFromFbclid, splitName, type CapiUser } from "@/lib/meta-capi";
+import { sendSignupConversions, fbcFromFbclid, splitName, type CapiUser } from "@/lib/meta-capi";
 
 // OAuth / email-confirmation landing.
 //
@@ -81,28 +81,9 @@ async function fireSignupConversions(request: NextRequest, user: User | null, ip
     fbp,
   };
 
-  const customData = {
-    ...(attr.feature ? { content_name: attr.feature } : {}),
-    ...(attr.cid ? { cid: attr.cid } : {}),
-    ...(attr.geo ? { geo: attr.geo } : {}),
-  };
-  const sourceUrl = `${new URL(request.url).origin}/signup`;
-
-  // Signup instantly starts the 14-day trial, so both fire at this one moment.
-  await Promise.allSettled([
-    sendCapiEvent({
-      eventName: "CompleteRegistration",
-      actionSource: "website",
-      eventSourceUrl: sourceUrl,
-      user: capiUser,
-      customData,
-    }),
-    sendCapiEvent({
-      eventName: "StartTrial",
-      actionSource: "website",
-      eventSourceUrl: sourceUrl,
-      user: capiUser,
-      customData,
-    }),
-  ]);
+  await sendSignupConversions(
+    capiUser,
+    { feature: attr.feature, cid: attr.cid, geo: attr.geo },
+    `${new URL(request.url).origin}/signup`,
+  );
 }

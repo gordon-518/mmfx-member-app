@@ -9,6 +9,7 @@ import { validatePassword } from "@/lib/auth/password";
 import { friendlyAuthError } from "@/lib/auth/authErrors";
 import { GoogleButton } from "./GoogleButton";
 import { OtpCodeInput } from "./OtpCodeInput";
+import { recordSignupConversion } from "@/app/signup/actions";
 
 type Stage = "form" | "verify";
 type Status = "idle" | "sending" | "error";
@@ -69,6 +70,13 @@ export function SignupForm() {
     if (error) {
       fail(friendlyAuthError(error.message));
       return;
+    }
+    // Fire CompleteRegistration + StartTrial server-side (this in-page flow never
+    // hits /auth/confirm). Guarded inside; never blocks the redirect on failure.
+    try {
+      await recordSignupConversion();
+    } catch {
+      /* analytics must never block signup */
     }
     window.location.assign("/dashboard");
   }
