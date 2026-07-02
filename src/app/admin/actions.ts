@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { grantTVAccess, revokeTVAccess, setTVSession, testTVSession } from "@/lib/tv/client";
 import { syncSendpulseAudiences } from "@/lib/sendpulseSync";
+import { sendCapiEvent } from "@/lib/meta-capi";
 import type { AccountStatus } from "@/lib/trial/status";
 
 const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
@@ -104,6 +105,20 @@ export async function verifyDeposit(formData: FormData) {
   }
 
   await syncTV(supabase, targetUserId);
+
+  // Funded-account conversion — the money event that ties ad spend to IB
+  // revenue. Server-generated (no browser context); matched on email + user id.
+  // Guarded so a Meta hiccup never blocks the admin verifying a member.
+  try {
+    await sendCapiEvent({
+      eventName: "Purchase",
+      actionSource: "system_generated",
+      user: { email: targetEmail, externalId: targetUserId },
+      customData: { value: amount, currency: "USD", content_name: "funded_account", broker },
+    });
+  } catch (e) {
+    console.error("[meta-capi] Purchase failed:", e);
+  }
 
   revalidatePath("/admin");
   backTo({
