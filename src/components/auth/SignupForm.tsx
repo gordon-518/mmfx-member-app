@@ -10,14 +10,16 @@ import { friendlyAuthError } from "@/lib/auth/authErrors";
 import { GoogleButton } from "./GoogleButton";
 import { OtpCodeInput } from "./OtpCodeInput";
 import { recordSignupConversion } from "@/app/signup/actions";
+import { COUNTRIES, isKnownCountry } from "@/lib/countries";
 
 type Stage = "form" | "verify";
 type Status = "idle" | "sending" | "error";
 
-export function SignupForm() {
+export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string }) {
   const [stage, setStage] = useState<Stage>("form");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [country, setCountry] = useState(isKnownCountry(defaultCountry) ? defaultCountry.toUpperCase() : "");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [code, setCode] = useState("");
@@ -38,6 +40,10 @@ export function SignupForm() {
       fail("Please use a permanent email address — temporary inboxes aren't supported.");
       return;
     }
+    if (!country) {
+      fail("Please select your country.");
+      return;
+    }
     const pw = validatePassword(password);
     if (!pw.ok) {
       fail(pw.message);
@@ -50,7 +56,7 @@ export function SignupForm() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name.trim(), fingerprint: computeFingerprint() } },
+      options: { data: { full_name: name.trim(), country, fingerprint: computeFingerprint() } },
     });
     if (error) {
       fail(friendlyAuthError(error.message));
@@ -182,6 +188,26 @@ export function SignupForm() {
               placeholder="you@example.com"
               className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-faint focus:outline-none"
             />
+          </div>
+
+          <label htmlFor="country" className="mb-2 mt-4 block text-sm font-medium text-ink">Country</label>
+          <div className={fieldBorder(false)}>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="text-faint">
+              <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M2.5 10h15M10 2.5c2 2.2 3 4.8 3 7.5s-1 5.3-3 7.5c-2-2.2-3-4.8-3-7.5s1-5.3 3-7.5Z" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <select
+              id="country"
+              required
+              value={country}
+              onChange={(e) => { setCountry(e.target.value); if (status === "error") setStatus("idle"); }}
+              className="w-full bg-transparent py-3 text-[15px] text-ink focus:outline-none"
+            >
+              <option value="" disabled>Select your country</option>
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.name}</option>
+              ))}
+            </select>
           </div>
 
           <label htmlFor="password" className="mb-2 mt-4 block text-sm font-medium text-ink">Password</label>

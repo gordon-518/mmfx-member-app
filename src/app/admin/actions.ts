@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { grantTVAccess, revokeTVAccess, setTVSession, testTVSession } from "@/lib/tv/client";
 import { syncSendpulseAudiences } from "@/lib/sendpulseSync";
 import { sendCapiEvent } from "@/lib/meta-capi";
+import { banUserById, deleteUserById } from "@/lib/adminUsers";
 import type { AccountStatus } from "@/lib/trial/status";
 
 const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
@@ -266,4 +267,83 @@ export async function runSendpulseSync() {
       `SendPulse synced ${r.synced}/${r.total} — member ${c.member ?? 0}, trial ${c.trial ?? 0}, expired ${c.expired ?? 0}, removed ${c.removed ?? 0}`
     )}`
   );
+}
+
+// ── User management (Ban / Delete) ────────────────────────────────────────────
+// Return-style actions (called directly from the UserAdmin client component and
+// awaited), NOT the redirect pattern above. Every one re-checks is_admin and
+// re-resolves the target server-side via fn_admin_find_user (exact-email match),
+// so the client can never widen the target. Deletes are guarded further.
+
+export interface FoundUser {
+  id: string;
+  email: string;
+  account_status: string | null;
+  banned: boolean;
+}
+export type UserLookupResult =
+  | { ok: true; user: FoundUser }
+  | { ok: false; error: string };
+export type UserActionResult = { ok: true; message: string } | { ok: false; error: string };
+
+async function adminOrError(): Promise<
+  { ok: true; supabase: Awaited<ReturnType<typeof createClient>> } | { ok: false; error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not authenticated" };
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (isAdmin !== true) return { ok: false, error: "Not authorized" };
+  return { ok: true, supabase };
+}
+
+// Resolve exactly one user by exact email, or an error. Shared by all three.
+async function resolveOne(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  email: string
+): Promise<{ ok: true; user: FoundUser } | { ok: false; error: string }> {
+  const clean = email.trim();
+  if (!clean) return { ok: false, error: "Enter an email." };
+  const { data, error } = await supabase.rpc("fn_admin_find_user", { p_email: clean });
+  if (error) return { ok: false, error: error.message };
+  const rows = (data ?? []) as FoundUser[];
+  if (rows.length === 0) return { ok: false, error: `No account matches ${clean}.` };
+  if (rows.length > 1) return { ok: false, error: `${rows.length} accounts matched — refusing.` };
+  return { ok: true, user: rows[0] };
+}
+
+export async function lookupUser(email: string): Promise<UserLookupResult> {
+  const gate = await adminOrError();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  return resolveOne(gate.supabase, email);
+}
+
+export async function banUser(email: string, ban: boolean): Promise<UserActionResult> {
+  const gate = await adminOrError();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const found = await resolveOne(gate.supabase, email);
+  if (!found.ok) return found;
+  const r = await banUserById(found.user.id, ban);
+  if (!r.ok) return { ok: false, error: r.error ?? "Failed." };
+  revalidatePath("/admin");
+  return { ok: true, message: `${found.user.email} ${ban ? "banned" : "unbanned"}.` };
+}
+
+export async function deleteUser(email: string, confirmEmail: string): Promise<UserActionResult> {
+  const gate = await adminOrError();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const found = await resolveOne(gate.supabase, email);
+  if (!found.ok) return found;
+  if (confirmEmail.trim().toLowerCase() !== found.user.email.toLowerCase()) {
+    return { ok: false, error: "Confirmation email doesn't match — nothing deleted." };
+  }
+  if (found.user.account_status === "member_active") {
+    return { ok: false, error: "Refusing: this is a paying member. Downgrade first if you truly mean to delete." };
+  }
+  const r = await deleteUserById(found.user.id);
+  if (!r.ok) return { ok: false, error: r.error ?? "Failed." };
+  revalidatePath("/admin");
+  return { ok: true, message: `${found.user.email} permanently deleted.` };
 }

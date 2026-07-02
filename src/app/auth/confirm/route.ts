@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { type EmailOtpType, type User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { clientIp, recordSignupIp } from "@/lib/signupIp";
+import { clientIp, recordSignupIp, recordSignupCountry } from "@/lib/signupIp";
 import { sendSignupConversions, fbcFromFbclid, splitName, type CapiUser } from "@/lib/meta-capi";
 
 // OAuth / email-confirmation landing.
@@ -43,6 +43,9 @@ export async function GET(request: NextRequest) {
 async function onAuthSuccess(request: NextRequest, user: User | null) {
   const ip = clientIp(request);
   await recordSignupIp(user?.id, ip);
+  // OAuth (Google) signups carry no country in metadata — fill set-once from the
+  // edge geo header. No-op for email signups (country already set via the form).
+  await recordSignupCountry(user?.id, request.headers.get("x-vercel-ip-country"));
   try {
     await fireSignupConversions(request, user, ip);
   } catch (e) {

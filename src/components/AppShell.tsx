@@ -15,8 +15,10 @@ import {
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
 const NAV: { label: string; href: string; icon: Icon }[] = [
-  // Home hub first, then ordered by moat (top = highest): recurring proprietary
-  // habit-drivers → exclusive IP/tools → commodity reference feeds.
+  // "Start here" roadmap first, then the home hub, then ordered by moat (top =
+  // highest): recurring proprietary habit-drivers → exclusive IP/tools →
+  // commodity reference feeds.
+  { label: "Start here", href: "/welcome", icon: SparkIcon },
   { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
   { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
   { label: "Signals", href: "/signals", icon: SignalsIcon },
