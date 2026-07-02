@@ -35,3 +35,24 @@ export async function recordSignupIp(userId: string | undefined, ip: string | nu
     /* best-effort — never block login */
   }
 }
+
+// Set-once country from the edge geo header. Used for OAuth (Google) signups,
+// which never hit our signup form and so carry no country in metadata. Email
+// signups already provide country via the form → handle_new_user trigger, so
+// this only fills the gap where it's still null.
+export async function recordSignupCountry(
+  userId: string | undefined,
+  country: string | null
+): Promise<void> {
+  const code = country?.trim().toUpperCase();
+  if (!userId || !code) return;
+  try {
+    await adminClient()
+      .from("profiles")
+      .update({ country: code })
+      .eq("id", userId)
+      .is("country", null);
+  } catch {
+    /* best-effort — never block login */
+  }
+}
