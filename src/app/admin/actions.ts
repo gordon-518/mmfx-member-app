@@ -107,12 +107,15 @@ export async function verifyDeposit(formData: FormData) {
   await syncTV(supabase, targetUserId);
 
   // Funded-account conversion — the money event that ties ad spend to IB
-  // revenue. Server-generated (no browser context); matched on email + user id.
-  // Guarded so a Meta hiccup never blocks the admin verifying a member.
+  // revenue. action_source "website" (not "system_generated"): the conversion
+  // culminates the web funnel, it optimizes as a standard web conversion, and —
+  // unlike system_generated — it renders in Events Manager Test Events. Matched
+  // on email + user id. Guarded so a Meta hiccup never blocks admin verify.
   try {
     await sendCapiEvent({
       eventName: "Purchase",
-      actionSource: "system_generated",
+      actionSource: "website",
+      eventSourceUrl: "https://app.marketmakersfx.net/upgrade",
       user: { email: targetEmail, externalId: targetUserId },
       customData: { value: amount, currency: "USD", content_name: "funded_account", broker },
     });
