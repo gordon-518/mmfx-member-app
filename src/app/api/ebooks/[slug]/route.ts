@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 import { requireFull } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
+import { isDemoUser } from "@/lib/showcase";
 import { EBOOKS_BUCKET, ebookBySlug } from "@/app/library/ebooks";
 
 // Gated ebook delivery. Two independent gates:
@@ -15,7 +16,12 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   // Gate 1: tier. Redirects (throws) for anyone not Full.
-  await requireFull();
+  const profile = await requireFull();
+
+  // Showcase demo account may view the UI but never pull the paid file bytes.
+  if (isDemoUser(profile.email)) {
+    return new Response("Not available in showcase", { status: 403 });
+  }
 
   const { slug } = await params;
 

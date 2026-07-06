@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 import { requireFull } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
+import { isDemoUser } from "@/lib/showcase";
 import { SLIDES_BUCKET, lessonBySlug } from "@/app/course/courseData";
 
 // Gated PPT delivery — same proven pattern as /api/ebooks/[slug] (Day 7).
@@ -18,7 +19,12 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   // Gate 1: tier. Redirects (throws) for anyone not Full.
-  await requireFull();
+  const profile = await requireFull();
+
+  // Showcase demo account may view the UI but never pull the paid file bytes.
+  if (isDemoUser(profile.email)) {
+    return new Response("Not available in showcase", { status: 403 });
+  }
 
   const { slug } = await params;
 
