@@ -9,7 +9,7 @@ import type { AccountStatus, AccessTier } from "@/lib/trial/status";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
   AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon,
-  MenuIcon, CloseIcon, SparkIcon,
+  MenuIcon, CloseIcon, SparkIcon, JournalIcon,
 } from "./icons";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -21,6 +21,7 @@ const NAV: { label: string; href: string; icon: Icon }[] = [
   { label: "Start here", href: "/welcome", icon: SparkIcon },
   { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
   { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
+  { label: "Trading Journal", href: "/journal", icon: JournalIcon },
   { label: "Signals", href: "/signals", icon: SignalsIcon },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
   { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },

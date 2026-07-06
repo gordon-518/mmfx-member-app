@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 import { requireFull } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
+import { isDemoUser } from "@/lib/showcase";
 
 // Gated daily-analysis PDF report. Same pattern as the ebook/slide routes:
 //   1. requireFull() — Limited users redirect to /upgrade before any storage.
@@ -15,7 +16,12 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  await requireFull();
+  const profile = await requireFull();
+
+  // Showcase demo account may view the UI but never pull the paid file bytes.
+  if (isDemoUser(profile.email)) {
+    return new Response("Not available in showcase", { status: 403 });
+  }
 
   const { id } = await params;
   if (!/^[0-9a-fA-F-]{36}$/.test(id)) {

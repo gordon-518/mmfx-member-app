@@ -17,6 +17,9 @@ const base = (p: I) => ({
 export const HomeIcon = (p: I) => (
   <svg {...base(p)}><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /><path d="M9.5 20v-6h5v6" /></svg>
 );
+export const JournalIcon = (p: I) => (
+  <svg {...base(p)}><path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4Z" /><path d="M5 4v14" /><path d="M9 8h6" /><path d="M9 12l2 2 4-4" /></svg>
+);
 export const IndicatorsIcon = (p: I) => (
   <svg {...base(p)}><path d="M4 19h16" /><rect x="5.5" y="11" width="2.6" height="5" rx="0.6" /><rect x="11" y="7" width="2.6" height="9" rx="0.6" /><rect x="16.5" y="13" width="2.6" height="3" rx="0.6" /><path d="M4 5l4 3 4-4 4 3 4-4" /></svg>
 );
