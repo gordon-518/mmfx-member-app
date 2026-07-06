@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isDemoUser } from "@/lib/showcase";
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -34,9 +35,14 @@ export async function proxy(request: NextRequest) {
   // who haven't dismissed the roadmap) are sent to /welcome once. Uses only the
   // already-fetched user — no extra DB query. Existing users (created before the
   // cutoff) are never redirected, so there's no mass interruption.
+  // Showcase (demo) sessions: keep them out of search indexes entirely.
+  if (isDemoUser(user?.email)) {
+    supabaseResponse.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+
   const ROADMAP_SINCE = Date.parse("2026-07-01T00:00:00Z");
   const path = request.nextUrl.pathname;
-  const exempt = /^\/(welcome|login|signup|forgot-password|auth|api|privacy|terms)(\/|$)/.test(path);
+  const exempt = /^\/(welcome|showcase|login|signup|forgot-password|auth|api|privacy|terms)(\/|$)/.test(path);
   if (
     user &&
     !exempt &&
