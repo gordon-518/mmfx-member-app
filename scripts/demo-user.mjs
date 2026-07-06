@@ -39,7 +39,7 @@ const { rows } = await client.query(
      email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
    values ('00000000-0000-0000-0000-000000000000', gen_random_uuid(), 'authenticated', 'authenticated',
      $1, crypt($2, gen_salt('bf')), now(),
-     '{"provider":"email","providers":["email"]}', '{"full_name":"Demo Member"}', now(), now())
+     '{"provider":"email","providers":["email"]}', '{"full_name":"Alex Rivera","roadmap_seen":true}', now(), now())
    returning id`,
   [EMAIL, PASS]
 );
@@ -58,12 +58,15 @@ await client.query(
   [uid, EMAIL]
 );
 
+// NOTE: is_admin=false — this account backs the public /showcase link, so it must
+// never reach /admin. full_name + country make it look like a real member.
 await client.query(
   `update public.profiles
-     set account_status=$2, trial_ends_at=now() + interval '14 days', is_admin=true
+     set account_status=$2, trial_ends_at=now() + interval '14 days',
+         is_admin=false, full_name='Alex Rivera', country='MY'
    where id=$1`,
   [uid, status]
 );
 
-console.log("created", EMAIL, "as", status, uid);
+console.log("created", EMAIL, "as", status, "(showcase demo, non-admin)", uid);
 await client.end();
