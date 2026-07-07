@@ -1,27 +1,27 @@
 import { requireFull } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
-import { headlineStats } from "@/lib/journal/metrics";
+import { computeAnalytics } from "@/lib/journal/analytics";
 import type {
   JournalAccountRow,
+  JournalCashFlowRow,
   JournalGoalsRow,
   JournalTradeRow,
 } from "@/lib/journal/types";
 import { JournalDashboard } from "./JournalDashboard";
 
-// AI Trading Journal — Phase 1 dashboard. Server component: gate, fetch own
-// rows (RLS-scoped), derive headline stats, render the client dashboard.
-//
-// Phase 1 computes stats over the most recent closed trades (cap below);
-// Phase 2 moves aggregates into SQL when the analytics engine lands.
+// AI Trading Journal — Phase 2 dashboard. Server component: gate, fetch own
+// rows (RLS-scoped), compute the full analytics set (pure), render the client
+// dashboard. Analytics run over the most recent closed trades (cap below);
+// when history grows past that, we move the aggregates into SQL.
 
-const TRADES_CAP = 500;
+const TRADES_CAP = 1000;
 
 export default async function JournalPage() {
   const profile = await requireFull();
   const supabase = await createClient();
 
-  const [{ data: accounts }, { data: closedTrades }, { data: openTrades }, { data: goals }] =
+  const [{ data: accounts }, { data: trades }, { data: cashFlows }, { data: goals }] =
     await Promise.all([
       supabase
         .from("journal_accounts")
@@ -31,19 +31,17 @@ export default async function JournalPage() {
       supabase
         .from("journal_trades")
         .select()
-        .eq("status", "closed")
-        .order("close_time", { ascending: false })
+        .order("close_time", { ascending: false, nullsFirst: true })
         .limit(TRADES_CAP),
-      supabase
-        .from("journal_trades")
-        .select()
-        .eq("status", "open")
-        .order("open_time", { ascending: false })
-        .limit(50),
+      supabase.from("journal_cash_flows").select(),
       supabase.from("journal_goals").select().maybeSingle(),
     ]);
 
-  const stats = headlineStats((closedTrades ?? []) as JournalTradeRow[]);
+  const allTrades = (trades ?? []) as JournalTradeRow[];
+  const analytics = computeAnalytics(
+    allTrades,
+    (cashFlows ?? []) as JournalCashFlowRow[]
+  );
 
   return (
     <AppShell
@@ -53,10 +51,10 @@ export default async function JournalPage() {
     >
       <JournalDashboard
         accounts={(accounts ?? []) as JournalAccountRow[]}
-        closedTrades={(closedTrades ?? []) as JournalTradeRow[]}
-        openTrades={(openTrades ?? []) as JournalTradeRow[]}
+        trades={allTrades}
         goals={(goals ?? null) as JournalGoalsRow | null}
-        stats={stats}
+        analytics={analytics}
+        currency={(accounts ?? [])[0]?.currency ?? null}
       />
     </AppShell>
   );
