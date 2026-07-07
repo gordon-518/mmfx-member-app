@@ -131,6 +131,36 @@ export const JOURNAL_EMOTIONS = [
 
 export type JournalEmotion = (typeof JOURNAL_EMOTIONS)[number];
 
+/** One AI-detected habit surfaced in a coaching report. */
+export interface CoachHabit {
+  kind: "good" | "bad";
+  title: string;
+  detail: string;
+}
+
+export type CoachStatus = "ahead" | "on_track" | "behind" | "at_risk";
+
+/** The structured output the AI coach returns for a report. */
+export interface CoachReport {
+  summary: string;
+  status: CoachStatus;
+  habits: CoachHabit[];
+  tips: string[];
+}
+
+export interface JournalReportRow {
+  id: string;
+  user_id: string;
+  report_date: string;
+  status: CoachStatus | null;
+  summary: string;
+  habits: CoachHabit[];
+  tips: string[];
+  stats: Record<string, unknown> | null;
+  model: string | null;
+  created_at: string;
+}
+
 export interface JournalGoalsRow {
   user_id: string;
   style: "scalper" | "day" | "swing" | "position" | null;

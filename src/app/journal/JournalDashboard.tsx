@@ -8,6 +8,7 @@ import {
   JOURNAL_EMOTIONS,
   type JournalAccountRow,
   type JournalGoalsRow,
+  type JournalReportRow,
   type JournalTradeRow,
 } from "@/lib/journal/types";
 import { DrawdownChart, EquityCurveChart, PnlHistogram } from "./charts";
@@ -499,6 +500,134 @@ function TradesTable({
   );
 }
 
+const STATUS_CHIP: Record<string, { label: string; cls: string }> = {
+  ahead: { label: "Ahead of plan", cls: "bg-emerald-100 text-emerald-700" },
+  on_track: { label: "On track", cls: "bg-sky-100 text-sky-700" },
+  behind: { label: "Behind plan", cls: "bg-amber-100 text-amber-800" },
+  at_risk: { label: "At risk", cls: "bg-red-100 text-red-700" },
+};
+
+function CoachCard({ report }: { report: JournalReportRow | null }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function generate() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/journal/report/generate", { method: "POST" });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        setError(b.error ?? "Could not generate the report");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Network error — please try again");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const chip = report?.status ? STATUS_CHIP[report.status] : null;
+
+  return (
+    <section className="rise rounded-2xl border border-orange/30 bg-accent-soft/30 p-6 shadow-soft sm:p-7">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange text-white">
+            ✦
+          </span>
+          <div>
+            <h2 className="font-display text-lg font-bold text-ink">AI Coach</h2>
+            {report && (
+              <p className="text-[12px] text-subtle">
+                {new Date(report.report_date).toLocaleDateString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </p>
+            )}
+          </div>
+          {chip && (
+            <span
+              className={`ml-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${chip.cls}`}
+            >
+              {chip.label}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={generate}
+          disabled={busy}
+          className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] disabled:opacity-50"
+        >
+          {busy ? "Analysing…" : report ? "Regenerate" : "Generate today’s report"}
+        </button>
+      </div>
+
+      {error && <p className="mt-3 text-[13px] text-red-600">{error}</p>}
+
+      {report ? (
+        <div className="mt-4 space-y-4">
+          <p className="text-[15px] leading-relaxed text-ink">{report.summary}</p>
+
+          {report.habits.length > 0 && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {report.habits.map((h, i) => (
+                <div
+                  key={i}
+                  className={`rounded-xl border p-3 ${
+                    h.kind === "good"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : "border-amber-200 bg-amber-50"
+                  }`}
+                >
+                  <p
+                    className={`text-[13px] font-semibold ${
+                      h.kind === "good" ? "text-emerald-800" : "text-amber-800"
+                    }`}
+                  >
+                    {h.kind === "good" ? "✓ " : "△ "}
+                    {h.title}
+                  </p>
+                  <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink/80">
+                    {h.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {report.tips.length > 0 && (
+            <div>
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-subtle">
+                Trade-management tips
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {report.tips.map((t, i) => (
+                  <li key={i} className="flex gap-2 text-[14px] text-ink">
+                    <span className="text-orange">→</span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="mt-3 text-[14px] leading-relaxed text-subtle">
+          Generate an AI read of your trading — it measures your habits against
+          your goals, flags what’s working and what isn’t, and gives concrete
+          trade-management tips. Runs automatically each day once live.
+        </p>
+      )}
+    </section>
+  );
+}
+
 function GoalsCard({ goals }: { goals: JournalGoalsRow | null }) {
   return (
     <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
@@ -547,12 +676,14 @@ export function JournalDashboard({
   trades,
   goals,
   analytics,
+  report,
   currency,
 }: {
   accounts: JournalAccountRow[];
   trades: JournalTradeRow[];
   goals: JournalGoalsRow | null;
   analytics: JournalAnalytics;
+  report: JournalReportRow | null;
   currency: string | null;
 }) {
   const a = analytics;
@@ -595,6 +726,8 @@ export function JournalDashboard({
           {accounts.map((acct) => (
             <AccountCard key={acct.id} account={acct} />
           ))}
+
+          <CoachCard report={report} />
 
           {/* KPI grid */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

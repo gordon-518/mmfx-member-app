@@ -7,6 +7,7 @@ import type {
   JournalAccountRow,
   JournalCashFlowRow,
   JournalGoalsRow,
+  JournalReportRow,
   JournalTradeRow,
 } from "@/lib/journal/types";
 import { JournalDashboard } from "./JournalDashboard";
@@ -40,6 +41,13 @@ export default async function JournalPage() {
       supabase.from("journal_goals").select().maybeSingle(),
     ]);
 
+  const { data: report } = await supabase
+    .from("journal_reports")
+    .select()
+    .order("report_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const allTrades = (trades ?? []) as JournalTradeRow[];
   const analytics = computeAnalytics(
     allTrades,
@@ -58,6 +66,7 @@ export default async function JournalPage() {
         trades={allTrades}
         goals={(goals ?? null) as JournalGoalsRow | null}
         analytics={analytics}
+        report={(report ?? null) as JournalReportRow | null}
         currency={(accounts ?? [])[0]?.currency ?? null}
       />
     </AppShell>
