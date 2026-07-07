@@ -109,12 +109,7 @@ export interface JournalAnalytics {
   byWeekday: Breakdown[];
 }
 
-function byTime<T extends { time?: string | null }>(
-  getTime: (t: T) => string | null
-) {
-  return (a: T, b: T) =>
-    new Date(getTime(a) ?? 0).getTime() - new Date(getTime(b) ?? 0).getTime();
-}
+const ms = (iso: string | null) => (iso ? new Date(iso).getTime() : 0);
 
 function groupBreakdown(
   trades: JournalTradeRow[],
@@ -172,7 +167,7 @@ export function computeAnalytics(
 ): JournalAnalytics {
   const closed = allTrades
     .filter((t) => t.status === "closed")
-    .sort(byTime((t) => t.close_time));
+    .sort((a, b) => ms(a.close_time) - ms(b.close_time));
   const open = allTrades.filter((t) => t.status === "open");
 
   const netProfit = round2(closed.reduce((s, t) => s + t.net_profit, 0));
