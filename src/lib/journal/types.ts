@@ -158,6 +158,7 @@ export interface JournalReportRow {
   tips: string[];
   stats: Record<string, unknown> | null;
   model: string | null;
+  gen_count: number;
   created_at: string;
 }
 

@@ -276,9 +276,12 @@ export async function generateReport(
   }
 }
 
-// --- DB orchestration (shared by the cron worker and the on-demand route) ----
+// --- DB orchestration (used by the on-demand generate route) ----------------
 
 const TRADES_CAP = 1000;
+
+/** Max click-to-generate coaching reports per user per day. */
+export const DAILY_REPORT_CAP = 5;
 
 /** Gather everything the coach needs for one user. Null if nothing to report. */
 export async function loadReportContext(
@@ -319,42 +322,3 @@ export async function loadReportContext(
   };
 }
 
-/**
- * Generate today's coaching report for one user and persist it. Idempotent on
- * (user_id, report_date). Returns the report, or null if there was nothing to
- * report or the model call failed.
- */
-export async function runReportForUser(
-  db: SupabaseClient,
-  userId: string,
-  reportDate: string
-): Promise<CoachReport | null> {
-  const ctx = await loadReportContext(db, userId);
-  if (!ctx) return null;
-
-  const result = await generateReport(ctx);
-  if (!result) return null;
-
-  const { error } = await db.from("journal_reports").upsert(
-    {
-      user_id: userId,
-      report_date: reportDate,
-      status: result.report.status,
-      summary: result.report.summary,
-      habits: result.report.habits,
-      tips: result.report.tips,
-      stats: {
-        netProfit: ctx.analytics.netProfit,
-        winRate: ctx.analytics.winRate,
-        profitFactor: ctx.analytics.profitFactor,
-        closedCount: ctx.analytics.closedCount,
-        maxDrawdown: ctx.analytics.maxDrawdown,
-      },
-      model: result.model,
-    },
-    { onConflict: "user_id,report_date" }
-  );
-  if (error) return null;
-
-  return result.report;
-}

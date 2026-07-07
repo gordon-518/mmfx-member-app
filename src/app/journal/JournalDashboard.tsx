@@ -507,10 +507,19 @@ const STATUS_CHIP: Record<string, { label: string; cls: string }> = {
   at_risk: { label: "At risk", cls: "bg-red-100 text-red-700" },
 };
 
-function CoachCard({ report }: { report: JournalReportRow | null }) {
+function CoachCard({
+  report,
+  reportsRemaining,
+  reportCap,
+}: {
+  report: JournalReportRow | null;
+  reportsRemaining: number;
+  reportCap: number;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const outOfQuota = reportsRemaining <= 0;
 
   async function generate() {
     setBusy(true);
@@ -559,13 +568,24 @@ function CoachCard({ report }: { report: JournalReportRow | null }) {
             </span>
           )}
         </div>
-        <button
-          onClick={generate}
-          disabled={busy}
-          className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] disabled:opacity-50"
-        >
-          {busy ? "Analysing…" : report ? "Regenerate" : "Generate today’s report"}
-        </button>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            onClick={generate}
+            disabled={busy || outOfQuota}
+            className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy
+              ? "Analysing…"
+              : outOfQuota
+                ? "Daily limit reached"
+                : report
+                  ? "Regenerate"
+                  : "Generate today’s report"}
+          </button>
+          <span className="text-[11px] text-subtle">
+            {reportsRemaining} of {reportCap} left today
+          </span>
+        </div>
       </div>
 
       {error && <p className="mt-3 text-[13px] text-red-600">{error}</p>}
@@ -677,6 +697,8 @@ export function JournalDashboard({
   goals,
   analytics,
   report,
+  reportsRemaining,
+  reportCap,
   currency,
 }: {
   accounts: JournalAccountRow[];
@@ -684,6 +706,8 @@ export function JournalDashboard({
   goals: JournalGoalsRow | null;
   analytics: JournalAnalytics;
   report: JournalReportRow | null;
+  reportsRemaining: number;
+  reportCap: number;
   currency: string | null;
 }) {
   const a = analytics;
@@ -727,7 +751,11 @@ export function JournalDashboard({
             <AccountCard key={acct.id} account={acct} />
           ))}
 
-          <CoachCard report={report} />
+          <CoachCard
+            report={report}
+            reportsRemaining={reportsRemaining}
+            reportCap={reportCap}
+          />
 
           {/* KPI grid */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

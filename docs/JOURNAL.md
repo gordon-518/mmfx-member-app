@@ -43,9 +43,10 @@ Phase 1 (Connect & Collect) of the AI Trading Journal. Full design:
 - **Env:** `METAAPI_TOKEN`, `METAAPI_REGION` (default `london`),
   `CRON_SECRET`, `NEXT_PUBLIC_APP_URL` (worker self-chaining), and
   `ANTHROPIC_API_KEY` (Phase 3 AI coach).
-- **Scheduler:** two pg_cron + pg_net jobs — `journal-sync` (every 15 min) and
-  `journal-report` (daily 22:30 UTC). Snippets at the bottom of each migration
-  file (same convention as `daily-growth-stats`). No Vercel cron slot used.
+- **Scheduler:** one pg_cron + pg_net job — `journal-sync` (every 15 min).
+  Snippet at the bottom of the sync migration (same convention as
+  `daily-growth-stats`). No Vercel cron slot used. AI reports are on-demand
+  only — no report cron.
 - **Retries:** transient sync failures re-queue with 5-min backoff, max 3
   attempts, then surface as `journal_accounts.sync_error` on the account card.
   Cursor only advances after successful writes — retries lose nothing.
@@ -64,8 +65,9 @@ Phase 1 (Connect & Collect) of the AI Trading Journal. Full design:
   charts (`charts.tsx`), rich KPI dashboard, per-trade notes/tags/emotion.
 - **Phase 3 — Understand & Coach: DONE.** `coach.ts` (behavioural signals +
   prompt + Anthropic structured output, Haiku 4.5), `journal_reports` store,
-  daily report cron (`/api/journal/cron/report`, self-chaining) + on-demand
-  generation (`/api/journal/report/generate`), and the dashboard coach card.
+  and the dashboard coach card. Reports are **on-demand only** via
+  `/api/journal/report/generate`, capped at `DAILY_REPORT_CAP` (5) per user
+  per day (`gen_count` column). No automatic report cron.
 - **Broker Manager-API feed** (if brokers grant it) replaces MetaApi per-user
   connects by writing into the same `journal_deals` table — everything
   downstream is source-agnostic.

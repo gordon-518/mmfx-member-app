@@ -3,6 +3,7 @@ import { requireFull } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { computeAnalytics } from "@/lib/journal/analytics";
+import { DAILY_REPORT_CAP } from "@/lib/journal/coach";
 import type {
   JournalAccountRow,
   JournalCashFlowRow,
@@ -48,6 +49,11 @@ export default async function JournalPage() {
     .limit(1)
     .maybeSingle();
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const usedToday =
+    report && report.report_date === todayStr ? report.gen_count : 0;
+  const reportsRemaining = Math.max(0, DAILY_REPORT_CAP - usedToday);
+
   const allTrades = (trades ?? []) as JournalTradeRow[];
   const analytics = computeAnalytics(
     allTrades,
@@ -67,6 +73,8 @@ export default async function JournalPage() {
         goals={(goals ?? null) as JournalGoalsRow | null}
         analytics={analytics}
         report={(report ?? null) as JournalReportRow | null}
+        reportsRemaining={reportsRemaining}
+        reportCap={DAILY_REPORT_CAP}
         currency={(accounts ?? [])[0]?.currency ?? null}
       />
     </AppShell>
