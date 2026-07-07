@@ -83,7 +83,7 @@ export default async function LibraryPage() {
   const rest = EBOOKS.filter((b) => !b.featured);
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full">
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">

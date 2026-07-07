@@ -9,18 +9,20 @@ import type { AccountStatus, AccessTier } from "@/lib/trial/status";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
   AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon,
-  MenuIcon, CloseIcon, SparkIcon,
+  MenuIcon, CloseIcon, SparkIcon, JournalIcon,
 } from "./icons";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-const NAV: { label: string; href: string; icon: Icon }[] = [
+const NAV: { label: string; href: string; icon: Icon; adminOnly?: boolean }[] = [
   // "Start here" roadmap first, then the home hub, then ordered by moat (top =
   // highest): recurring proprietary habit-drivers → exclusive IP/tools →
   // commodity reference feeds.
   { label: "Start here", href: "/welcome", icon: SparkIcon },
   { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
   { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
+  // Admin-only while the AI Trading Journal is in staged rollout.
+  { label: "Trading Journal", href: "/journal", icon: JournalIcon, adminOnly: true },
   { label: "Signals", href: "/signals", icon: SignalsIcon },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
   { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
@@ -58,10 +60,18 @@ export function Wordmark({ iconOnly = false }: { iconOnly?: boolean }) {
 }
 
 /** Nav link list — shared by the desktop sidebar and the mobile drawer. */
-function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function NavLinks({
+  pathname,
+  onNavigate,
+  isAdmin,
+}: {
+  pathname: string;
+  onNavigate?: () => void;
+  isAdmin: boolean;
+}) {
   return (
     <>
-      {NAV.map((n) => {
+      {NAV.filter((n) => !n.adminOnly || isAdmin).map((n) => {
         const active = isActive(pathname, n.href);
         return (
           <Link
@@ -158,11 +168,13 @@ export function AppShell({
   email,
   accountStatus,
   tier,
+  isAdmin = false,
   children,
 }: {
   email: string;
   accountStatus: AccountStatus;
   tier: AccessTier;
+  isAdmin?: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -200,7 +212,7 @@ export function AppShell({
         </Link>
 
         <nav className="mt-8 flex-1 space-y-0.5 overflow-y-auto">
-          <NavLinks pathname={pathname} />
+          <NavLinks pathname={pathname} isAdmin={isAdmin} />
         </nav>
 
         {!isMember && (
@@ -289,7 +301,7 @@ export function AppShell({
               </div>
 
               <nav className="mt-6 flex-1 space-y-0.5 overflow-y-auto">
-                <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+                <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} isAdmin={isAdmin} />
               </nav>
 
               {!isMember && (

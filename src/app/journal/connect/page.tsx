@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireFull } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
@@ -14,6 +15,7 @@ export default async function JournalConnectPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const profile = await requireFull();
+  if (!profile.is_admin) redirect("/dashboard");
   const { step } = await searchParams;
 
   const supabase = await createClient();
@@ -27,6 +29,7 @@ export default async function JournalConnectPage({
       email={profile.email}
       accountStatus={profile.account_status}
       tier="Full"
+      isAdmin
     >
       <ConnectWizard
         initialStep={step === "goals" ? "goals" : "credentials"}

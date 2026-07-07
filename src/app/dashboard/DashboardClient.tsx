@@ -200,6 +200,7 @@ export function DashboardClient({
   brief,
   news,
   showKysOnboarding = false,
+  isAdmin = false,
 }: {
   email: string;
   fullName: string | null;
@@ -210,6 +211,7 @@ export function DashboardClient({
   brief: DashboardBrief | null;
   news: NewsItem[];
   showKysOnboarding?: boolean;
+  isAdmin?: boolean;
 }) {
   const head = headerContent(accountStatus, daysLeft);
   const locked = tier !== "Full";
@@ -217,7 +219,7 @@ export function DashboardClient({
   const firstName = fullName?.trim() ? fullName.trim().split(/\s+/)[0] : email.split("@")[0];
 
   return (
-    <AppShell email={email} accountStatus={accountStatus} tier={tier}>
+    <AppShell email={email} accountStatus={accountStatus} tier={tier} isAdmin={isAdmin}>
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Live market bar */}
         <div className="rise mb-6" style={{ animationDelay: "0s" }}>

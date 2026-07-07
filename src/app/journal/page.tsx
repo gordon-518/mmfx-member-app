@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireFull } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
@@ -19,6 +20,8 @@ const TRADES_CAP = 1000;
 
 export default async function JournalPage() {
   const profile = await requireFull();
+  // Admin-only during staged rollout — matches the hidden nav entry.
+  if (!profile.is_admin) redirect("/dashboard");
   const supabase = await createClient();
 
   const [{ data: accounts }, { data: trades }, { data: cashFlows }, { data: goals }] =
@@ -48,6 +51,7 @@ export default async function JournalPage() {
       email={profile.email}
       accountStatus={profile.account_status}
       tier="Full"
+      isAdmin
     >
       <JournalDashboard
         accounts={(accounts ?? []) as JournalAccountRow[]}

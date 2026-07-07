@@ -19,6 +19,7 @@ export default async function WelcomePage() {
       email={access.profile?.email ?? ""}
       accountStatus={access.profile?.account_status ?? "trial_active"}
       tier={access.tier}
+      isAdmin={access.profile?.is_admin ?? false}
     >
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
         <RoadmapJourney />

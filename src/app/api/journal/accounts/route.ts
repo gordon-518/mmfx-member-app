@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireFullApi, serviceClient } from "@/lib/journal/api";
+import { requireAdminApi, serviceClient } from "@/lib/journal/api";
 import { MetaApiError, createMetaApiAccount } from "@/lib/journal/metaapi";
 
 // POST /api/journal/accounts — connect an MT5 account.
@@ -18,7 +18,7 @@ interface ConnectBody {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireFullApi();
+  const guard = await requireAdminApi();
   if ("response" in guard) return guard.response;
   const { profile } = guard;
 

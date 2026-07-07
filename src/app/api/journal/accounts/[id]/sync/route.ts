@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireFullApi, serviceClient } from "@/lib/journal/api";
+import { requireAdminApi, serviceClient } from "@/lib/journal/api";
 
 // POST /api/journal/accounts/:id/sync — manual "Sync now".
 //
@@ -15,7 +15,7 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const guard = await requireFullApi();
+  const guard = await requireAdminApi();
   if ("response" in guard) return guard.response;
 
   const { id } = await params;

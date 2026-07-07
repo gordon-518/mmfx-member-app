@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireFullApi } from "@/lib/journal/api";
+import { requireAdminApi } from "@/lib/journal/api";
 
 // GET/PUT /api/journal/goals — the trader's benchmark (structured + free-text).
 // One row per user; RLS scopes everything to the caller.
@@ -25,7 +25,7 @@ function num(v: unknown): number | null | "invalid" {
 }
 
 export async function GET() {
-  const guard = await requireFullApi();
+  const guard = await requireAdminApi();
   if ("response" in guard) return guard.response;
 
   const supabase = await createClient();
@@ -38,7 +38,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  const guard = await requireFullApi();
+  const guard = await requireAdminApi();
   if ("response" in guard) return guard.response;
   const { profile } = guard;
 

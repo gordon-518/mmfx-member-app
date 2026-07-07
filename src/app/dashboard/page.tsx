@@ -206,6 +206,7 @@ export default async function DashboardPage() {
       brief={brief}
       news={news}
       showKysOnboarding={showKysOnboarding}
+      isAdmin={access.profile.is_admin}
     />
   );
 }

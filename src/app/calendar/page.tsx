@@ -49,7 +49,7 @@ export default async function CalendarPage({
     "rounded-xl border border-line bg-paper px-3.5 py-2 text-[13px] font-semibold text-faint cursor-not-allowed";
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full">
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">

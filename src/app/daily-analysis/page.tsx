@@ -36,7 +36,7 @@ export default async function DailyAnalysisPage() {
   }));
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full">
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
       {/* Header */}
       <div className="mx-auto max-w-5xl px-5 pt-8 sm:px-8 lg:pt-10">
         <div className="rise">

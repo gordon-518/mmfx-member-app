@@ -30,6 +30,27 @@ export async function requireFullApi(): Promise<
   return { profile: access.profile };
 }
 
+/**
+ * Admin-only variant of requireFullApi. While the AI Trading Journal is in
+ * staged rollout it's restricted to admin accounts — the nav entry is hidden
+ * for everyone else, and this guard stops non-admins reaching the API by URL.
+ */
+export async function requireAdminApi(): Promise<
+  { profile: AccessProfile } | { response: NextResponse }
+> {
+  const guard = await requireFullApi();
+  if ("response" in guard) return guard;
+  if (!guard.profile.is_admin) {
+    return {
+      response: NextResponse.json(
+        { error: "Admins only" },
+        { status: 403 }
+      ),
+    };
+  }
+  return guard;
+}
+
 /** Service-role client — server-only, used by the worker and job enqueueing. */
 export function serviceClient() {
   return createServiceClient(
