@@ -108,6 +108,29 @@ export interface JournalTradeRow {
   emotion: string | null;
 }
 
+export interface JournalCashFlowRow {
+  id: string;
+  account_id: string;
+  deal_id: string;
+  amount: number;
+  time: string;
+  comment: string | null;
+}
+
+/** The per-trade emotions a user can tag (Phase 2 journaling). */
+export const JOURNAL_EMOTIONS = [
+  "disciplined",
+  "confident",
+  "calm",
+  "uncertain",
+  "fomo",
+  "revenge",
+  "fear",
+  "greed",
+] as const;
+
+export type JournalEmotion = (typeof JOURNAL_EMOTIONS)[number];
+
 export interface JournalGoalsRow {
   user_id: string;
   style: "scalper" | "day" | "swing" | "position" | null;
