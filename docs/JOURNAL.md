@@ -41,8 +41,10 @@ Phase 1 (Connect & Collect) of the AI Trading Journal. Full design:
 ## Operations
 
 - **Env:** `METAAPI_TOKEN`, `METAAPI_REGION` (default `london`),
-  `CRON_SECRET`, `NEXT_PUBLIC_APP_URL` (worker self-chaining).
-- **Scheduler:** pg_cron + pg_net, snippet at the bottom of the migration
+  `CRON_SECRET`, `NEXT_PUBLIC_APP_URL` (worker self-chaining), and
+  `ANTHROPIC_API_KEY` (Phase 3 AI coach).
+- **Scheduler:** two pg_cron + pg_net jobs — `journal-sync` (every 15 min) and
+  `journal-report` (daily 22:30 UTC). Snippets at the bottom of each migration
   file (same convention as `daily-growth-stats`). No Vercel cron slot used.
 - **Retries:** transient sync failures re-queue with 5-min backoff, max 3
   attempts, then surface as `journal_accounts.sync_error` on the account card.
@@ -57,12 +59,23 @@ Phase 1 (Connect & Collect) of the AI Trading Journal. Full design:
 
 ## Phase roadmap
 
-- **Phase 2 — See & Measure:** full analytics (DD, R:R, exposure, expectancy,
-  streaks, per-symbol/session breakdowns), equity-curve dashboard, per-trade
-  notes/tags/emotion UI (columns already exist).
-- **Phase 3 — Understand & Coach:** daily AI report (Anthropic, follows the
-  `growth/narrative.ts` pattern), habit detection, goal-relevance narrative,
-  trade-management tips.
+- **Phase 1 — Connect & Collect: DONE.**
+- **Phase 2 — See & Measure: DONE.** Analytics engine (`analytics.ts`), SVG
+  charts (`charts.tsx`), rich KPI dashboard, per-trade notes/tags/emotion.
+- **Phase 3 — Understand & Coach: DONE.** `coach.ts` (behavioural signals +
+  prompt + Anthropic structured output, Haiku 4.5), `journal_reports` store,
+  daily report cron (`/api/journal/cron/report`, self-chaining) + on-demand
+  generation (`/api/journal/report/generate`), and the dashboard coach card.
 - **Broker Manager-API feed** (if brokers grant it) replaces MetaApi per-user
   connects by writing into the same `journal_deals` table — everything
   downstream is source-agnostic.
+
+## AI coach (Phase 3)
+
+- Model: `claude-haiku-4-5` (constant in `coach.ts`) — cheap enough per-user
+  daily at scale (~$0.005/report). Bump the constant for more depth.
+- Report = summary + status (ahead/on_track/behind/at_risk) + good/bad habits
+  + trade-management tips, judged against the user's `journal_goals`.
+- Best-effort: a failed/absent model call returns null and never breaks a run.
+- Seed/verify: `node scripts/seed-journal-report.mjs [email]` generates a real
+  report from a user's data (also an end-to-end ANTHROPIC_API_KEY check).
