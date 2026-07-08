@@ -22,13 +22,23 @@ import type { JournalAccountRow } from "@/lib/journal/types";
 
 export const maxDuration = 300;
 
-const STALE_SYNC = "4 hours";
-const CLAIM_BATCH = 25;
-const CONCURRENCY = 5;
+// Once-daily cadence: MetaApi bills a 6-hour minimum block per deploy, so
+// syncing more than once per ~6h would overlap blocks and lose the saving.
+// ~20h keeps a steady once-a-day rhythm with margin (see sync.ts §COST).
+const STALE_SYNC = "20 hours";
+// Each sync now deploys → waits for the broker connection (up to ~90s) → reads
+// → undeploys, so batches are smaller and concurrency lower than the old
+// always-on path. A claimed batch's worst case (CLAIM_BATCH/CONCURRENCY ×
+// connect-timeout) must fit under maxDuration; we stop claiming new batches
+// once TIME_BUDGET is spent so the last batch can't overrun the 300s cap.
+const CLAIM_BATCH = 6;
+const CONCURRENCY = 3;
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 5 * 60_000;
-const TIME_BUDGET_MS = 240_000; // leave headroom under maxDuration
-const MAX_CHAIN_DEPTH = 5;
+const TIME_BUDGET_MS = 120_000; // stop claiming here; worst batch ~180s ⇒ <300s
+const MAX_CHAIN_DEPTH = 8;
+// A 'running' job older than this was orphaned by a killed invocation — reap it.
+const STALE_RUNNING_MS = 15 * 60_000;
 
 interface SyncJob {
   id: number;
@@ -133,6 +143,14 @@ export async function POST(req: NextRequest) {
   const db = serviceClient();
   const startedAt = Date.now();
   const counts = { done: 0, retried: 0, failed: 0 };
+
+  // Reap orphaned 'running' jobs (a prior invocation killed mid-sync) back to
+  // queued — otherwise their account is blocked from ever re-enqueuing.
+  await db
+    .from("journal_sync_jobs")
+    .update({ status: "queued" })
+    .eq("status", "running")
+    .lt("started_at", new Date(Date.now() - STALE_RUNNING_MS).toISOString());
 
   const { data: enqueued, error: enqueueErr } = await db.rpc(
     "fn_enqueue_due_sync_jobs",

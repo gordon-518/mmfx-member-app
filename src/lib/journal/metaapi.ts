@@ -130,6 +130,27 @@ export async function deleteMetaApiAccount(accountId: string): Promise<void> {
   );
 }
 
+/**
+ * Deploy the account (start its API server / connect to the broker). MetaApi
+ * bills only while an account is deployed, so we deploy on demand right before
+ * a sync and undeploy right after — keeping accounts UNDEPLOYED between syncs.
+ * Idempotent: deploying an already-deployed account is a no-op.
+ */
+export async function deployMetaApiAccount(accountId: string): Promise<void> {
+  await metaApiFetch(
+    `${PROVISIONING_HOST}/users/current/accounts/${accountId}/deploy`,
+    { method: "POST" }
+  );
+}
+
+/** Undeploy the account (stop its API server) so it stops accruing charges. */
+export async function undeployMetaApiAccount(accountId: string): Promise<void> {
+  await metaApiFetch(
+    `${PROVISIONING_HOST}/users/current/accounts/${accountId}/undeploy`,
+    { method: "POST" }
+  );
+}
+
 const DEALS_PAGE_LIMIT = 1000;
 
 /**

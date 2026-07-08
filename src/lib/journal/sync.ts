@@ -3,9 +3,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   MetaApiError,
+  deployMetaApiAccount,
   fetchAccountInformation,
   fetchDealsByTimeRange,
   getMetaApiAccount,
+  undeployMetaApiAccount,
 } from "./metaapi";
 import { reconstructTrades } from "./reconstruct";
 import type { JournalAccountRow, MetaApiDeal } from "./types";
@@ -13,18 +15,29 @@ import type { JournalAccountRow, MetaApiDeal } from "./types";
 // Per-account sync orchestration, called by the worker route with a
 // service-role client. One invocation = one incremental sync:
 //
-//   resolve `connecting` state → fetch deals since cursor → upsert raw deals
-//   → rebuild trades for TOUCHED positions from the FULL deal history we hold
-//   → upsert trades + cash flows → refresh balance/equity → advance cursor.
+//   DEPLOY the account → wait for the broker connection → fetch deals since the
+//   cursor → upsert raw deals → rebuild trades for TOUCHED positions → upsert
+//   trades + cash flows → refresh balance/equity → advance cursor → UNDEPLOY.
 //
-// The cursor only advances after a successful upsert batch, so a failure at
-// any step is safely retried by the queue with no data loss.
+// COST: MetaApi bills only while an account is deployed (6-hour minimum block
+// per deploy). Accounts therefore sit UNDEPLOYED between syncs and are deployed
+// only for the moment they're being read. With a ~once-daily cadence (see the
+// worker's STALE_SYNC) that's ~one 6h block/day (~180 deployed-hours/month)
+// instead of ~720 for an always-on account — roughly a 75% cost cut.
+//
+// The cursor only advances after a successful upsert batch, so a failure at any
+// step is safely retried by the queue with no data loss. Undeploy runs in a
+// finally so we never leave an account deployed (which would defeat the saving).
 
 /** Accounts with no cursor backfill from here — far enough for any history. */
 const DEFAULT_START = "2000-01-01T00:00:00.000Z";
 
 /** Re-fetch this much behind the cursor so boundary-time deals never slip. */
 const OVERLAP_MS = 60_000;
+
+/** How long to wait for a freshly-deployed account to connect to the broker. */
+const CONNECT_TIMEOUT_MS = 120_000;
+const CONNECT_POLL_MS = 3_000;
 
 /** Window start for an incremental sync. Pure — see sync.test.ts. */
 export function syncWindowStart(cursor: string | null): Date {
@@ -49,36 +62,31 @@ export type SyncOutcome =
   | { ok: true; dealsFetched: number; tradesUpserted: number }
   | { ok: false; error: string; permanent: boolean };
 
-/**
- * Resolve a `connecting` account against MetaApi's provisioning state.
- * Returns true when the account is deployed and syncable.
- */
-async function resolveConnecting(
-  db: SupabaseClient,
-  account: JournalAccountRow
-): Promise<boolean> {
-  const remote = await getMetaApiAccount(account.metaapi_account_id!);
-  if (remote.state === "DEPLOYED") {
-    await db
-      .from("journal_accounts")
-      .update({ state: "deployed", state_detail: remote.connectionStatus ?? null })
-      .eq("id", account.id);
-    return true;
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+interface ConnectResult {
+  connected: boolean;
+  state?: string;
+  connectionStatus?: string;
+}
+
+/** Poll the account until it's DEPLOYED + CONNECTED, or the timeout elapses. */
+async function waitForConnected(accountId: string): Promise<ConnectResult> {
+  const deadline = Date.now() + CONNECT_TIMEOUT_MS;
+  let state: string | undefined;
+  let connectionStatus: string | undefined;
+  while (Date.now() < deadline) {
+    const remote = await getMetaApiAccount(accountId);
+    state = remote.state;
+    connectionStatus = remote.connectionStatus;
+    if (state === "DEPLOYED" && connectionStatus === "CONNECTED") {
+      return { connected: true, state, connectionStatus };
+    }
+    await sleep(CONNECT_POLL_MS);
   }
-  if (remote.state === "DEPLOYING" || remote.state === "CREATED") {
-    // Still provisioning — leave `connecting`, try again next tick.
-    await db
-      .from("journal_accounts")
-      .update({ state_detail: remote.state })
-      .eq("id", account.id);
-    return false;
-  }
-  // UNDEPLOYED / anything else: surface as failed so the user can retry.
-  await db
-    .from("journal_accounts")
-    .update({ state: "failed", state_detail: `MetaApi state: ${remote.state}` })
-    .eq("id", account.id);
-  return false;
+  return { connected: false, state, connectionStatus };
 }
 
 /** Map a MetaApi deal to a journal_deals row. */
@@ -126,32 +134,51 @@ const DEAL_COLUMNS =
   "deal_id, position_id, order_id, symbol, type, entry_type, volume, price, profit, commission, swap, time, comment";
 
 /**
- * One incremental sync for one account. Throws nothing — returns an outcome
- * the worker maps onto job status (retry vs fail).
+ * One incremental sync for one account. Throws nothing — returns an outcome the
+ * worker maps onto job status (retry vs fail). Deploys for the read and always
+ * undeploys afterwards.
  */
 export async function syncAccount(
   db: SupabaseClient,
   account: JournalAccountRow
 ): Promise<SyncOutcome> {
+  if (!account.metaapi_account_id) {
+    return { ok: false, error: "Account has no MetaApi id", permanent: true };
+  }
+  const accountId = account.metaapi_account_id;
+  let deployed = false;
+
   try {
-    if (!account.metaapi_account_id) {
-      return { ok: false, error: "Account has no MetaApi id", permanent: true };
+    // Deploy on demand (no-op if already deployed) and wait for the broker link.
+    await deployMetaApiAccount(accountId);
+    deployed = true;
+
+    const conn = await waitForConnected(accountId);
+    if (!conn.connected) {
+      // Deployed but the broker connection didn't establish in time. Usually a
+      // transient broker-side delay; a persistently wrong investor
+      // password/server fails repeatedly and the queue surfaces it after its
+      // retry budget. UNDEPLOYED here means MetaApi rejected the deploy outright.
+      return {
+        ok: false,
+        error: `Account did not connect (state ${conn.state ?? "?"}${
+          conn.connectionStatus ? `, ${conn.connectionStatus}` : ""
+        })`,
+        permanent: conn.state === "UNDEPLOYED",
+      };
     }
 
+    // First successful connect promotes a still-connecting account to active.
     if (account.state === "connecting") {
-      const deployed = await resolveConnecting(db, account);
-      if (!deployed) {
-        return { ok: true, dealsFetched: 0, tradesUpserted: 0 };
-      }
+      await db
+        .from("journal_accounts")
+        .update({ state: "deployed", state_detail: "CONNECTED" })
+        .eq("id", account.id);
     }
 
     const start = syncWindowStart(account.sync_cursor);
     const now = new Date();
-    const deals = await fetchDealsByTimeRange(
-      account.metaapi_account_id,
-      start,
-      now
-    );
+    const deals = await fetchDealsByTimeRange(accountId, start, now);
 
     let tradesUpserted = 0;
 
@@ -239,7 +266,7 @@ export async function syncAccount(
     // Balance/equity snapshot — best-effort, never fails the sync.
     let snapshot: { balance?: number; equity?: number; currency?: string } = {};
     try {
-      snapshot = await fetchAccountInformation(account.metaapi_account_id);
+      snapshot = await fetchAccountInformation(accountId);
     } catch {
       // account may be transiently disconnected from broker — fine.
     }
@@ -263,5 +290,15 @@ export async function syncAccount(
     const permanent =
       e instanceof MetaApiError && e.status >= 400 && e.status < 500;
     return { ok: false, error: err, permanent };
+  } finally {
+    // Always undeploy so the account stops billing — even on error. Best-effort:
+    // if this fails, the next sync's finally undeploys it.
+    if (deployed) {
+      try {
+        await undeployMetaApiAccount(accountId);
+      } catch {
+        // leave for the next sync to clean up
+      }
+    }
   }
 }

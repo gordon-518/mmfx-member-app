@@ -50,13 +50,21 @@ Phase 1 (Connect & Collect) of the AI Trading Journal. Full design:
 - **Retries:** transient sync failures re-queue with 5-min backoff, max 3
   attempts, then surface as `journal_accounts.sync_error` on the account card.
   Cursor only advances after successful writes — retries lose nothing.
-- **Billing:** MetaApi charges per active account. Disconnect always attempts
-  the MetaApi delete; rows with `state_detail = 'MetaApi cleanup pending'`
-  need manual removal in the MetaApi dashboard.
-- **Capacity dial:** `CLAIM_BATCH` / `CONCURRENCY` / chain depth in
-  `src/app/api/journal/cron/sync/route.ts`. At defaults, comfortably serves
-  hundreds of accounts on a 4 h cadence; thousands = raise the dials or add a
-  second pg_cron tick — no architecture change.
+- **Billing / cost model:** MetaApi bills only while an account is DEPLOYED
+  (6-hour minimum block per deploy). `syncAccount` deploys on demand, reads,
+  then undeploys in a `finally`, so accounts sit undeployed between syncs. With
+  the ~once-daily cadence (`STALE_SYNC = 20h`) that's ~one 6h block/day
+  (~180 deployed-hrs/month) vs ~720 always-on ⇒ roughly **~$1.25–2.50/account/mo**
+  instead of ~$5–10. Do NOT drop the cadence below ~6h or blocks overlap and the
+  saving evaporates. Disconnect always attempts the MetaApi delete; rows with
+  `state_detail = 'MetaApi cleanup pending'` need manual removal in the dashboard.
+- **Capacity dial:** `CLAIM_BATCH` / `CONCURRENCY` / `CONNECT_TIMEOUT_MS` /
+  `TIME_BUDGET_MS` / chain depth in `src/app/api/journal/cron/sync/route.ts`.
+  Deploy→wait→undeploy makes each sync ~30–90s, so batches are small and a
+  batch's worst case must fit under `maxDuration` (300s); the every-15-min tick
+  + self-chain + cross-tick re-enqueue give ample daily throughput for
+  thousands of once-daily accounts. Orphaned `running` jobs are reaped after
+  15 min.
 
 ## Phase roadmap
 
