@@ -112,7 +112,16 @@ async function main() {
   console.log("  ✓ assets uploaded");
 
   if (exists) {
-    console.log(`  ↻ ${date} row already exists — assets refreshed, insert skipped.`);
+    // Correction path: re-running for an already-published day updates the row
+    // (title/bias/description/gumlet_id etc.) rather than silently skipping —
+    // e.g. swapping in a Gumlet link after a failed video upload.
+    const upd = await fetch(`${PROJ}/rest/v1/daily_analysis?published_on=eq.${date}`, {
+      method: "PATCH",
+      headers: { ...H, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify(row),
+    });
+    if (!upd.ok) throw new Error(`update ${upd.status}: ${(await upd.text()).slice(0, 300)}`);
+    console.log(`  ↻ ${date} row already existed — updated in place (assets refreshed too)`);
   } else {
     const ins = await fetch(`${PROJ}/rest/v1/daily_analysis`, {
       method: "POST",
