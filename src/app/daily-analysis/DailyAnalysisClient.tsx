@@ -89,20 +89,31 @@ export function DailyAnalysisClient({ entries }: { entries: AnalysisEntry[] }) {
 
   return (
     <div className="mx-auto max-w-5xl px-5 pb-10 pt-6 sm:px-8">
-      {/* Player — only the selected entry's iframe is mounted. */}
+      {/* Player — only the selected entry's iframe is mounted. No video some
+          days (e.g. travel) — fall back to the cover image instead of an
+          iframe pointed at an empty embed URL. */}
       {active && (
         <div ref={playerRef} className="scroll-mt-6">
           <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-line bg-ink shadow-soft">
-            <iframe
-              key={active.gumlet_id}
-              src={`https://play.gumlet.io/embed/${active.gumlet_id}`}
-              title={active.title}
-              loading="lazy"
-              referrerPolicy="strict-origin-when-cross-origin"
-              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-              className="absolute inset-0 h-full w-full"
-            />
+            {active.gumlet_id ? (
+              <iframe
+                key={active.gumlet_id}
+                src={`https://play.gumlet.io/embed/${active.gumlet_id}`}
+                title={active.title}
+                loading="lazy"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                className="absolute inset-0 h-full w-full"
+              />
+            ) : active.cover_url ? (
+              <Image
+                src={active.cover_url}
+                alt={active.title}
+                fill
+                className="object-cover"
+              />
+            ) : null}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2.5">
             <span className="text-[12px] font-semibold uppercase tracking-wide text-faint">
