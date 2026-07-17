@@ -4,7 +4,7 @@ import { Wordmark } from "@/components/AppShell";
 
 // Trial-abuse visibility: clusters of accounts that share a device fingerprint,
 // signup IP, or TradingView username — i.e. likely the same person spinning up
-// fresh 14-day trials. Soft signals for manual review (expire via /admin), not
+// fresh 7-day trials. Soft signals for manual review (expire via /admin), not
 // auto-blocking. Admin-gated.
 
 interface Row {

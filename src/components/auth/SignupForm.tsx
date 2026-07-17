@@ -148,13 +148,13 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
   return (
     <>
       <p className="rise text-[13px] font-semibold uppercase tracking-wider text-orange">
-        14-day free trial
+        7-day free trial
       </p>
       <h2 className="rise mt-2 font-display text-3xl font-bold tracking-tight text-ink" style={{ animationDelay: "0.04s" }}>
         Start your free trial
       </h2>
       <p className="rise mt-2 text-[15px] leading-relaxed text-subtle" style={{ animationDelay: "0.08s" }}>
-        Full access to the MM System for gold — free for 14 days.
+        Full access to the MM System for gold — free for 7 days.
       </p>
 
       <div className="rise mt-8" style={{ animationDelay: "0.12s" }}>

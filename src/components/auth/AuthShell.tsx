@@ -60,7 +60,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
 
             <ul className="rise mt-8 space-y-3.5" style={{ animationDelay: "0.18s" }}>
               {[
-                "14 days of full access, free",
+                "7 days of full access, free",
                 "Daily analysis + a few high-conviction signals a day",
                 "Indicators, the video course & twice-weekly live classes",
               ].map((item) => (

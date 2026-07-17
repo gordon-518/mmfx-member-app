@@ -125,7 +125,7 @@ export async function sendCapiEvent(
   }
 }
 
-// Fire the two signup conversions together (signup instantly starts the 14-day
+// Fire the two signup conversions together (signup instantly starts the 7-day
 // trial, so both happen at one moment). Shared by the OAuth confirm route and
 // the in-page email-OTP server action.
 export async function sendSignupConversions(

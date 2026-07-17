@@ -84,7 +84,7 @@ export default async function UpgradePage({
           Market Makers FX
         </p>
         <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
-          Your 14 days are up. Your desk is still set.
+          Your 7 days are up. Your desk is still set.
         </h1>
         <p className="mt-5 text-[16px] leading-relaxed text-subtle">
           For two weeks you traded the MM System with everything unlocked. As of
