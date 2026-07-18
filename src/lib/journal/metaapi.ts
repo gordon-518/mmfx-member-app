@@ -104,6 +104,10 @@ export async function createMetaApiAccount(params: {
       platform: "mt5",
       magic: 0,
       region: region(),
+      // Regular (single-region) reliability — a read-only journal that syncs a
+      // few times/day and retries on failure doesn't need the ~2x-cost
+      // multi-region "high" tier meant for live trade execution.
+      reliability: "regular",
     }),
   });
   return (await res.json()) as { id: string; state: string };
