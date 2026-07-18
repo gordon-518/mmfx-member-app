@@ -128,7 +128,7 @@ async function runPool(
 
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.JOURNAL_CRON_SECRET || auth !== `Bearer ${process.env.JOURNAL_CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
         await fetch(`${base}/api/journal/cron/sync`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.CRON_SECRET}`,
+            Authorization: `Bearer ${process.env.JOURNAL_CRON_SECRET}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ depth: depth + 1 }),

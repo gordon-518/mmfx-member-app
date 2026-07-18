@@ -283,7 +283,7 @@ revoke execute on function public.fn_claim_sync_jobs(integer) from public, anon,
 --         url     := 'https://APP_URL/api/journal/cron/sync',
 --         headers := jsonb_build_object(
 --           'Content-Type',  'application/json',
---           'Authorization', 'Bearer CRON_SECRET_VALUE'
+--           'Authorization', 'Bearer JOURNAL_CRON_SECRET_VALUE'
 --         ),
 --         body    := '{}'::jsonb
 --       );

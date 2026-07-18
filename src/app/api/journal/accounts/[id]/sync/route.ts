@@ -68,13 +68,13 @@ export async function POST(
 
   // Nudge the worker after the response is sent (fire-and-forget).
   const base = process.env.NEXT_PUBLIC_APP_URL;
-  if (base && process.env.CRON_SECRET) {
+  if (base && process.env.JOURNAL_CRON_SECRET) {
     after(async () => {
       try {
         await fetch(`${base}/api/journal/cron/sync`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.CRON_SECRET}`,
+            Authorization: `Bearer ${process.env.JOURNAL_CRON_SECRET}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ nudge: true }),

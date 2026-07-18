@@ -41,7 +41,8 @@ Phase 1 (Connect & Collect) of the AI Trading Journal. Full design:
 ## Operations
 
 - **Env:** `METAAPI_TOKEN`, `METAAPI_REGION` (default `london`),
-  `CRON_SECRET`, `NEXT_PUBLIC_APP_URL` (worker self-chaining), and
+  `JOURNAL_CRON_SECRET` (distinct from the daily-stats `CRON_SECRET`),
+  `NEXT_PUBLIC_APP_URL` (worker self-chaining), and
   `ANTHROPIC_API_KEY` (Phase 3 AI coach).
 - **Scheduler:** one pg_cron + pg_net job — `journal-sync` (every 15 min).
   Snippet at the bottom of the sync migration (same convention as
