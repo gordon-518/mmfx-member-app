@@ -104,9 +104,14 @@ export async function createMetaApiAccount(params: {
       platform: "mt5",
       magic: 0,
       region: region(),
-      // Regular (single-region) reliability — a read-only journal that syncs a
-      // few times/day and retries on failure doesn't need the ~2x-cost
-      // multi-region "high" tier meant for live trade execution.
+      // cloud-g1 + regular = the cheapest single-region tier. A read-only
+      // journal that syncs a few times/day and retries on failure doesn't need
+      // multi-region reliability meant for live trade execution.
+      //
+      // `type` MUST be cloud-g1: MetaApi does NOT offer `regular` reliability on
+      // cloud-g2 (its default) — a g2 account silently comes back as `high`
+      // regardless of the reliability we send. Only cloud-g1 honours `regular`.
+      type: "cloud-g1",
       reliability: "regular",
     }),
   });
