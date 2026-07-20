@@ -133,6 +133,42 @@ function rowToDeal(r: Record<string, unknown>): MetaApiDeal {
 const DEAL_COLUMNS =
   "deal_id, position_id, order_id, symbol, type, entry_type, volume, price, profit, commission, swap, time, comment";
 
+/** PostgREST caps a single response at 1000 rows — page past it. */
+const DEAL_PAGE = 1000;
+/** Keep the `position_id IN (...)` list short enough to not blow the URL. */
+const POSITION_ID_CHUNK = 150;
+
+/**
+ * Every stored deal for the given positions, as MetaApiDeal[]. Pages past
+ * PostgREST's 1000-row cap and chunks the id list so neither a busy account
+ * (>1000 deals) nor a long touched-position list silently truncates history.
+ * Truncation here would drop exit legs and leave trades un-reconstructed —
+ * see reconstruct's need for the FULL history of any touched position.
+ */
+export async function fetchStoredDealsForPositions(
+  db: SupabaseClient,
+  accountId: string,
+  positionIds: string[]
+): Promise<MetaApiDeal[]> {
+  const out: MetaApiDeal[] = [];
+  for (let i = 0; i < positionIds.length; i += POSITION_ID_CHUNK) {
+    const idChunk = positionIds.slice(i, i + POSITION_ID_CHUNK);
+    for (let from = 0; ; from += DEAL_PAGE) {
+      const { data, error } = await db
+        .from("journal_deals")
+        .select(DEAL_COLUMNS)
+        .eq("account_id", accountId)
+        .in("position_id", idChunk)
+        .range(from, from + DEAL_PAGE - 1);
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as Record<string, unknown>[];
+      out.push(...rows.map(rowToDeal));
+      if (rows.length < DEAL_PAGE) break;
+    }
+  }
+  return out;
+}
+
 /**
  * One incremental sync for one account. Throws nothing — returns an outcome the
  * worker maps onto job status (retry vs fail). Deploys for the read and always
@@ -203,16 +239,13 @@ export async function syncAccount(
 
       let allDeals: MetaApiDeal[] = deals;
       if (touched.length > 0) {
-        const { data: rows, error: readErr } = await db
-          .from("journal_deals")
-          .select(DEAL_COLUMNS)
-          .eq("account_id", account.id)
-          .in("position_id", touched);
-        if (readErr) {
-          return { ok: false, error: readErr.message, permanent: false };
-        }
+        const stored = await fetchStoredDealsForPositions(
+          db,
+          account.id,
+          touched
+        );
         const balanceDeals = deals.filter((d) => d.type === "DEAL_TYPE_BALANCE");
-        allDeals = [...(rows ?? []).map(rowToDeal), ...balanceDeals];
+        allDeals = [...stored, ...balanceDeals];
       }
 
       const { trades, cashFlows } = reconstructTrades(allDeals);
