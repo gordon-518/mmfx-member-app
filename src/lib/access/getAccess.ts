@@ -26,6 +26,8 @@ export interface AccessProfile {
   /** Set when the user completes Know Your Style ("Send me a copy"). */
   kys_completed_at: string | null;
   kys_archetype: string | null;
+  /** MT4/MT5 login the trader saved (own-row via fn_set_trading_account). */
+  trading_account_number: string | null;
 }
 
 export type Access =
