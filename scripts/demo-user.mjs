@@ -63,7 +63,8 @@ await client.query(
 await client.query(
   `update public.profiles
      set account_status=$2, trial_ends_at=now() + interval '14 days',
-         is_admin=false, full_name='Alex Rivera', country='MY'
+         is_admin=false, full_name='Alex Rivera', country='MY',
+         trading_account_number='5001234'
    where id=$1`,
   [uid, status]
 );
