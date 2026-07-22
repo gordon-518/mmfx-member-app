@@ -34,5 +34,17 @@ export async function requireFull(
     redirect(redirectTo);
   }
 
+  // Funded members must have a trading account number on file before they get
+  // full access (so an inactive/switched account never removes an active member
+  // by mistake). Trials are exempt. The dashboard renders the gate itself; every
+  // other member page bounces there. /dashboard uses getAccess (not requireFull),
+  // so there's no redirect loop.
+  if (
+    access.profile.account_status === "member_active" &&
+    !access.profile.trading_account_number
+  ) {
+    redirect("/dashboard");
+  }
+
   return access.profile;
 }
