@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getAccess } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardClient } from "./DashboardClient";
+import { TradingAccountGate } from "./TradingAccountGate";
 import type { SpotlightSlide } from "./Spotlight";
 import { getNews, type NewsItem } from "@/lib/forexNews";
 
@@ -109,6 +110,15 @@ export default async function DashboardPage() {
   }
 
   const locked = access.tier !== "Full";
+
+  // Funded members must save a trading account number before the desk unlocks.
+  if (
+    access.profile.account_status === "member_active" &&
+    !access.profile.trading_account_number
+  ) {
+    return <TradingAccountGate />;
+  }
+
   // Full-access users who haven't finished Know Your Style get the onboarding
   // hero pinned atop the desk (see KnowYourStyleOnboarding).
   const showKysOnboarding = !locked && !access.profile.kys_completed_at;
@@ -207,6 +217,7 @@ export default async function DashboardPage() {
       news={news}
       showKysOnboarding={showKysOnboarding}
       isAdmin={access.profile.is_admin}
+      tradingAccount={access.profile.trading_account_number}
     />
   );
 }

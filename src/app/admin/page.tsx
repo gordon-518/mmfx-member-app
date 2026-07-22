@@ -83,6 +83,7 @@ interface AdminProfileRow {
   is_admin: boolean;
   tradingview_username: string | null;
   country: string | null;
+  trading_account_number: string | null;
 }
 
 function fmt(ts: string | null): string {
@@ -149,7 +150,7 @@ export default async function AdminPage({
   let query = supabase
     .from("profiles")
     .select(
-      "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country"
+      "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country, trading_account_number"
     )
     .order("created_at", { ascending: true });
 
@@ -378,6 +379,7 @@ export default async function AdminPage({
                 <th className="px-3 py-2.5">Email</th>
                 <th className="px-3 py-2.5">Status</th>
                 <th className="px-3 py-2.5">Country</th>
+                <th className="px-3 py-2.5">Trading acct</th>
                 <th className="px-3 py-2.5">Trials</th>
                 <th className="px-3 py-2.5">Trial ends</th>
                 <th className="px-3 py-2.5">Downgraded</th>
@@ -407,6 +409,9 @@ export default async function AdminPage({
                       ) : (
                         "—"
                       )}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap font-mono">
+                      {p.trading_account_number ?? "—"}
                     </td>
                     <td className="px-3 py-3">{p.trial_count}</td>
                     <td className="px-3 py-3">{fmt(p.trial_ends_at)}</td>

@@ -9,6 +9,7 @@ import { ArrowIcon, LockIcon, LibraryIcon, AnalysisIcon, LiveIcon, SignalsIcon, 
 import { Spotlight, type SpotlightSlide } from "./Spotlight";
 import { MarketBar } from "./MarketBar";
 import { KnowYourStyleOnboarding } from "./KnowYourStyleOnboarding";
+import { TradingAccountBar } from "./TradingAccountBar";
 import { STAGES, FOUNDATIONS, type RailCard } from "./rails";
 import type { DashboardBrief } from "./page";
 import type { NewsItem } from "@/lib/forexNews";
@@ -201,6 +202,7 @@ export function DashboardClient({
   news,
   showKysOnboarding = false,
   isAdmin = false,
+  tradingAccount = null,
 }: {
   email: string;
   fullName: string | null;
@@ -212,6 +214,7 @@ export function DashboardClient({
   news: NewsItem[];
   showKysOnboarding?: boolean;
   isAdmin?: boolean;
+  tradingAccount?: string | null;
 }) {
   const head = headerContent(accountStatus, daysLeft);
   const locked = tier !== "Full";
@@ -221,6 +224,12 @@ export function DashboardClient({
   return (
     <AppShell email={email} accountStatus={accountStatus} tier={tier} isAdmin={isAdmin}>
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
+        {/* Trading account number — first block. (Members without one never reach
+            here; the page shows the gate instead.) */}
+        <div className="rise mb-6">
+          <TradingAccountBar current={tradingAccount} />
+        </div>
+
         {/* Live market bar */}
         <div className="rise mb-6" style={{ animationDelay: "0s" }}>
           <MarketBar />
