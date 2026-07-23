@@ -1,186 +1,173 @@
 # Trading Journal — IB attribution & leak prevention
 
-**Date:** 2026-07-20
+**Date:** 2026-07-20 (rev 2 — after risk review + real export analysis)
 **Status:** Approved design — pending plan
 **Related:** [[2026-07-06-ai-trading-journal-design]] (journal core),
-[[2026-07-15-trading-account-number-design]] (the `profiles.trading_account_number`
-field this consumes).
+[[2026-07-15-trading-account-number-design]] (`profiles.trading_account_number`,
+consumed here).
 
 ## Problem
 
 IB revenue = rebates on the trading volume of accounts **under Gordon's IB code**.
-The journal is a premium tool given to those clients. The leak: an account that is
-**not (or no longer) under his IB** connects to the journal → Gordon pays ~$5/mo of
-MetaApi cost and hands over a premium tool for **zero** rebate.
-
-- **Elev8 / Octa** — high risk. Many IBs exist, so a client can switch their IB
-  away from Gordon (or never was his) while still trading the same broker/server.
-- **Dupoin** — low risk. Few IBs, so Dupoin clients who sign up through Gordon
-  effectively stay his.
-
-The broker **server** name (e.g. `Elev8-Live`) is **the same for every client of
-that broker regardless of IB**, so it cannot distinguish Gordon's clients from
-another IB's. IB attribution lives in the broker CRM, keyed to the **account
-login**. The broker Manager API is dead (both brokers declined server-side
-access), so the only signal Gordon can get is a **periodic export of the account
-logins under his IB**.
+The journal is a premium tool given to those clients. The leak: an account **not
+(or no longer) under his IB** connects → Gordon pays ~$5/mo MetaApi and gives a
+premium tool away for **zero** rebate. High risk on Elev8/Octa (many IBs, clients
+switch); low on Dupoin (few IBs). The broker **server** name can't distinguish IB
+(same for all of a broker's clients); the broker Manager API is dead. The only
+signal is Gordon's own **periodic IB export** of the account logins under his ID.
 
 ## Goals
 
-- Serve the journal only to accounts **under Gordon's IB** — reconciled against his
-  own periodic (weekly) IB export.
-- **Never block a real new client** — a Tue–Sun signup must get instant access, not
-  wait for the next Monday.
-- Detect and remove accounts that **switched their IB away** mid-relationship.
-- Stop MetaApi cost the moment an account is confirmed not-under-IB.
-- Degrade gracefully per broker: enforce where a reliable export exists (Dupoin
-  now), ride along untouched where it doesn't (Elev8/Octa until their export
-  arrives), flip between the two with a **toggle, no code change**.
+- Serve the journal only to accounts under Gordon's IB, reconciled against his
+  weekly export.
+- **Never auto-remove or block a real client** — humans make removal decisions.
+- Never block a new signup (open connect; reconcile after).
+- Stop MetaApi cost on accounts confirmed not under the IB.
 
 ## Non-goals
 
-- Verifying IB attribution in real time (no broker API — impossible).
-- Capturing the broker on the member profile (stays on the journal per decision).
-- Journaling more than one account per user (the journal tracks the member's one
-  declared active account; YAGNI on multi-account).
+- Real-time IB verification (no broker API).
+- Broker on the profile (stays journal-side).
+- More than one journaled account per member (tracks the one declared active
+  account).
+- The full-app-removal mechanism itself (reuses existing admin user-management).
 
-## Core model — reconcile, don't gate
+## Key decisions (locked)
 
-Gating **at connect** against a weekly list would lock out anyone who signs up
-between Mondays. So we invert it: **connect is open; a weekly reconcile removes
-accounts not under the IB.** One mechanism covers both a never-a-client leecher and
-a client who switched IB away — both are simply "not in this week's export".
+- **Elev8 + Octa are ONE broker** (`elev8_octa`) — shared IB export/downline.
+- **Journal is `member_active`-only** → `profiles.trading_account_number` is always
+  present (member_active is hard-gated to have it).
+- **Only MT5 logins** are connected; `trading_account_number` IS the MT5 login. UI
+  states this plainly.
+- **Reconcile flags; humans remove.** No automatic removal.
 
-The bounded cost tradeoff (accepted): a non-IB account can sit connected up to ~6
-days before the next Monday reconcile removes it — a couple dollars of MetaApi cost,
-max. Worth it to never block a real client.
+## Real export formats (analysed 2026-07-23 files)
+
+Per-broker parse config (stored on `ib_brokers`, so a format tweak is data not code):
+
+- **Dupoin** — sheet `ReferAccountListExcel`; column **`Account`** = 7-digit numeric
+  MT5 login, one per row (~570). Also carries `Name`, `Balance`, `Equity`, `Volume`,
+  `Create` → **enrichment comes straight from the file**.
+- **Elev8/Octa** — sheet `Sheet1`; column **`trading_account`** = tokens
+  `TA<digits>` or `Octa_TA<digits>` (the two brands), **comma-separated, up to 111
+  per cell**, ~12,114 tokens across ~3,811 rows. Normalize: strip `Octa_` then `TA`
+  → digits; split on comma; trim; dedupe. **No enrichment in file** → enrichment
+  from MetaApi (balance/activity) + profile (name). `unique_referrer_id` = Gordon's
+  IB id (sanity-check it matches expected).
+
+Parser is **pure + unit-tested** against fixtures derived from both real files.
+Build-time safety net: on the first real Octa connect, log whether the login
+matched the export (guards the TA-digits = MT5-login assumption).
+
+## Core model — reconcile → report → manual review → manual removal
+
+Gating at connect against a weekly list would lock out Tue–Sun signups, so connect
+is open and the **weekly reconcile only flags** — it never removes. It does the
+tedious filtering once and hands humans a short list.
+
+1. **Reconcile (automated, on upload):** for each connected journal account whose
+   broker has a current export, normalize + check its MT5 login against that week's
+   list. Not found → **flagged** (`ib_review = 'flagged'`), not removed.
+2. **Review report (downloadable CSV/XLSX):** the flagged set, enriched with
+   account number, member name, broker, balance/equity, last-trade date, journal
+   status. Handed to an admin.
+3. **Admin manual check** against the broker CRM (the human-only step).
+4. **Manual removal — two types, chosen per account in the admin UI:**
+   - **Type A — inactive but valid** (e.g. dormant, still holds a Dupoin balance,
+     broke no rule): **remove MetaApi + block journal access, keep the app account.**
+     Journal-owned action. Stops the ~$5/mo without evicting a legit member.
+   - **Type B — gone / switched IB:** **remove MetaApi + journal + app access.** The
+     journal-side (MetaApi + journal block) is journal-owned; **"remove app access"
+     hands off to the existing admin user-management** (`account_status`) — the
+     journal offers a "flag for full removal" button that routes there. *(Assumed
+     hand-off, not direct trigger — confirm.)*
+
+Because removal is deliberate + human, a flagged-but-legit client is never wrongly
+cut off. A blocked/removed account cannot reconnect (the state prevents it). The
+flag itself does **not** block — flagged accounts keep working until a human acts,
+so there's no reconnect race and no auto-heal machinery needed. Bounded cost: a
+non-IB account runs until the next reconcile flags it and a human removes it.
 
 ## Data model
 
-**`ib_brokers`** — broker registry / enforcement config (seeded via migration):
+**`ib_brokers`** (seeded via migration):
 
 | column | notes |
 |---|---|
-| `id` (text, PK) | `dupoin` \| `elev8` \| `octa` |
-| `display_name` (text) | "Dupoin", "Elev8", "Octa" |
-| `enforcement_mode` (text) | `strict` \| `monitor`. Seed: dupoin=strict, elev8/octa=monitor |
-| `allowlist_updated_at` (timestamptz, null) | last successful export import (staleness signal) |
+| `id` | `dupoin` \| `elev8_octa` |
+| `display_name` | "Dupoin", "Elev8 / Octa" |
+| `enforcement_mode` | `strict` (both, since both have exports) \| `monitor` (fallback) |
+| `parse_config` (jsonb) | column name, prefix-strip rules, split-on-comma flag |
+| `allowlist_updated_at` | last successful import (staleness signal) |
 
-**`ib_accounts`** — the allowlist (the "guest list"), maintained from the weekly
-export:
+**`ib_accounts`** — the allowlist (normalized): `broker_id`, `mt5_login` (canonical
+digits), unique `(broker_id, mt5_login)`.
 
-| column | notes |
-|---|---|
-| `broker_id` (text, FK → ib_brokers) | |
-| `mt5_login` (text) | account number under the IB |
-| unique | `(broker_id, mt5_login)` |
+**`journal_accounts`** additions: `broker_id` (FK, chosen at connect);
+`ib_review` (`ok` default \| `flagged` \| `journal_blocked`). `journal_blocked` is
+set only by the manual Type-A action and blocks reconnect.
 
-**`journal_accounts`** — additions to the existing table:
-
-| column | notes |
-|---|---|
-| `broker_id` (text, FK → ib_brokers, null) | which of the 3 brokers, chosen at connect (drives the reconcile) |
-| `ib_status` (text) | `ok` (default) \| `removed_not_ib` (the self-healing blocklist mark) |
-
-RLS: both new tables admin-only (mirror the journal's `requireAdminApi` +
-service-role pattern). `ib_status` / `broker_id` on `journal_accounts` are written
-only by the service role (connect route + reconcile), never by the trader.
+RLS: new tables + these columns admin/service-role only; traders never write them.
 
 ## Connect flow (journal)
 
-UI (`ConnectWizard.tsx`) + `POST /api/journal/accounts`:
+`ConnectWizard.tsx` + `POST /api/journal/accounts`:
 
-- **Account number** — read from `profiles.trading_account_number`, shown
-  pre-filled (not re-typed). Enforces "the journal tracks your one registered
-  active account." If the member has no number on file, send them to the existing
-  trading-account gate first (they can't reach member-active pages without it
-  anyway — see the related spec).
-- **Broker** — required `<select>`, exactly 3 options (Dupoin / Elev8 / Octa),
-  sourced from `ib_brokers`. Lives here, not on the profile. A client cannot pick
-  any other broker.
-- **Server** — free text (MetaApi requires the exact server string to connect; a
-  dropdown would wrongly exclude Elev8/Octa servers we haven't enumerated).
-- **Investor password** — entered here, passed through to MetaApi, never stored.
+- **Account number** — read from `profiles.trading_account_number` (member_active
+  guarantees it), shown pre-filled, not re-typed.
+- **Broker** — required `<select>`: Dupoin / Elev8-Octa. Drives the reconcile.
+- **Server** — free text (MetaApi needs the exact string).
+- **Investor password** — entered, passed through, never stored.
+- **Wrong-broker sanity check:** the entered server string almost always names the
+  broker (`Dupoin-…`, `Elev8-…`, `Octa…`). If it clearly contradicts the selected
+  broker, warn/reject — closes the "pick the other broker to dodge reconcile" hole.
+- Reject reconnect if this account is `journal_blocked`.
+- On success: store `broker_id` + `broker_server` + login; provision MetaApi
+  (cloud-g1/regular); enqueue initial sync.
 
-Server-side gate at connect is **minimal by design** (no allowlist check, to avoid
-signup lag). The one check: reject if this `(broker_id, mt5_login)` currently
-carries `ib_status = 'removed_not_ib'` **and** hasn't since reappeared in an export
-— i.e. block a *known-rejected* account from reconnecting in a loop. New logins
-have no mark and connect instantly. On success, store `broker_id` + `broker_server`
-+ `mt5_login`, provision MetaApi (cloud-g1/regular per the fixed provisioning),
-enqueue the initial sync.
+## Weekly reconcile + report (admin `/journal/ib`)
 
-## Weekly reconcile (built into the upload)
+One card per broker.
 
-Admin page **`/journal/ib`** (admin-only), one card per broker.
+1. **Upload/paste** the week's export (`.xlsx`/`.xls`/CSV). Parser normalizes per
+   the broker's `parse_config`.
+2. **Parse-review UX:** show parsed count + a **sample of normalized logins** + the
+   detected referrer id (Octa) so a mis-parse is caught before commit.
+3. **Full-replace** that broker's `ib_accounts` on confirm.
+4. **Two guardrails on the diff:** block if the new list would **remove >20%** of
+   the current set *or* **add >X%** more than expected (catches both a truncated
+   file and a wrong/too-big file) — explicit override to proceed.
+5. **Reconcile + report:** connected accounts whose login isn't in the new list →
+   set `ib_review='flagged'`; generate the **downloadable enriched report**. Stamp
+   `allowlist_updated_at`.
+6. **Staleness surface:** per-broker "last updated N days ago" with a warning past
+   ~10 days (the system's protection decays if uploads lapse — this is a real
+   operational dependency).
 
-1. **Upload / paste** that week's export for a broker (CSV or raw). Parser extracts
-   MT5 logins (scans for the account-number column / digit tokens; ignores names,
-   volume, other columns).
-2. **Full-replace** semantics: the upload replaces that broker's `ib_accounts` set
-   entirely — this is what makes *leavers* detectable (anyone in last week's set but
-   not this week's is gone).
-3. **Removal guardrail:** if the new set would drop **>20%** of the broker's current
-   `ib_accounts`, block the commit and require an explicit override ("yes, replace
-   anyway"). Protects against a truncated/wrong-file paste. First import for a
-   broker is exempt (nothing to compare).
-4. **Preview diff before acting:** show `N in list · +new · −removed`, and
-   critically, the list of **connected journal accounts that are NOT in the new
-   list** ("these will be removed: `510044`, `510091`"). Operator clicks
-   **Confirm & remove**. This is the review step — the reconcile never acts silently.
-5. On confirm: for each connected account not in the list, **disconnect** it (delete
-   the MetaApi account so cost stops; existing disconnect path) and set
-   `ib_status = 'removed_not_ib'`. Set `allowlist_updated_at = now()`.
-6. **Auto-heal:** importing a list that now contains a previously-removed login
-   clears its `ib_status` back to `ok`, so a client who (re)joins the IB is no
-   longer blocked.
-
-Only **strict** brokers are reconciled. **monitor** brokers (Elev8/Octa until their
-export exists) are skipped — their upload card is present but optional/greyed, and
-flipping `enforcement_mode` to `strict` (a DB toggle, surfaced in the admin page)
-turns their reconcile on with no code change.
-
-The reconcile is **operator-triggered by the upload**, not a silent cron. (A future
-scheduled reminder — "upload this week's export" — is out of scope for v1.)
+Removal is a **separate manual step** (Type A / Type B buttons per flagged account),
+never automatic.
 
 ## Account-switch handling
 
-The member updates `profiles.trading_account_number` in the one place already
-enforced (their profile). On next journal load, if the connected account's
-`mt5_login` ≠ the profile number, the journal disconnects the stale account and
-prompts the member to authorize the new one (investor password). Single update
-point; the journal follows the profile.
-
-## Enforcement summary
-
-| Broker | Mode (v1) | Connect | Weekly reconcile |
-|---|---|---|---|
-| Dupoin | `strict` | open (blocklist only) | reconciled + removes non-IB |
-| Elev8 | `monitor` | open (blocklist only) | skipped until export → toggle to strict |
-| Octa | `monitor` | open (blocklist only) | skipped until export → toggle to strict |
-
-## Integration points
-
-- **Reads** `profiles.trading_account_number` (already live; digits-only 4–15) as
-  the journal account number. No broker on the profile — broker is journal-side.
-- No change required in the other (web-app) build; this build only consumes the
-  field.
+Member updates `profiles.trading_account_number` (the one enforced place). On next
+journal load, if the connected login ≠ the profile number, disconnect the stale
+account and prompt to authorize the new one.
 
 ## Testing
 
-- Pure parser (`parseIbExport`): extracts logins from messy CSV/paste; ignores
-  non-numeric columns; dedupes.
-- Reconcile diff (pure): given current allowlist + connected accounts + new list →
-  correct `{added, removed, toRemoveConnected}`; the >20% guardrail triggers.
-- `ib_status` blocklist: a `removed_not_ib` login is refused at connect; reappearing
-  in an export clears the mark.
-- Enforcement mode: `monitor` broker is skipped by the reconcile; `strict` is
-  enforced.
-- Connect gate reads the profile number and rejects a member with none on file.
+- `parseIbExport` (pure): Dupoin numeric col; Octa strip `Octa_`/`TA`, comma-split,
+  dedupe; fixtures from both real files incl. the 111-per-cell row.
+- Reconcile diff (pure): `{added, removed, flaggedConnected}`; both guardrails fire.
+- Connect: reads profile number; rejects `journal_blocked`; server↔broker mismatch
+  warns.
+- Enforcement: `monitor` broker skipped; `strict` flags.
+- Removal: Type A blocks journal + removes MetaApi, keeps app; Type B routes to
+  app-removal.
 
-## Open items / future
+## Open items
 
-- Scheduled reminder to upload the weekly export (v1 is manual).
-- Elev8/Octa: pending Gordon obtaining a per-account IB export → flip to strict.
-- Optional: surface `allowlist_updated_at` staleness warnings (>10 days) on the
-  admin page.
+- Confirm Type-B "remove app access" = **hand-off** to admin user-mgmt (assumed).
+- Scheduled weekly upload reminder (nudge) — recommended for v1 given the staleness
+  dependency; confirm scope.
+- Octa TA-digits = MT5-login: confirmed by Gordon; verified again at first real
+  Octa connect via the build-time log.
