@@ -11,6 +11,8 @@ export interface BrokerParseConfig {
   strip: string[];
   /** Whether one cell can hold multiple comma-separated accounts. */
   split: boolean;
+  /** Column holding the account balance, if the export carries it (Dupoin only). */
+  balanceColumn?: string;
 }
 
 /** One raw token → canonical digits-only login, or null if it isn't one. */
@@ -56,4 +58,27 @@ export function parseIbRows(
     }
   }
   return { logins, skipped };
+}
+
+/**
+ * login → balance map from an export that carries a balance column (Dupoin).
+ * Empty when the config has no balanceColumn (e.g. Octa). Only for
+ * single-account-per-row exports (split brokers don't carry per-account balance).
+ */
+export function parseIbBalances(
+  rows: Record<string, unknown>[],
+  cfg: BrokerParseConfig
+): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!cfg.balanceColumn) return out;
+  for (const row of rows) {
+    const login = normalizeLogin(String(row[cfg.column] ?? ""), cfg.strip);
+    if (!login) continue;
+    const raw = row[cfg.balanceColumn];
+    if (raw === null || raw === undefined || String(raw).trim() === "") continue;
+    const balance = Number(raw);
+    if (Number.isNaN(balance)) continue;
+    out.set(login, balance);
+  }
+  return out;
 }

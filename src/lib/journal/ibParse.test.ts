@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { normalizeLogin, parseIbRows, type BrokerParseConfig } from "./ibParse";
+import {
+  normalizeLogin,
+  parseIbRows,
+  parseIbBalances,
+  type BrokerParseConfig,
+} from "./ibParse";
 
 const DUPOIN: BrokerParseConfig = { column: "Account", strip: [], split: false };
 const OCTA: BrokerParseConfig = {
@@ -52,5 +57,35 @@ describe("parseIbRows", () => {
     const rows = [{ Account: null }, { Account: "2130873" }];
     const out = parseIbRows(rows, DUPOIN);
     expect(out.logins).toEqual(["2130873"]);
+  });
+});
+
+describe("parseIbBalances", () => {
+  const DUPOIN_BAL: BrokerParseConfig = {
+    column: "Account",
+    strip: [],
+    split: false,
+    balanceColumn: "Balance",
+  };
+  it("maps login -> balance", () => {
+    const rows = [
+      { Account: "2130873", Balance: "2.380000" },
+      { Account: "2043071", Balance: "96.34" },
+    ];
+    const m = parseIbBalances(rows, DUPOIN_BAL);
+    expect(m.get("2130873")).toBeCloseTo(2.38);
+    expect(m.get("2043071")).toBeCloseTo(96.34);
+  });
+  it("returns empty map when the config has no balanceColumn", () => {
+    const m = parseIbBalances([{ Account: "1", Balance: "5" }], DUPOIN);
+    expect(m.size).toBe(0);
+  });
+  it("skips rows with a non-numeric balance or unparseable login", () => {
+    const rows = [
+      { Account: "N/A", Balance: "5" }, // bad login
+      { Account: "100", Balance: "" }, // empty balance
+    ];
+    const m = parseIbBalances(rows, DUPOIN_BAL);
+    expect(m.size).toBe(0);
   });
 });
