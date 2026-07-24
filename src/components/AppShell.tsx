@@ -23,6 +23,7 @@ const NAV: { label: string; href: string; icon: Icon; adminOnly?: boolean }[] = 
   { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
   // Admin-only while the AI Trading Journal is in staged rollout.
   { label: "Trading Journal", href: "/journal", icon: JournalIcon, adminOnly: true },
+  { label: "IB Reconciliation", href: "/journal/ib", icon: JournalIcon, adminOnly: true },
   { label: "Signals", href: "/signals", icon: SignalsIcon },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
   { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
