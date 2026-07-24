@@ -1,0 +1,42 @@
+// One-off: apply the IB-attribution schema to the live DB via the IPv4 pooler.
+// Mirrors scripts/apply-journal-migration.mjs. Idempotent.
+import { readFileSync } from "node:fs";
+import pg from "pg";
+
+const raw = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
+const env = Object.fromEntries(
+  raw
+    .split("\n")
+    .filter((l) => l.includes("=") && !l.trim().startsWith("#"))
+    .map((l) => {
+      const i = l.indexOf("=");
+      return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
+    })
+);
+
+const password = decodeURIComponent(new URL(env.DATABASE_URL).password);
+const client = new pg.Client({
+  host: "aws-1-ap-southeast-2.pooler.supabase.com",
+  port: 5432,
+  user: "postgres.dldrcitoeoxzfctsqlmo",
+  password,
+  database: "postgres",
+  ssl: { rejectUnauthorized: false },
+});
+
+const sql = readFileSync(
+  new URL(
+    "../supabase/migrations/20260720000001_journal_ib_attribution.sql",
+    import.meta.url
+  ),
+  "utf8"
+);
+
+await client.connect();
+await client.query(sql);
+const { rows } = await client.query(
+  "select id, display_name, enforcement_mode from public.ib_brokers order by id"
+);
+console.log("ib_brokers:", rows);
+await client.end();
+console.log("IB attribution migration applied.");
