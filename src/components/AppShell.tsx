@@ -14,16 +14,15 @@ import {
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-const NAV: { label: string; href: string; icon: Icon; adminOnly?: boolean }[] = [
+type NavItem = { label: string; href: string; icon: Icon };
+
+const NAV: NavItem[] = [
   // "Start here" roadmap first, then the home hub, then ordered by moat (top =
   // highest): recurring proprietary habit-drivers → exclusive IP/tools →
   // commodity reference feeds.
   { label: "Start here", href: "/welcome", icon: SparkIcon },
   { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
   { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
-  // Admin-only while the AI Trading Journal is in staged rollout.
-  { label: "Trading Journal", href: "/journal", icon: JournalIcon, adminOnly: true },
-  { label: "IB Reconciliation", href: "/journal/ib", icon: JournalIcon, adminOnly: true },
   { label: "Signals", href: "/signals", icon: SignalsIcon },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
   { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
@@ -34,6 +33,14 @@ const NAV: { label: string; href: string; icon: Icon; adminOnly?: boolean }[] = 
   { label: "Library", href: "/library", icon: LibraryIcon },
   { label: "News & Articles", href: "/news", icon: NewsIcon },
   { label: "Economic Calendar", href: "/calendar", icon: CalendarIcon },
+];
+
+// Admin-only pages, grouped under an "Admin" nav section — rendered only for
+// is_admin accounts. Any future admin / staged-rollout page goes here so it's
+// visible to admins alone.
+const ADMIN_NAV: NavItem[] = [
+  { label: "Trading Journal", href: "/journal", icon: JournalIcon },
+  { label: "IB Reconciliation", href: "/journal/ib", icon: JournalIcon },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -70,27 +77,36 @@ function NavLinks({
   onNavigate?: () => void;
   isAdmin: boolean;
 }) {
+  const renderItem = (n: NavItem) => {
+    const active = isActive(pathname, n.href);
+    return (
+      <Link
+        key={n.href}
+        href={n.href}
+        onClick={onNavigate}
+        aria-current={active ? "page" : undefined}
+        className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
+          active
+            ? "bg-accent-soft text-accent-ink"
+            : "text-subtle hover:bg-paper hover:text-ink"
+        }`}
+      >
+        <n.icon className={active ? "text-orange" : "text-faint group-hover:text-subtle"} />
+        {n.label}
+      </Link>
+    );
+  };
   return (
     <>
-      {NAV.filter((n) => !n.adminOnly || isAdmin).map((n) => {
-        const active = isActive(pathname, n.href);
-        return (
-          <Link
-            key={n.href}
-            href={n.href}
-            onClick={onNavigate}
-            aria-current={active ? "page" : undefined}
-            className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
-              active
-                ? "bg-accent-soft text-accent-ink"
-                : "text-subtle hover:bg-paper hover:text-ink"
-            }`}
-          >
-            <n.icon className={active ? "text-orange" : "text-faint group-hover:text-subtle"} />
-            {n.label}
-          </Link>
-        );
-      })}
+      {NAV.map(renderItem)}
+      {isAdmin && (
+        <>
+          <p className="mt-4 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
+            Admin
+          </p>
+          {ADMIN_NAV.map(renderItem)}
+        </>
+      )}
     </>
   );
 }
