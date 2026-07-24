@@ -2,16 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminApi, serviceClient } from "@/lib/journal/api";
 import { MetaApiError, createMetaApiAccount } from "@/lib/journal/metaapi";
+import { loadBrokers, serverMatchesBroker } from "@/lib/journal/ibBrokers";
 
 // POST /api/journal/accounts — connect an MT5 account.
 //
-// The investor password is validated, passed through to MetaApi provisioning
-// over TLS, and NEVER stored or logged. We keep only the MetaApi account id.
-// Retrying a failed/disconnected connect upserts the same row (unique on
-// user_id + mt5_login + broker_server).
+// The journal tracks the member's one registered active account: the login is
+// taken from profiles.trading_account_number (not the client). The investor
+// password is validated, passed through to MetaApi over TLS, and NEVER stored.
+// Broker is chosen from the registry; a mismatched server is rejected; an
+// account previously removed as not-under-IB (ib_review = journal_blocked) can't
+// reconnect.
 
 interface ConnectBody {
-  login?: string;
+  broker_id?: string;
   password?: string;
   server?: string;
   label?: string;
@@ -22,6 +25,15 @@ export async function POST(req: NextRequest) {
   if ("response" in guard) return guard.response;
   const { profile } = guard;
 
+  // The journal tracks the member's one registered active account.
+  const login = (profile.trading_account_number ?? "").trim();
+  if (!/^\d{4,15}$/.test(login)) {
+    return NextResponse.json(
+      { error: "Add your trading account number to your profile first." },
+      { status: 400 }
+    );
+  }
+
   let body: ConnectBody;
   try {
     body = (await req.json()) as ConnectBody;
@@ -29,16 +41,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const login = (body.login ?? "").trim();
+  const brokerId = (body.broker_id ?? "").trim();
   const password = body.password ?? "";
   const server = (body.server ?? "").trim();
   const label = (body.label ?? "").trim() || null;
 
-  if (!/^\d{3,20}$/.test(login)) {
-    return NextResponse.json(
-      { error: "Account number must be digits only" },
-      { status: 400 }
-    );
+  const svc = serviceClient();
+  const brokers = await loadBrokers(svc);
+  const broker = brokers.find((b) => b.id === brokerId);
+  if (!broker) {
+    return NextResponse.json({ error: "Choose your broker" }, { status: 400 });
   }
   if (password.length < 4) {
     return NextResponse.json(
@@ -48,8 +60,28 @@ export async function POST(req: NextRequest) {
   }
   if (server.length < 3) {
     return NextResponse.json(
-      { error: "Broker server is required (e.g. Broker-MT5-Live)" },
+      { error: "Broker server is required (from your MT5 login screen)" },
       { status: 400 }
+    );
+  }
+  if (!serverMatchesBroker(server, brokerId)) {
+    return NextResponse.json(
+      { error: `That server doesn't look like a ${broker.display_name} server.` },
+      { status: 400 }
+    );
+  }
+
+  // Block reconnect of an account previously removed as not-under-IB.
+  const { data: prior } = await svc
+    .from("journal_accounts")
+    .select("id, ib_review")
+    .eq("mt5_login", login)
+    .eq("broker_id", brokerId)
+    .maybeSingle();
+  if (prior?.ib_review === "journal_blocked") {
+    return NextResponse.json(
+      { error: "This account can't be connected. Please contact support." },
+      { status: 403 }
     );
   }
 
@@ -60,7 +92,7 @@ export async function POST(req: NextRequest) {
     .from("journal_accounts")
     .select("id, state")
     .eq("mt5_login", login)
-    .eq("broker_server", server)
+    .eq("broker_id", brokerId)
     .maybeSingle();
   if (existing && ["connecting", "deployed"].includes(existing.state)) {
     return NextResponse.json(
@@ -69,8 +101,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Provision at MetaApi. On failure we still save the row (state=failed,
-  // human-readable detail) so the UI can show what happened and offer retry.
+  // Provision at MetaApi. On failure we still save the row (state=failed) so the
+  // UI can show what happened and offer retry.
   let metaapiAccountId: string | null = null;
   let state = "connecting";
   let stateDetail: string | null = null;
@@ -98,6 +130,8 @@ export async function POST(req: NextRequest) {
         label,
         mt5_login: login,
         broker_server: server,
+        broker_id: brokerId,
+        ib_review: "ok",
         metaapi_account_id: metaapiAccountId,
         state,
         state_detail: stateDetail,
