@@ -7,7 +7,7 @@ function analytics(over: Partial<JournalAnalytics>): JournalAnalytics {
     startingBalance: 1000,
     avgLoss: -50,
     equityCurve: [],
-    ...(over as JournalAnalytics),
+    ...over,
   } as JournalAnalytics;
 }
 

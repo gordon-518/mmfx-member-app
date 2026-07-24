@@ -36,7 +36,7 @@ function analytics(over: Partial<JournalAnalytics>): JournalAnalytics {
     netProfit: 0,
     bySession: [],
     byWeekday: [],
-    ...(over as JournalAnalytics),
+    ...over,
   } as JournalAnalytics;
 }
 

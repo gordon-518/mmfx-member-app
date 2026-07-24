@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import type { JournalAnalytics } from "@/lib/journal/analytics";
+import type { LeakResult } from "@/lib/journal/leaks";
+import type { Health } from "@/lib/journal/health";
+import { SurvivalPanel } from "./SurvivalPanel";
 import {
   JOURNAL_EMOTIONS,
   type JournalAccountRow,
@@ -696,6 +699,8 @@ export function JournalDashboard({
   trades,
   goals,
   analytics,
+  leaks,
+  health,
   report,
   reportsRemaining,
   reportCap,
@@ -705,6 +710,8 @@ export function JournalDashboard({
   trades: JournalTradeRow[];
   goals: JournalGoalsRow | null;
   analytics: JournalAnalytics;
+  leaks: LeakResult;
+  health: Health;
   report: JournalReportRow | null;
   reportsRemaining: number;
   reportCap: number;
@@ -727,6 +734,12 @@ export function JournalDashboard({
           Your MT5 trades, synced automatically and measured against your goals.
         </p>
       </div>
+
+      {closed.length > 0 && (
+        <div className="mt-6">
+          <SurvivalPanel leaks={leaks} health={health} trades={trades} />
+        </div>
+      )}
 
       {accounts.length === 0 ? (
         <section className="rise mt-7 rounded-2xl border border-line bg-card p-8 text-center shadow-soft">

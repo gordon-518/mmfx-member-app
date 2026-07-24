@@ -3,6 +3,8 @@ import { requireFull } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/AppShell";
 import { computeAnalytics } from "@/lib/journal/analytics";
+import { detectLeaks } from "@/lib/journal/leaks";
+import { accountHealth } from "@/lib/journal/health";
 import { DAILY_REPORT_CAP } from "@/lib/journal/coach";
 import type {
   JournalAccountRow,
@@ -55,9 +57,24 @@ export default async function JournalPage() {
   const reportsRemaining = Math.max(0, DAILY_REPORT_CAP - usedToday);
 
   const allTrades = (trades ?? []) as JournalTradeRow[];
-  const analytics = computeAnalytics(
+  const cf = (cashFlows ?? []) as JournalCashFlowRow[];
+  const analytics = computeAnalytics(allTrades, cf);
+
+  // Survival Engine (Layer 1): leaks over the last 90d, health over full history.
+  const ninetyAgo = new Date(Date.now() - 90 * 86_400_000).toISOString();
+  const trades90 = allTrades.filter(
+    (t) => t.status === "closed" && t.close_time && t.close_time >= ninetyAgo
+  );
+  const leaks = detectLeaks(
+    trades90,
+    (goals ?? null) as JournalGoalsRow | null,
+    computeAnalytics(trades90, cf)
+  );
+  const health = accountHealth(
     allTrades,
-    (cashFlows ?? []) as JournalCashFlowRow[]
+    analytics,
+    (goals ?? null) as JournalGoalsRow | null,
+    leaks.leaks.length
   );
 
   return (
@@ -72,6 +89,8 @@ export default async function JournalPage() {
         trades={allTrades}
         goals={(goals ?? null) as JournalGoalsRow | null}
         analytics={analytics}
+        leaks={leaks}
+        health={health}
         report={(report ?? null) as JournalReportRow | null}
         reportsRemaining={reportsRemaining}
         reportCap={DAILY_REPORT_CAP}
