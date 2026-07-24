@@ -164,6 +164,39 @@ account and prompt to authorize the new one.
 - Removal: Type A blocks journal + removes MetaApi, keeps app; Type B routes to
   app-removal.
 
+## Rollout-phase enhancements — ⚠️ REMIND GORDON before going live to real members
+
+These are NOT in the admin-only build. Raise them when moving from staged/admin
+to real-member rollout.
+
+1. **Member Audit checks (agreed, ready to build on request):** on each export
+   upload, also audit `profiles.trading_account_number` for ALL members, not just
+   journal-connected accounts:
+   - **Not under IB** — registered account isn't in either export → CRM-verify.
+   - **Low balance (< $50, configurable)** — member's **Dupoin** account balance is
+     under threshold → "balance too low — DM to top up." Requires storing per-account
+     `balance` on `ib_accounts` from the Dupoin import (nullable; Octa has no balance).
+     Scope to MEMBERS — 90% of the raw 570-account Dupoin book is < $50, so a
+     whole-book threshold is meaningless.
+
+2. **Octa balance data (future ask):** request Octa/Elev8 to add a per-account
+   balance column to their export → enables low-balance flagging + account-size
+   review for Octa members (today balance is Dupoin-only).
+
+3. **Grace-period removals + email reminders (SendPulse) — the go-live upgrade of
+   the removal flow.** Today removals are immediate + manual (correct for admin-only
+   staging). At rollout, an action (Full removal / Block journal / future actions)
+   starts a **7-day grace period** (7 to align with the weekly Monday CSV cadence):
+   - Send the member a **daily email** for 7 days (via SendPulse) stating the problem
+     + required action (e.g. "no longer under our IB — switch back / rejoin before
+     [date] or lose access").
+   - **Auto-cancel** if the member **reappears in a later IB export** → removal called
+     off, reminders stop.
+   - **Auto-execute** the removal at day 7 if still not under the IB.
+   - **Email only** (Telegram considered, dropped for simplicity).
+   - Needs: a pending-removal/grace table (action, member, deadline, reason), a daily
+     job to send reminders + auto-execute/auto-cancel, SendPulse templates.
+
 ## Open items
 
 - Confirm Type-B "remove app access" = **hand-off** to admin user-mgmt (assumed).
