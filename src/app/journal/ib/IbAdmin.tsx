@@ -13,6 +13,15 @@ type Flagged = {
   last_synced_at: string | null;
 };
 
+type MemberRow = {
+  acct: string;
+  full_name: string | null;
+  email: string | null;
+  account_status: string;
+  dupoinBalance: number | null;
+};
+type MemberAudit = { notUnderIb: MemberRow[]; lowBalance: MemberRow[] };
+
 const card =
   "rounded-2xl border border-line-strong bg-card p-5 shadow-soft space-y-3";
 const btn =
@@ -117,12 +126,131 @@ function BrokerCard({ broker }: { broker: Broker }) {
   );
 }
 
+function StatusPill({ status }: { status: string }) {
+  const active = status === "member_active";
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+        active ? "bg-accent-soft text-accent-ink" : "bg-canvas text-subtle"
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function MemberAuditSection({
+  audit,
+  threshold,
+}: {
+  audit: MemberAudit;
+  threshold: number;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-[16px] font-semibold text-ink">Member audit</h2>
+          <p className="text-[12px] text-subtle">
+            Every member&apos;s registered account checked against the uploaded IB
+            book — independent of whether they connected the journal.
+          </p>
+        </div>
+        <a className={ghost} href="/api/journal/ib/member-report">
+          Download CSV
+        </a>
+      </div>
+
+      {/* Not under IB */}
+      <div>
+        <h3 className="mb-1.5 text-[13px] font-semibold text-ink">
+          Not under your IB ({audit.notUnderIb.length}) — CRM-verify
+        </h3>
+        <div className="overflow-x-auto rounded-2xl border border-line-strong">
+          <table className="w-full text-[13px]">
+            <thead className="bg-canvas/60 text-left text-subtle">
+              <tr>
+                <th className="p-3">Account</th>
+                <th className="p-3">Member</th>
+                <th className="p-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {audit.notUnderIb.map((m, i) => (
+                <tr key={`${m.acct}-${i}`} className="border-t border-line">
+                  <td className="p-3 font-mono">{m.acct}</td>
+                  <td className="p-3">{m.full_name || m.email || "—"}</td>
+                  <td className="p-3">
+                    <StatusPill status={m.account_status} />
+                  </td>
+                </tr>
+              ))}
+              {audit.notUnderIb.length === 0 && (
+                <tr>
+                  <td className="p-4 text-subtle" colSpan={3}>
+                    All members&apos; accounts are in your IB book.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Low balance */}
+      <div>
+        <h3 className="mb-1.5 text-[13px] font-semibold text-ink">
+          Dupoin balance below ${threshold} ({audit.lowBalance.length}) — DM to top
+          up
+        </h3>
+        <div className="overflow-x-auto rounded-2xl border border-line-strong">
+          <table className="w-full text-[13px]">
+            <thead className="bg-canvas/60 text-left text-subtle">
+              <tr>
+                <th className="p-3">Account</th>
+                <th className="p-3">Member</th>
+                <th className="p-3">Balance</th>
+                <th className="p-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {audit.lowBalance.map((m, i) => (
+                <tr key={`${m.acct}-${i}`} className="border-t border-line">
+                  <td className="p-3 font-mono">{m.acct}</td>
+                  <td className="p-3">{m.full_name || m.email || "—"}</td>
+                  <td className="p-3 font-semibold text-red-600">
+                    ${(m.dupoinBalance ?? 0).toFixed(2)}
+                  </td>
+                  <td className="p-3">
+                    <StatusPill status={m.account_status} />
+                  </td>
+                </tr>
+              ))}
+              {audit.lowBalance.length === 0 && (
+                <tr>
+                  <td className="p-4 text-subtle" colSpan={4}>
+                    No members below the balance threshold.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function IbAdmin({
   brokers,
   flagged,
+  memberAudit,
+  lowBalanceThreshold,
 }: {
   brokers: Broker[];
   flagged: Flagged[];
+  memberAudit: MemberAudit;
+  lowBalanceThreshold: number;
 }) {
   const [rows, setRows] = useState(flagged);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -223,6 +351,8 @@ export function IbAdmin({
           </tbody>
         </table>
       </div>
+
+      <MemberAuditSection audit={memberAudit} threshold={lowBalanceThreshold} />
     </div>
   );
 }

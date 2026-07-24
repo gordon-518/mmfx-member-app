@@ -3,6 +3,7 @@ import { requireFull } from "@/lib/access";
 import { AppShell } from "@/components/AppShell";
 import { serviceClient } from "@/lib/journal/api";
 import { loadBrokers } from "@/lib/journal/ibBrokers";
+import { loadMemberAudit, LOW_BALANCE_THRESHOLD } from "@/lib/journal/ibMemberAudit";
 import { IbAdmin } from "./IbAdmin";
 
 export default async function JournalIbPage() {
@@ -17,6 +18,8 @@ export default async function JournalIbPage() {
       "id, mt5_login, broker_id, broker_server, balance, currency, last_synced_at"
     )
     .eq("ib_review", "flagged");
+
+  const memberAudit = await loadMemberAudit(svc);
 
   return (
     <AppShell
@@ -33,6 +36,8 @@ export default async function JournalIbPage() {
           updatedAt: b.allowlist_updated_at,
         }))}
         flagged={flagged ?? []}
+        memberAudit={memberAudit}
+        lowBalanceThreshold={LOW_BALANCE_THRESHOLD}
       />
     </AppShell>
   );
