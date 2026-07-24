@@ -37,7 +37,10 @@ export function accountHealth(
     current = eq;
   }
   const currentDrawdown$ = Math.max(0, peak - current);
-  const currentDrawdownPct = peak > 0 ? r2((currentDrawdown$ / peak) * 100) : 0;
+  // Drawdown can't exceed 100% of peak equity — clamp (guards pathological
+  // reconstructions, e.g. a demo whose losses dwarf its starting balance).
+  const currentDrawdownPct =
+    peak > 0 ? Math.min(100, r2((currentDrawdown$ / peak) * 100)) : 0;
 
   const proximity = tolerance > 0 ? currentDrawdownPct / tolerance : 0;
   const status =
