@@ -20,13 +20,30 @@ const primaryBtn =
 const secondaryBtn =
   "cursor-pointer rounded-xl border border-line-strong bg-card px-4 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink";
 
-function CredentialsStep({ onDone }: { onDone: () => void }) {
-  const [login, setLogin] = useState("");
+function CredentialsStep({
+  tradingAccountNumber,
+  brokers,
+  onDone,
+}: {
+  tradingAccountNumber: string | null;
+  brokers: { id: string; name: string }[];
+  onDone: () => void;
+}) {
+  const [brokerId, setBrokerId] = useState("");
   const [password, setPassword] = useState("");
   const [server, setServer] = useState("");
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (!tradingAccountNumber) {
+    return (
+      <p className="text-[14px] text-ink">
+        Add your MT5 trading account number to your profile first, then come back
+        to connect the journal.
+      </p>
+    );
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,7 +53,7 @@ function CredentialsStep({ onDone }: { onDone: () => void }) {
       const res = await fetch("/api/journal/accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login, password, server, label }),
+        body: JSON.stringify({ broker_id: brokerId, password, server, label }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -54,18 +71,39 @@ function CredentialsStep({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label className={labelCls} htmlFor="mt5-login">
-          MT5 account number
-        </label>
+        <label className={labelCls}>MT5 account number</label>
         <input
-          id="mt5-login"
-          className={`${inputCls} mt-1.5`}
-          value={login}
-          onChange={(e) => setLogin(e.target.value)}
-          placeholder="e.g. 51234567"
-          inputMode="numeric"
-          required
+          className={`${inputCls} mt-1.5 bg-canvas/60`}
+          value={tradingAccountNumber}
+          readOnly
+          aria-readonly
         />
+        <p className="mt-1.5 text-[12px] text-subtle">
+          Your registered active MT5 account. To change it, update your trading
+          account number in your profile. Only MT5 trading accounts can be
+          connected.
+        </p>
+      </div>
+      <div>
+        <label className={labelCls} htmlFor="mt5-broker">
+          Broker
+        </label>
+        <select
+          id="mt5-broker"
+          className={`${inputCls} mt-1.5`}
+          value={brokerId}
+          onChange={(e) => setBrokerId(e.target.value)}
+          required
+        >
+          <option value="" disabled>
+            Choose your broker
+          </option>
+          {brokers.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
       </div>
       <div>
         <label className={labelCls} htmlFor="mt5-password">
@@ -96,7 +134,7 @@ function CredentialsStep({ onDone }: { onDone: () => void }) {
           className={`${inputCls} mt-1.5`}
           value={server}
           onChange={(e) => setServer(e.target.value)}
-          placeholder="e.g. OctaFX-Real (shown on your MT5 login screen)"
+          placeholder="e.g. Elev8-Live (shown on your MT5 login screen)"
           required
         />
       </div>
@@ -300,9 +338,13 @@ function GoalsStep({ initial }: { initial: JournalGoalsRow | null }) {
 export function ConnectWizard({
   initialStep,
   initialGoals,
+  tradingAccountNumber,
+  brokers,
 }: {
   initialStep: Step;
   initialGoals: JournalGoalsRow | null;
+  tradingAccountNumber: string | null;
+  brokers: { id: string; name: string }[];
 }) {
   const [step, setStep] = useState<Step>(initialStep);
   const credentialsFirst = initialStep === "credentials";
@@ -330,7 +372,11 @@ export function ConnectWizard({
 
       <section className="rise mt-7 rounded-2xl border border-line bg-card p-6 shadow-soft sm:p-7">
         {step === "credentials" ? (
-          <CredentialsStep onDone={() => setStep("goals")} />
+          <CredentialsStep
+            tradingAccountNumber={tradingAccountNumber}
+            brokers={brokers}
+            onDone={() => setStep("goals")}
+          />
         ) : (
           <GoalsStep initial={initialGoals} />
         )}
