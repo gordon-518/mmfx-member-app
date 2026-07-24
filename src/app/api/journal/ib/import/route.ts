@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { requireAdminApi, serviceClient } from "@/lib/journal/api";
 import { loadBrokers } from "@/lib/journal/ibBrokers";
-import { parseIbRows } from "@/lib/journal/ibParse";
+import { parseIbRows, parseIbBalances } from "@/lib/journal/ibParse";
 import { reconcile } from "@/lib/journal/ibReconcile";
 
 // POST /api/journal/ib/import (multipart: file, broker_id, mode, override)
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
     defval: null,
   });
   const parsed = parseIbRows(rows, broker.parse_config);
+  const balances = parseIbBalances(rows, broker.parse_config);
 
   // Current allowlist for this broker — PAGINATE past PostgREST's 1000-row cap
   // (elev8_octa holds ~12k; a plain select would silently truncate the diff).
@@ -107,9 +108,11 @@ export async function POST(req: NextRequest) {
   if (parsed.logins.length > 0) {
     const CHUNK = 1000;
     for (let i = 0; i < parsed.logins.length; i += CHUNK) {
-      const batch = parsed.logins
-        .slice(i, i + CHUNK)
-        .map((mt5_login) => ({ broker_id: brokerId, mt5_login }));
+      const batch = parsed.logins.slice(i, i + CHUNK).map((mt5_login) => ({
+        broker_id: brokerId,
+        mt5_login,
+        balance: balances.get(mt5_login) ?? null,
+      }));
       const { error } = await svc.from("ib_accounts").insert(batch);
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
