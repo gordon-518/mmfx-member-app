@@ -93,4 +93,34 @@ describe("buildReportPrompt", () => {
     expect(prompt).toContain("revenge"); // emotion signal surfaced
     expect(prompt.length).toBeGreaterThan(200);
   });
+
+  it("includes quantified leaks and health when present", () => {
+    const prompt = buildReportPrompt({
+      analytics: { ...computeAnalytics([], []), avgWin: 100, avgLoss: -100 },
+      signals: behavioralSignals([], null),
+      goals: null,
+      sampleTrades: [],
+      health: {
+        status: "at_risk",
+        runwaySentence: "~5 losing trades from your 10% drawdown limit",
+        factors: ["Drawdown 5% of 10%"],
+      } as never,
+      leaks: {
+        leaks: [
+          {
+            type: "revenge_trading",
+            title: "Trading after losses",
+            dollarImpact: -1240,
+            tier: "actual",
+            tradeCount: 18,
+            tradeIds: [],
+            detail: "18 trades after 2+ losses.",
+          },
+        ],
+        strengths: [],
+      } as never,
+    });
+    expect(prompt).toContain("~5 losing trades");
+    expect(prompt).toContain("Trading after losses");
+  });
 });

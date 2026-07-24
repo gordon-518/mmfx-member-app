@@ -2,6 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeAnalytics, type JournalAnalytics } from "./analytics";
+import { detectLeaks, type LeakResult } from "./leaks";
+import { accountHealth, type Health } from "./health";
 import type {
   CoachReport,
   CoachStatus,
@@ -117,6 +119,8 @@ export interface ReportContext {
   signals: BehavioralSignals;
   goals: JournalGoalsRow | null;
   sampleTrades: JournalTradeRow[];
+  leaks?: LeakResult;
+  health?: Health;
 }
 
 /** Build the numbers-and-notes prompt fed to the model. Pure. */
@@ -179,6 +183,16 @@ export function buildReportPrompt(ctx: ReportContext): string {
       `(bigger after losses = revenge sizing)`,
     `- Off-instrument rate (outside stated instruments): ${pct(s.offInstrumentRate)}`,
     `- Busiest day: ${s.maxTradesInDay} trades · overtrading days: ${s.overtradingDays}`,
+    ctx.health
+      ? `ACCOUNT HEALTH: ${ctx.health.status} · ${ctx.health.runwaySentence} · ${ctx.health.factors.join("; ")}`
+      : "",
+    ctx.leaks && ctx.leaks.leaks.length
+      ? "QUANTIFIED LEAKS (biggest first, in $ — reference these specifically):\n" +
+        ctx.leaks.leaks
+          .slice(0, 3)
+          .map((l) => `  • ${l.title}: ${l.dollarImpact} (${l.tier}) — ${l.detail}`)
+          .join("\n")
+      : "",
     "",
     annotated ? `THEIR OWN NOTES ON RECENT TRADES:\n${annotated}` : "No trade notes logged yet.",
     "",
@@ -310,15 +324,24 @@ export async function loadReportContext(
   const allTrades = (trades ?? []) as JournalTradeRow[];
   if (!allTrades.some((t) => t.status === "closed")) return null;
 
-  const analytics = computeAnalytics(
-    allTrades,
-    (cashFlows ?? []) as JournalCashFlowRow[]
+  const cf = (cashFlows ?? []) as JournalCashFlowRow[];
+  const g = (goals ?? null) as JournalGoalsRow | null;
+  const analytics = computeAnalytics(allTrades, cf);
+
+  const ninetyAgo = new Date(Date.now() - 90 * 86_400_000).toISOString();
+  const trades90 = allTrades.filter(
+    (t) => t.status === "closed" && t.close_time && t.close_time >= ninetyAgo
   );
+  const leaks = detectLeaks(trades90, g, computeAnalytics(trades90, cf));
+  const health = accountHealth(allTrades, analytics, g, leaks.leaks.length);
+
   return {
     analytics,
-    signals: behavioralSignals(allTrades, (goals ?? null) as JournalGoalsRow | null),
-    goals: (goals ?? null) as JournalGoalsRow | null,
+    signals: behavioralSignals(allTrades, g),
+    goals: g,
     sampleTrades: allTrades,
+    leaks,
+    health,
   };
 }
 
