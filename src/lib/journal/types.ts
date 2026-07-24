@@ -173,3 +173,20 @@ export interface JournalGoalsRow {
   focus_text: string | null;
   updated_at: string;
 }
+
+// --- IB attribution ---------------------------------------------------------
+
+export type IbReview = "ok" | "flagged" | "journal_blocked";
+
+export interface IbBrokerRow {
+  id: string;
+  display_name: string;
+  enforcement_mode: "strict" | "monitor";
+  parse_config: {
+    sheet?: string;
+    column: string;
+    strip: string[];
+    split: boolean;
+  };
+  allowlist_updated_at: string | null;
+}
