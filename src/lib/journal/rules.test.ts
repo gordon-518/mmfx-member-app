@@ -20,7 +20,6 @@ function t(o: Partial<JournalTradeRow> & { net_profit: number; day: string }): J
     profit: o.net_profit,
     commission: 0,
     swap: 0,
-    net_profit: o.net_profit,
     duration_sec: 1,
     note: null,
     tags: null,
