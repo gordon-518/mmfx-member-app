@@ -190,3 +190,23 @@ export interface IbBrokerRow {
   };
   allowlist_updated_at: string | null;
 }
+
+// --- Discipline rules (Survival Engine Layer 2) -----------------------------
+
+export interface RuleCfg { enabled?: boolean; value?: number; is_pct?: boolean }
+export interface SessionRuleCfg { enabled?: boolean; value?: string[] }
+
+export interface JournalRulesConfig {
+  max_daily_loss?: RuleCfg;
+  max_trades_per_day?: RuleCfg;
+  max_consec_losses?: RuleCfg;
+  max_lots?: RuleCfg;
+  instruments_only?: { enabled?: boolean };
+  allowed_sessions?: SessionRuleCfg;
+}
+
+export interface JournalRulesRow {
+  user_id: string;
+  config: JournalRulesConfig;
+  updated_at: string;
+}
