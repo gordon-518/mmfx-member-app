@@ -123,4 +123,30 @@ describe("buildReportPrompt", () => {
     expect(prompt).toContain("~5 losing trades");
     expect(prompt).toContain("Trading after losses");
   });
+
+  it("includes the discipline score and broken rules when present", () => {
+    const prompt = buildReportPrompt({
+      analytics: computeAnalytics([], []),
+      signals: behavioralSignals([], null),
+      goals: null,
+      sampleTrades: [],
+      rules: {
+        score: 72,
+        cleanDays: 18,
+        tradingDays: 25,
+        perRule: [],
+        breaches: [
+          {
+            rule: "max_daily_loss",
+            title: "Max daily loss",
+            when: "2026-07-20",
+            detail: "Lost $420 vs your $200 limit",
+            tradeIds: [],
+          },
+        ],
+      } as never,
+    });
+    expect(prompt).toContain("DISCIPLINE: 72% clean days");
+    expect(prompt).toContain("Max daily loss");
+  });
 });

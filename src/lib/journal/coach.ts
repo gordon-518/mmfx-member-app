@@ -4,11 +4,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeAnalytics, type JournalAnalytics } from "./analytics";
 import { detectLeaks, type LeakResult } from "./leaks";
 import { accountHealth, type Health } from "./health";
+import { evaluateRules, type RulesResult } from "./rules";
 import type {
   CoachReport,
   CoachStatus,
   JournalCashFlowRow,
   JournalGoalsRow,
+  JournalRulesConfig,
   JournalTradeRow,
 } from "./types";
 
@@ -121,6 +123,7 @@ export interface ReportContext {
   sampleTrades: JournalTradeRow[];
   leaks?: LeakResult;
   health?: Health;
+  rules?: RulesResult;
 }
 
 /** Build the numbers-and-notes prompt fed to the model. Pure. */
@@ -192,6 +195,10 @@ export function buildReportPrompt(ctx: ReportContext): string {
           .slice(0, 3)
           .map((l) => `  • ${l.title}: ${l.dollarImpact} (${l.tier}) — ${l.detail}`)
           .join("\n")
+      : "",
+    ctx.rules && ctx.rules.score != null
+      ? `DISCIPLINE: ${ctx.rules.score}% clean days (${ctx.rules.cleanDays}/${ctx.rules.tradingDays}) · ` +
+        `rules broken: ${ctx.rules.breaches.slice(0, 3).map((b) => b.title).join(", ") || "none"}`
       : "",
     "",
     annotated ? `THEIR OWN NOTES ON RECENT TRADES:\n${annotated}` : "No trade notes logged yet.",
@@ -308,18 +315,20 @@ export async function loadReportContext(
     .eq("user_id", userId);
   const accountIds = (accounts ?? []).map((a) => a.id as string);
 
-  const [{ data: trades }, { data: cashFlows }, { data: goals }] = await Promise.all([
-    db
-      .from("journal_trades")
-      .select()
-      .eq("user_id", userId)
-      .order("close_time", { ascending: false, nullsFirst: true })
-      .limit(TRADES_CAP),
-    accountIds.length
-      ? db.from("journal_cash_flows").select().in("account_id", accountIds)
-      : Promise.resolve({ data: [] as JournalCashFlowRow[] }),
-    db.from("journal_goals").select().eq("user_id", userId).maybeSingle(),
-  ]);
+  const [{ data: trades }, { data: cashFlows }, { data: goals }, { data: rulesRow }] =
+    await Promise.all([
+      db
+        .from("journal_trades")
+        .select()
+        .eq("user_id", userId)
+        .order("close_time", { ascending: false, nullsFirst: true })
+        .limit(TRADES_CAP),
+      accountIds.length
+        ? db.from("journal_cash_flows").select().in("account_id", accountIds)
+        : Promise.resolve({ data: [] as JournalCashFlowRow[] }),
+      db.from("journal_goals").select().eq("user_id", userId).maybeSingle(),
+      db.from("journal_rules").select().eq("user_id", userId).maybeSingle(),
+    ]);
 
   const allTrades = (trades ?? []) as JournalTradeRow[];
   if (!allTrades.some((t) => t.status === "closed")) return null;
@@ -335,6 +344,16 @@ export async function loadReportContext(
   const leaks = detectLeaks(trades90, g, computeAnalytics(trades90, cf));
   const health = accountHealth(allTrades, analytics, g, leaks.leaks.length);
 
+  const thirtyAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const rules = evaluateRules(
+    allTrades.filter(
+      (t) => t.status === "closed" && t.close_time && t.close_time >= thirtyAgo
+    ),
+    (rulesRow?.config ?? {}) as JournalRulesConfig,
+    g,
+    analytics.startingBalance
+  );
+
   return {
     analytics,
     signals: behavioralSignals(allTrades, g),
@@ -342,6 +361,7 @@ export async function loadReportContext(
     sampleTrades: allTrades,
     leaks,
     health,
+    rules,
   };
 }
 
