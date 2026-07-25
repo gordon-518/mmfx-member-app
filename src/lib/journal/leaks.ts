@@ -45,7 +45,7 @@ function median(nums: number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-function sessionOf(iso: string | null): string {
+export function sessionOf(iso: string | null): string {
   if (!iso) return "Unknown";
   const h = new Date(iso).getUTCHours();
   if (h >= 7 && h < 13) return "London";
