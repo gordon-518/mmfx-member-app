@@ -178,36 +178,42 @@ export function detectLeaks(
     }
   }
 
-  // 5. worst_slot — worst session or weekday bucket (only if it loses money).
+  // 5. worst_slot — worst session/weekday bucket that's a GENUINE subset (not
+  // ~all the trades, and only where the dimension actually splits into buckets).
   {
-    const buckets = new Map<string, { ids: string[]; net: number }>();
-    const add = (key: string, tr: JournalTradeRow) => {
-      const b = buckets.get(key) ?? { ids: [], net: 0 };
-      b.ids.push(tr.id);
-      b.net += tr.net_profit;
-      buckets.set(key, b);
-    };
-    for (const tr of closed) {
-      add(`session:${sessionOf(tr.open_time)}`, tr);
-      add(`day:${WEEKDAYS[new Date(tr.close_time as string).getUTCDay()]}`, tr);
-    }
-    let worstKey: string | null = null;
-    let worst: { ids: string[]; net: number } | null = null;
-    for (const [key, b] of buckets) {
-      if (!worst || b.net < worst.net) {
-        worst = b;
-        worstKey = key;
+    const dims: Array<(tr: JournalTradeRow) => string> = [
+      (tr) => `session:${sessionOf(tr.open_time)}`,
+      (tr) => `day:${WEEKDAYS[new Date(tr.close_time as string).getUTCDay()]}`,
+    ];
+    let best: { key: string; ids: string[]; net: number } | null = null;
+    for (const keyOf of dims) {
+      const buckets = new Map<string, { ids: string[]; net: number }>();
+      for (const tr of closed) {
+        const k = keyOf(tr);
+        const b = buckets.get(k) ?? { ids: [], net: 0 };
+        b.ids.push(tr.id);
+        b.net += tr.net_profit;
+        buckets.set(k, b);
+      }
+      if (buckets.size < 2) continue; // no split → not a "slot"
+      for (const [k, b] of buckets) {
+        if (
+          b.net < 0 &&
+          b.ids.length < closed.length * 0.8 && // a real subset, not everything
+          (!best || b.net < best.net)
+        )
+          best = { key: k, ids: b.ids, net: b.net };
       }
     }
-    if (worst && worst.net < 0 && worstKey) {
-      const label = worstKey.split(":")[1];
+    if (best) {
+      const label = best.key.split(":")[1];
       candidates.push({
         type: "worst_slot",
         title: `Your worst time slot (${label})`,
-        dollarImpact: r2(worst.net),
+        dollarImpact: r2(best.net),
         tier: "actual",
-        tradeCount: worst.ids.length,
-        tradeIds: worst.ids,
+        tradeCount: best.ids.length,
+        tradeIds: best.ids,
         detail: `${label} trades are your biggest bleed.`,
       });
     }
@@ -267,9 +273,14 @@ export function detectLeaks(
       });
   }
 
+  // Rank real cash leaks (actual/excess) ahead of what-if projections, so a
+  // projection never headlines above money actually lost; then by $ within group.
+  const tierRank = (t: Leak["tier"]) => (t === "what_if" ? 1 : 0);
   const leaks = candidates
     .filter((c) => c.dollarImpact < 0)
-    .sort((a, b) => a.dollarImpact - b.dollarImpact);
+    .sort(
+      (a, b) => tierRank(a.tier) - tierRank(b.tier) || a.dollarImpact - b.dollarImpact
+    );
   const strengths = candidates
     .filter((c) => c.dollarImpact > 0)
     .sort((a, b) => b.dollarImpact - a.dollarImpact);

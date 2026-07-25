@@ -135,4 +135,40 @@ describe("detectLeaks", () => {
     );
     expect(leaks[0].dollarImpact).toBeLessThanOrEqual(leaks[1].dollarImpact);
   });
+
+  it("worst_slot does not fire when trades don't split into buckets", () => {
+    const trades = Array.from({ length: 5 }, (_, i) =>
+      t({
+        id: `s${i}`,
+        net_profit: -20,
+        open_time: "2026-07-01T10:00:00.000Z",
+        close_time: "2026-07-01T11:00:00.000Z",
+      })
+    );
+    const { leaks } = detectLeaks(trades, null, analytics({}));
+    expect(leaks.find((l) => l.type === "worst_slot")).toBeFalsy();
+  });
+
+  it("what-if leaks rank after actual/excess cash leaks", () => {
+    // 6 trades on one day (overtrading cash leak) with small wins + big losses
+    // and wins > losses (so skewed R:R would improve → a what-if leak).
+    const d = "2026-07-01T12:00:00.000Z";
+    const trades = [
+      t({ id: "w1", net_profit: 40, close_time: d }),
+      t({ id: "w2", net_profit: 40, close_time: d }),
+      t({ id: "w3", net_profit: 40, close_time: d }),
+      t({ id: "w4", net_profit: 40, close_time: d }),
+      t({ id: "l1", net_profit: -400, close_time: d }),
+      t({ id: "l2", net_profit: -300, close_time: d }),
+    ];
+    const { leaks } = detectLeaks(
+      trades,
+      null,
+      analytics({ avgWin: 40, avgLoss: -350, netProfit: -540 })
+    );
+    const firstWhatIf = leaks.findIndex((l) => l.tier === "what_if");
+    expect(firstWhatIf).toBeGreaterThanOrEqual(0);
+    const cashAfter = leaks.slice(firstWhatIf + 1).some((l) => l.tier !== "what_if");
+    expect(cashAfter).toBe(false);
+  });
 });
