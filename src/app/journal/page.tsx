@@ -5,12 +5,14 @@ import { AppShell } from "@/components/AppShell";
 import { computeAnalytics } from "@/lib/journal/analytics";
 import { detectLeaks } from "@/lib/journal/leaks";
 import { accountHealth } from "@/lib/journal/health";
+import { evaluateRules } from "@/lib/journal/rules";
 import { DAILY_REPORT_CAP } from "@/lib/journal/coach";
 import type {
   JournalAccountRow,
   JournalCashFlowRow,
   JournalGoalsRow,
   JournalReportRow,
+  JournalRulesConfig,
   JournalTradeRow,
 } from "@/lib/journal/types";
 import { JournalDashboard } from "./JournalDashboard";
@@ -28,21 +30,27 @@ export default async function JournalPage() {
   if (!profile.is_admin) redirect("/dashboard");
   const supabase = await createClient();
 
-  const [{ data: accounts }, { data: trades }, { data: cashFlows }, { data: goals }] =
-    await Promise.all([
-      supabase
-        .from("journal_accounts")
-        .select()
-        .neq("state", "disconnected")
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("journal_trades")
-        .select()
-        .order("close_time", { ascending: false, nullsFirst: true })
-        .limit(TRADES_CAP),
-      supabase.from("journal_cash_flows").select(),
-      supabase.from("journal_goals").select().maybeSingle(),
-    ]);
+  const [
+    { data: accounts },
+    { data: trades },
+    { data: cashFlows },
+    { data: goals },
+    { data: rulesRow },
+  ] = await Promise.all([
+    supabase
+      .from("journal_accounts")
+      .select()
+      .neq("state", "disconnected")
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("journal_trades")
+      .select()
+      .order("close_time", { ascending: false, nullsFirst: true })
+      .limit(TRADES_CAP),
+    supabase.from("journal_cash_flows").select(),
+    supabase.from("journal_goals").select().maybeSingle(),
+    supabase.from("journal_rules").select().maybeSingle(),
+  ]);
 
   const { data: report } = await supabase
     .from("journal_reports")
@@ -77,6 +85,18 @@ export default async function JournalPage() {
     leaks.leaks.length
   );
 
+  // Survival Engine (Layer 2): discipline rules over the last 30d.
+  const thirtyAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const rulesConfig = (rulesRow?.config ?? {}) as JournalRulesConfig;
+  const rules = evaluateRules(
+    allTrades.filter(
+      (t) => t.status === "closed" && t.close_time && t.close_time >= thirtyAgo
+    ),
+    rulesConfig,
+    (goals ?? null) as JournalGoalsRow | null,
+    analytics.startingBalance
+  );
+
   return (
     <AppShell
       email={profile.email}
@@ -91,6 +111,8 @@ export default async function JournalPage() {
         analytics={analytics}
         leaks={leaks}
         health={health}
+        rules={rules}
+        rulesConfig={rulesConfig}
         report={(report ?? null) as JournalReportRow | null}
         reportsRemaining={reportsRemaining}
         reportCap={DAILY_REPORT_CAP}

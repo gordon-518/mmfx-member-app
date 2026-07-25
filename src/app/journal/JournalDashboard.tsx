@@ -6,12 +6,15 @@ import { Fragment, useEffect, useState, type ReactNode } from "react";
 import type { JournalAnalytics } from "@/lib/journal/analytics";
 import type { LeakResult } from "@/lib/journal/leaks";
 import type { Health } from "@/lib/journal/health";
+import type { RulesResult } from "@/lib/journal/rules";
 import { SurvivalPanel } from "./SurvivalPanel";
+import { DisciplinePanel } from "./DisciplinePanel";
 import {
   JOURNAL_EMOTIONS,
   type JournalAccountRow,
   type JournalGoalsRow,
   type JournalReportRow,
+  type JournalRulesConfig,
   type JournalTradeRow,
 } from "@/lib/journal/types";
 import { DrawdownChart, EquityCurveChart, PnlHistogram } from "./charts";
@@ -701,6 +704,8 @@ export function JournalDashboard({
   analytics,
   leaks,
   health,
+  rules,
+  rulesConfig,
   report,
   reportsRemaining,
   reportCap,
@@ -712,6 +717,8 @@ export function JournalDashboard({
   analytics: JournalAnalytics;
   leaks: LeakResult;
   health: Health;
+  rules: RulesResult;
+  rulesConfig: JournalRulesConfig;
   report: JournalReportRow | null;
   reportsRemaining: number;
   reportCap: number;
@@ -736,8 +743,9 @@ export function JournalDashboard({
       </div>
 
       {closed.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <SurvivalPanel leaks={leaks} health={health} trades={trades} />
+          <DisciplinePanel rules={rules} config={rulesConfig} trades={trades} />
         </div>
       )}
 
