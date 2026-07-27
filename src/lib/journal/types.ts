@@ -210,3 +210,21 @@ export interface JournalRulesRow {
   config: JournalRulesConfig;
   updated_at: string;
 }
+
+// --- Proactive interventions (Survival Engine Layer 3) ----------------------
+
+export interface JournalInterventionRow {
+  id: string;
+  user_id: string;
+  kind: string;
+  episode_key: string;
+  channel: string;
+  sent_at: string;
+}
+
+export interface JournalEmailPrefsRow {
+  user_id: string;
+  opted_out: boolean;
+  unsub_token: string;
+  updated_at: string;
+}
