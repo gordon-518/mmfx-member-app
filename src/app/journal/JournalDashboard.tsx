@@ -7,8 +7,10 @@ import type { JournalAnalytics } from "@/lib/journal/analytics";
 import type { LeakResult } from "@/lib/journal/leaks";
 import type { Health } from "@/lib/journal/health";
 import type { RulesResult } from "@/lib/journal/rules";
+import type { Intervention } from "@/lib/journal/interventions";
 import { SurvivalPanel } from "./SurvivalPanel";
 import { DisciplinePanel } from "./DisciplinePanel";
+import { InterventionBanner } from "./InterventionBanner";
 import {
   JOURNAL_EMOTIONS,
   type JournalAccountRow,
@@ -706,6 +708,7 @@ export function JournalDashboard({
   health,
   rules,
   rulesConfig,
+  interventions,
   report,
   reportsRemaining,
   reportCap,
@@ -719,6 +722,7 @@ export function JournalDashboard({
   health: Health;
   rules: RulesResult;
   rulesConfig: JournalRulesConfig;
+  interventions: Intervention[];
   report: JournalReportRow | null;
   reportsRemaining: number;
   reportCap: number;
@@ -730,6 +734,7 @@ export function JournalDashboard({
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
+      <InterventionBanner interventions={interventions} />
       <div className="rise">
         <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
           Tools · AI Trading Journal

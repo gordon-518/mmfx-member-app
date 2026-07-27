@@ -6,6 +6,10 @@ import { computeAnalytics } from "@/lib/journal/analytics";
 import { detectLeaks } from "@/lib/journal/leaks";
 import { accountHealth } from "@/lib/journal/health";
 import { evaluateRules } from "@/lib/journal/rules";
+import {
+  decideInterventions,
+  type InterventionSignals,
+} from "@/lib/journal/interventions";
 import { DAILY_REPORT_CAP } from "@/lib/journal/coach";
 import type {
   JournalAccountRow,
@@ -97,6 +101,25 @@ export default async function JournalPage() {
     analytics.startingBalance
   );
 
+  // Survival Engine (Layer 3): proactive interventions (banner surface).
+  const closedAll = allTrades.filter((t) => t.status === "closed" && t.close_time);
+  const lastTradeAt = closedAll.reduce<string | null>(
+    (max, t) =>
+      max == null || (t.close_time as string) > max ? (t.close_time as string) : max,
+    null
+  );
+  const interventionSignals: InterventionSignals = {
+    health,
+    leaks,
+    rules,
+    lastTradeAt,
+    hasClosedTrades: closedAll.length > 0,
+  };
+  const interventions = decideInterventions(
+    interventionSignals,
+    new Date().toISOString()
+  );
+
   return (
     <AppShell
       email={profile.email}
@@ -113,6 +136,7 @@ export default async function JournalPage() {
         health={health}
         rules={rules}
         rulesConfig={rulesConfig}
+        interventions={interventions}
         report={(report ?? null) as JournalReportRow | null}
         reportsRemaining={reportsRemaining}
         reportCap={DAILY_REPORT_CAP}
