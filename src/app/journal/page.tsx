@@ -137,8 +137,11 @@ export default async function JournalPage() {
       (t.close_time as string).slice(0, 7) === monthKey
   );
   const monthNet = monthClosed.reduce((s, t) => s + t.net_profit, 0);
-  const profileName =
-    (profile.full_name ?? profile.email ?? "").split(" ")[0] || null;
+  // First name only; fall back to no name (just "Good evening") rather than
+  // showing a raw email address.
+  const profileName = profile.full_name?.trim()
+    ? profile.full_name.trim().split(" ")[0]
+    : null;
 
   return (
     <AppShell
