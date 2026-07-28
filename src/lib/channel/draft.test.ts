@@ -34,7 +34,7 @@ describe("draftLibraryPosts", () => {
     expect(drafts[0].kind).toBe("educational");
   });
   it("injects winner examples into the prompt", async () => {
-    const fetchMock = vi.fn(async () => anthropicReply('[{"kind":"cta","body":"x"}]'));
+    const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => anthropicReply('[{"kind":"cta","body":"x"}]'));
     vi.stubGlobal("fetch", fetchMock);
     await draftLibraryPosts(1, ["WINNER POST ONE"]);
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
