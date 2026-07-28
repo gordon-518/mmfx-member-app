@@ -1,4 +1,4 @@
-import type { LibraryItem } from "@/lib/channel/types";
+import type { LibraryItem, VisualItem } from "@/lib/channel/types";
 
 // Choose the next library item to post. Self-optimizing:
 //  1. Exclude the N most-recently-posted (no visible repeats).
@@ -36,6 +36,33 @@ export function pickNext(
       (a, b) => (scoreById[b.id] ?? 0) - (scoreById[a.id] ?? 0) || ts(a) - ts(b)
     )[0];
   }
+
+  return [...pool].sort((a, b) => ts(a) - ts(b))[0];
+}
+
+// Least-recently-used pick from the reusable visual pool, avoiding the N most
+// recently used so the same image doesn't reappear back-to-back. Prefers a
+// never-used image first. Returns null when there are no active visuals (the
+// post then goes out text-only).
+export function pickVisual(visuals: VisualItem[], avoidLastN: number): VisualItem | null {
+  const active = visuals.filter((v) => v.status === "active");
+  if (active.length === 0) return null;
+
+  const ts = (v: VisualItem) => (v.last_used_at ? Date.parse(v.last_used_at) : -1);
+
+  const recentlyUsed = new Set(
+    [...active]
+      .filter((v) => v.last_used_at)
+      .sort((a, b) => ts(b) - ts(a))
+      .slice(0, avoidLastN)
+      .map((v) => v.id)
+  );
+
+  const eligible = active.filter((v) => !recentlyUsed.has(v.id));
+  const pool = eligible.length ? eligible : active;
+
+  const neverUsed = pool.filter((v) => !v.last_used_at);
+  if (neverUsed.length) return neverUsed[0];
 
   return [...pool].sort((a, b) => ts(a) - ts(b))[0];
 }

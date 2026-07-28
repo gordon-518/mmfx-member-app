@@ -44,3 +44,12 @@ export interface LibraryEngagement {
   clicks: number;
   reactions: number;
 }
+
+/** A reusable pre-generated post image (public.visual_library). */
+export interface VisualItem {
+  id: string;
+  image_url: string;
+  status: "active" | "retired";
+  last_used_at: string | null;
+  times_used: number;
+}
