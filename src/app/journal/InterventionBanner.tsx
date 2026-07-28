@@ -33,7 +33,7 @@ export function InterventionBanner({ interventions }: { interventions: Intervent
         {banner.body && <p className="mt-0.5 text-[13px] text-ink/80">{banner.body}</p>}
         <p className="mt-1 text-[13px] font-semibold text-ink">
           → {banner.action}{" "}
-          <Link href="/journal#discipline" className="text-accent-ink underline">
+          <Link href="/journal#rules" className="text-accent-ink underline">
             Review
           </Link>
         </p>

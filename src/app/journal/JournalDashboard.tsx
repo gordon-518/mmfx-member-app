@@ -8,9 +8,14 @@ import type { LeakResult } from "@/lib/journal/leaks";
 import type { Health } from "@/lib/journal/health";
 import type { RulesResult } from "@/lib/journal/rules";
 import type { Intervention } from "@/lib/journal/interventions";
-import { SurvivalPanel } from "./SurvivalPanel";
-import { DisciplinePanel } from "./DisciplinePanel";
+import type { GameState } from "@/lib/journal/gamification";
 import { InterventionBanner } from "./InterventionBanner";
+import { JournalHero } from "./JournalHero";
+import { LevelBar } from "./LevelBar";
+import { MissionCard } from "./MissionCard";
+import { LeaksToBeat } from "./LeaksToBeat";
+import { RulesCard } from "./RulesCard";
+import { money, pct, fmtTime, fmtDuration } from "./format";
 import {
   JOURNAL_EMOTIONS,
   type JournalAccountRow,
@@ -27,34 +32,9 @@ import { DrawdownChart, EquityCurveChart, PnlHistogram } from "./charts";
 
 const PAGE_SIZE = 25;
 
-function money(n: number | null | undefined, currency?: string | null): string {
-  if (n == null) return "—";
-  const s = Math.abs(n).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return `${n < 0 ? "−" : ""}${s}${currency ? ` ${currency}` : ""}`;
-}
-
-function pct(frac: number | null | undefined): string {
-  return frac == null ? "—" : `${(frac * 100).toFixed(1)}%`;
-}
-
-function fmtTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function fmtDuration(sec: number | null): string {
-  if (sec == null) return "—";
-  if (sec < 3600) return `${Math.round(sec / 60)}m`;
-  if (sec < 86400) return `${(sec / 3600).toFixed(1)}h`;
-  return `${(sec / 86400).toFixed(1)}d`;
+function greeting(): string {
+  const h = new Date().getHours();
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
 const STATE_CHIP: Record<string, { label: string; cls: string }> = {
@@ -709,6 +689,10 @@ export function JournalDashboard({
   rules,
   rulesConfig,
   interventions,
+  game,
+  monthNet,
+  monthCount,
+  profileName,
   report,
   reportsRemaining,
   reportCap,
@@ -723,6 +707,10 @@ export function JournalDashboard({
   rules: RulesResult;
   rulesConfig: JournalRulesConfig;
   interventions: Intervention[];
+  game: GameState;
+  monthNet: number;
+  monthCount: number;
+  profileName: string | null;
   report: JournalReportRow | null;
   reportsRemaining: number;
   reportCap: number;
@@ -735,22 +723,38 @@ export function JournalDashboard({
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
       <InterventionBanner interventions={interventions} />
-      <div className="rise">
-        <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-          Tools · AI Trading Journal
-        </p>
-        <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">
-          Trading Journal
-        </h1>
-        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">
-          Your MT5 trades, synced automatically and measured against your goals.
+      <div className="mb-6 flex items-baseline justify-between gap-4">
+        <div>
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
+            Trading Journal
+          </p>
+          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
+            {greeting()}
+            {profileName ? `, ${profileName}` : ""}
+          </h1>
+        </div>
+        <p className="shrink-0 text-right text-[12px] text-subtle">
+          {accounts[0]?.last_synced_at
+            ? `Synced ${fmtTime(accounts[0].last_synced_at)}`
+            : "Not synced"}
+          <br />
+          {closed.length} trades
         </p>
       </div>
 
       {closed.length > 0 && (
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <SurvivalPanel leaks={leaks} health={health} trades={trades} />
-          <DisciplinePanel rules={rules} config={rulesConfig} trades={trades} />
+        <div className="space-y-4">
+          <JournalHero
+            game={game}
+            health={health}
+            analytics={analytics}
+            monthNet={monthNet}
+            monthCount={monthCount}
+            currency={currency}
+          />
+          <LevelBar game={game} />
+          <MissionCard interventions={interventions} game={game} />
+          <LeaksToBeat leaks={leaks} trades={trades} />
         </div>
       )}
 
@@ -782,6 +786,8 @@ export function JournalDashboard({
             reportsRemaining={reportsRemaining}
             reportCap={reportCap}
           />
+
+          <h2 className="mt-2 font-display text-xl font-bold text-ink">Performance</h2>
 
           {/* KPI grid */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -861,6 +867,10 @@ export function JournalDashboard({
             <BreakdownCard title="By session" rows={a.bySession} currency={currency} />
             <BreakdownCard title="By weekday" rows={a.byWeekday} currency={currency} />
           </div>
+
+          {closed.length > 0 && (
+            <RulesCard rules={rules} config={rulesConfig} trades={trades} />
+          )}
 
           <GoalsCard goals={goals} />
 

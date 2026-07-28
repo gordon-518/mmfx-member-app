@@ -10,6 +10,7 @@ import {
   decideInterventions,
   type InterventionSignals,
 } from "@/lib/journal/interventions";
+import { computeGameState } from "@/lib/journal/gamification";
 import { DAILY_REPORT_CAP } from "@/lib/journal/coach";
 import type {
   JournalAccountRow,
@@ -120,6 +121,25 @@ export default async function JournalPage() {
     new Date().toISOString()
   );
 
+  // Game state (score/streak/XP/level) + this-month P&L for the hero.
+  const game = computeGameState({
+    analytics,
+    rulesConfig,
+    goals: (goals ?? null) as JournalGoalsRow | null,
+    trades: allTrades,
+    now: new Date().toISOString(),
+  });
+  const monthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const monthClosed = allTrades.filter(
+    (t) =>
+      t.status === "closed" &&
+      t.close_time &&
+      (t.close_time as string).slice(0, 7) === monthKey
+  );
+  const monthNet = monthClosed.reduce((s, t) => s + t.net_profit, 0);
+  const profileName =
+    (profile.full_name ?? profile.email ?? "").split(" ")[0] || null;
+
   return (
     <AppShell
       email={profile.email}
@@ -137,6 +157,10 @@ export default async function JournalPage() {
         rules={rules}
         rulesConfig={rulesConfig}
         interventions={interventions}
+        game={game}
+        monthNet={monthNet}
+        monthCount={monthClosed.length}
+        profileName={profileName}
         report={(report ?? null) as JournalReportRow | null}
         reportsRemaining={reportsRemaining}
         reportCap={DAILY_REPORT_CAP}
