@@ -2,6 +2,7 @@
 
 import { useCountUp } from "./useCountUp";
 import { signedMoney, pct } from "./format";
+import { InfoTip } from "./InfoTip";
 import type { GameState } from "@/lib/journal/gamification";
 import type { Health } from "@/lib/journal/health";
 import type { JournalAnalytics } from "@/lib/journal/analytics";
@@ -49,15 +50,20 @@ function Vital({
   value,
   sub,
   tone,
+  info,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: "up";
+  info?: string;
 }) {
   return (
     <div className="rounded-2xl border border-line bg-paper/60 p-3">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-subtle">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-subtle">
+        {label}
+        {info && <InfoTip text={info} />}
+      </p>
       <p className={`mt-1 font-display text-lg font-extrabold ${tone === "up" ? "text-emerald-600" : "text-ink"}`}>
         {value}
       </p>
@@ -88,23 +94,26 @@ export function JournalHero({
         <div className="flex shrink-0 flex-col items-center">
           <Ring score={game.score ?? 0} />
           {game.rulesSet ? (
-            <div className="mt-2.5 flex items-center gap-1.5 rounded-full border border-[#ffd9c7] bg-[#fff4ef] px-3 py-1 text-[12px] font-bold text-accent-ink">
-              <span aria-hidden>🔥</span>
-              {game.streak}-day clean streak
-            </div>
+            <span className="mt-2 inline-flex items-center text-[11px] text-subtle">
+              % of clean trading days
+              <InfoTip text="Your discipline score is the share of your last 30 trading days with zero breaches of the rules you set — process, independent of P&L." />
+            </span>
           ) : (
             <a
               href="/journal#rules"
               className="mt-2.5 rounded-full border border-line-strong px-3 py-1 text-[12px] font-semibold text-ink"
             >
-              Set rules to start your streak →
+              Set rules to track discipline →
             </a>
           )}
         </div>
 
         <div className="grid flex-1 grid-cols-2 gap-2.5 sm:grid-cols-3">
           <div className={`rounded-2xl border p-3 ${s.cls}`}>
-            <p className="text-[11px] font-bold uppercase tracking-wider">Survival</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider">
+              Survival
+              <InfoTip text="How close you are to your max-drawdown limit, in losing trades of runway. Uses your goal's max drawdown, or a 15% default if unset." />
+            </p>
             <p className="mt-1 font-display text-lg font-extrabold">{s.label}</p>
             <p className="text-[11px] opacity-80">{health.runwaySentence}</p>
           </div>
@@ -112,12 +121,14 @@ export function JournalHero({
             label="Win rate"
             value={pct(analytics.winRate)}
             sub={analytics.profitFactor == null ? undefined : `PF ${analytics.profitFactor.toFixed(2)}`}
+            info="Share of your closed trades that finished in profit, across all synced history."
           />
           <Vital
             label="This month"
             value={signedMoney(monthNet, currency)}
             sub={`${monthCount} trades`}
             tone={monthNet > 0 ? "up" : undefined}
+            info="Net realised P&L from trades closed since the 1st of the current calendar month."
           />
         </div>
       </div>

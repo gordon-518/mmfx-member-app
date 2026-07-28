@@ -150,6 +150,7 @@ export default async function JournalPage() {
       <JournalDashboard
         accounts={(accounts ?? []) as JournalAccountRow[]}
         trades={allTrades}
+        cashFlows={cf}
         goals={(goals ?? null) as JournalGoalsRow | null}
         analytics={analytics}
         leaks={leaks}

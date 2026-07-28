@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useState, type ReactNode } from "react";
-import type { JournalAnalytics } from "@/lib/journal/analytics";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { computeAnalytics, type JournalAnalytics } from "@/lib/journal/analytics";
 import type { LeakResult } from "@/lib/journal/leaks";
 import type { Health } from "@/lib/journal/health";
 import type { RulesResult } from "@/lib/journal/rules";
@@ -11,14 +11,15 @@ import type { Intervention } from "@/lib/journal/interventions";
 import type { GameState } from "@/lib/journal/gamification";
 import { InterventionBanner } from "./InterventionBanner";
 import { JournalHero } from "./JournalHero";
-import { LevelBar } from "./LevelBar";
 import { MissionCard } from "./MissionCard";
 import { LeaksToBeat } from "./LeaksToBeat";
 import { RulesCard } from "./RulesCard";
+import { InfoTip } from "./InfoTip";
 import { money, pct, fmtTime, fmtDuration } from "./format";
 import {
   JOURNAL_EMOTIONS,
   type JournalAccountRow,
+  type JournalCashFlowRow,
   type JournalGoalsRow,
   type JournalReportRow,
   type JournalRulesConfig,
@@ -170,16 +171,19 @@ function Kpi({
   value,
   tone,
   hint,
+  info,
 }: {
   label: string;
   value: string;
   tone?: "up" | "down";
   hint?: string;
+  info?: string;
 }) {
   return (
     <div className="rounded-2xl border border-line bg-card p-4 shadow-soft">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
         {label}
+        {info && <InfoTip text={info} />}
       </p>
       <p
         className={`mt-1 font-display text-xl font-bold ${
@@ -495,6 +499,59 @@ const STATUS_CHIP: Record<string, { label: string; cls: string }> = {
   at_risk: { label: "At risk", cls: "bg-red-100 text-red-700" },
 };
 
+// Split off the first sentence so the coach can lead with a punchy verdict and
+// tuck the rest behind a tap.
+function splitFirst(text: string): [string, string] {
+  const m = text.match(/^([\s\S]*?[.!?])\s+([\s\S]*)$/);
+  return m ? [m[1], m[2]] : [text, ""];
+}
+
+function SummaryMore({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      {open && <p className="mt-1.5 text-[14px] leading-relaxed text-ink/80">{text}</p>}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="mt-1 cursor-pointer text-[12.5px] font-semibold text-accent-ink hover:underline"
+      >
+        {open ? "Hide summary ⌃" : "Read full summary ⌄"}
+      </button>
+    </div>
+  );
+}
+
+function HabitItem({
+  habit,
+}: {
+  habit: { kind: "good" | "bad"; title: string; detail: string };
+}) {
+  const [open, setOpen] = useState(false);
+  const good = habit.kind === "good";
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen((o) => !o)}
+      className={`w-full cursor-pointer rounded-xl border p-3 text-left transition-colors ${
+        good
+          ? "border-emerald-200 bg-emerald-50 hover:bg-emerald-100/60"
+          : "border-amber-200 bg-amber-50 hover:bg-amber-100/60"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className={`text-[13px] font-semibold ${good ? "text-emerald-800" : "text-amber-800"}`}>
+          {habit.title}
+        </span>
+        <span className={`shrink-0 text-[12px] ${good ? "text-emerald-500" : "text-amber-500"}`}>
+          {open ? "⌃" : "⌄"}
+        </span>
+      </div>
+      {open && <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink/75">{habit.detail}</p>}
+    </button>
+  );
+}
+
 function CoachCard({
   report,
   reportsRemaining,
@@ -579,49 +636,70 @@ function CoachCard({
       {error && <p className="mt-3 text-[13px] text-red-600">{error}</p>}
 
       {report ? (
-        <div className="mt-4 space-y-4">
-          <p className="text-[15px] leading-relaxed text-ink">{report.summary}</p>
+        <div className="mt-4 space-y-5">
+          <div>
+            <p className="text-[16px] font-semibold leading-snug text-ink">
+              {splitFirst(report.summary)[0]}
+            </p>
+            {splitFirst(report.summary)[1] && (
+              <SummaryMore text={splitFirst(report.summary)[1]} />
+            )}
+          </div>
 
           {report.habits.length > 0 && (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {report.habits.map((h, i) => (
-                <div
-                  key={i}
-                  className={`rounded-xl border p-3 ${
-                    h.kind === "good"
-                      ? "border-emerald-200 bg-emerald-50"
-                      : "border-amber-200 bg-amber-50"
-                  }`}
-                >
-                  <p
-                    className={`text-[13px] font-semibold ${
-                      h.kind === "good" ? "text-emerald-800" : "text-amber-800"
-                    }`}
-                  >
-                    {h.kind === "good" ? "✓ " : "△ "}
-                    {h.title}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {report.habits.some((h) => h.kind === "good") && (
+                <div>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                    What&apos;s working
                   </p>
-                  <p className="mt-0.5 text-[12.5px] leading-relaxed text-ink/80">
-                    {h.detail}
-                  </p>
+                  <div className="space-y-2">
+                    {report.habits
+                      .filter((h) => h.kind === "good")
+                      .map((h, i) => (
+                        <HabitItem key={i} habit={h} />
+                      ))}
+                  </div>
                 </div>
-              ))}
+              )}
+              {report.habits.some((h) => h.kind === "bad") && (
+                <div>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                    What&apos;s leaking
+                  </p>
+                  <div className="space-y-2">
+                    {report.habits
+                      .filter((h) => h.kind === "bad")
+                      .map((h, i) => (
+                        <HabitItem key={i} habit={h} />
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {report.tips.length > 0 && (
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-subtle">
-                Trade-management tips
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-subtle">
+                Do this next
               </p>
-              <ul className="mt-1.5 space-y-1">
-                {report.tips.map((t, i) => (
-                  <li key={i} className="flex gap-2 text-[14px] text-ink">
-                    <span className="text-orange">→</span>
-                    {t}
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-2.5">
+                {report.tips.map((t, i) => {
+                  const [lead, more] = splitFirst(t);
+                  return (
+                    <div key={i} className="flex gap-3">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-bold text-accent-ink">
+                        {i + 1}
+                      </span>
+                      <p className="text-[13.5px] leading-relaxed text-ink">
+                        <span className="font-semibold">{lead}</span>
+                        {more ? ` ${more}` : ""}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -679,9 +757,201 @@ function GoalsCard({ goals }: { goals: JournalGoalsRow | null }) {
   );
 }
 
+// --- Performance (date-filterable) ------------------------------------------
+
+type RangeKey = "7d" | "30d" | "90d" | "ytd" | "all" | "custom";
+const PRESETS: { key: RangeKey; label: string }[] = [
+  { key: "7d", label: "7D" },
+  { key: "30d", label: "30D" },
+  { key: "90d", label: "90D" },
+  { key: "ytd", label: "YTD" },
+  { key: "all", label: "All" },
+];
+
+function presetStart(key: RangeKey, now: Date): string | null {
+  const d = new Date(now);
+  if (key === "7d") d.setDate(d.getDate() - 7);
+  else if (key === "30d") d.setDate(d.getDate() - 30);
+  else if (key === "90d") d.setDate(d.getDate() - 90);
+  else if (key === "ytd") return `${now.getFullYear()}-01-01`;
+  else return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function PerformanceSection({
+  trades,
+  cashFlows,
+  currency,
+}: {
+  trades: JournalTradeRow[];
+  cashFlows: JournalCashFlowRow[];
+  currency: string | null;
+}) {
+  const [range, setRange] = useState<RangeKey>("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  const closed = useMemo(
+    () => trades.filter((t) => t.status === "closed" && t.close_time),
+    [trades]
+  );
+
+  const { fromDate, toDate } = useMemo(() => {
+    if (range === "custom") return { fromDate: from || null, toDate: to || null };
+    if (range === "all") return { fromDate: null, toDate: null };
+    return { fromDate: presetStart(range, new Date()), toDate: null };
+  }, [range, from, to]);
+
+  const filtered = useMemo(
+    () =>
+      closed.filter((t) => {
+        const d = (t.close_time as string).slice(0, 10);
+        if (fromDate && d < fromDate) return false;
+        if (toDate && d > toDate) return false;
+        return true;
+      }),
+    [closed, fromDate, toDate]
+  );
+
+  const a = useMemo(() => computeAnalytics(filtered, cashFlows), [filtered, cashFlows]);
+
+  const pill = (active: boolean) =>
+    `cursor-pointer rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+      active ? "bg-ink text-white" : "border border-line-strong text-ink hover:border-orange"
+    }`;
+  const dateInput =
+    "rounded-lg border border-line-strong bg-card px-2 py-1 text-[12px] text-ink focus:border-orange/60 focus:outline-none";
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-display text-xl font-bold text-ink">Performance</h2>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {PRESETS.map((p) => (
+            <button key={p.key} onClick={() => setRange(p.key)} className={pill(range === p.key)}>
+              {p.label}
+            </button>
+          ))}
+          <button onClick={() => setRange("custom")} className={pill(range === "custom")}>
+            Custom
+          </button>
+          {range === "custom" && (
+            <span className="flex items-center gap-1.5">
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={dateInput} />
+              <span className="text-[12px] text-subtle">→</span>
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={dateInput} />
+            </span>
+          )}
+        </div>
+      </div>
+
+      {closed.length === 0 ? (
+        <section className="rounded-2xl border border-line bg-card p-6 text-center shadow-soft">
+          <p className="text-[14px] text-subtle">
+            No closed trades yet — history appears here after the first sync completes.
+          </p>
+        </section>
+      ) : (
+        <>
+          <p className="-mt-3 text-[12px] text-subtle">
+            {filtered.length} closed trade{filtered.length === 1 ? "" : "s"}
+            {fromDate ? ` from ${fromDate}` : ""}
+            {toDate ? ` to ${toDate}` : range !== "all" && range !== "custom" ? " to today" : ""}
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Kpi
+              label="Net P&L"
+              value={money(a.netProfit, currency)}
+              tone={a.netProfit > 0 ? "up" : a.netProfit < 0 ? "down" : undefined}
+              hint={`${a.closedCount} closed`}
+              info="Sum of realised profit and loss across the closed trades in this range, after commission and swap."
+            />
+            <Kpi
+              label="Win rate"
+              value={pct(a.winRate)}
+              info="Percentage of the closed trades in this range that finished in profit."
+            />
+            <Kpi
+              label="Profit factor"
+              value={a.profitFactor == null ? "—" : a.profitFactor.toFixed(2)}
+              info="Gross profit ÷ gross loss. Above 1.0 means your winners outweigh your losers."
+            />
+            <Kpi
+              label="Max drawdown"
+              value={money(-a.maxDrawdown, currency)}
+              tone={a.maxDrawdown > 0 ? "down" : undefined}
+              hint={a.maxDrawdownPct == null ? undefined : pct(a.maxDrawdownPct)}
+              info="Largest peak-to-trough drop in cumulative P&L over this range."
+            />
+            <Kpi
+              label="Payoff (R:R)"
+              value={a.payoffRatio == null ? "—" : a.payoffRatio.toFixed(2)}
+              hint="avg win ÷ avg loss"
+              info="Average winning trade divided by the average losing trade."
+            />
+            <Kpi
+              label="Expectancy"
+              value={money(a.expectancy, currency)}
+              hint="per trade"
+              info="Average P&L per trade: (win% × avg win) − (loss% × avg loss)."
+            />
+            <Kpi
+              label="Best / worst"
+              value={`${money(a.largestWin, currency)} / ${money(a.largestLoss, currency)}`}
+            />
+            <Kpi
+              label="Streaks"
+              value={`${a.longestWinStreak}W · ${a.longestLossStreak}L`}
+              hint={
+                a.currentStreak === 0
+                  ? "no current streak"
+                  : `current ${Math.abs(a.currentStreak)}${a.currentStreak > 0 ? "W" : "L"}`
+              }
+            />
+            <Kpi
+              label="Avg win / loss"
+              value={`${money(a.avgWin, currency)} / ${money(a.avgLoss == null ? null : -a.avgLoss, currency)}`}
+            />
+            <Kpi label="Avg size" value={a.avgLots == null ? "—" : `${a.avgLots} lots`} />
+            <Kpi
+              label="Max exposure"
+              value={`${a.maxConcurrentOpen} open`}
+              hint="concurrent positions"
+            />
+            <Kpi label="Avg hold" value={fmtDuration(a.avgDurationSec)} />
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <ChartCard title="Cumulative P&L" subtitle="Closed trades, in order">
+              <EquityCurveChart points={a.equityCurve} />
+            </ChartCard>
+            <ChartCard title="Drawdown" subtitle="Distance below running peak">
+              <DrawdownChart points={a.drawdownCurve} />
+            </ChartCard>
+          </div>
+
+          <ChartCard title="P&L distribution" subtitle="How your winners and losers are spread">
+            <PnlHistogram bins={a.pnlHistogram} />
+          </ChartCard>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <BreakdownCard title="By symbol" rows={a.bySymbol} currency={currency} />
+            <BreakdownCard title="By session" rows={a.bySession} currency={currency} />
+            <BreakdownCard title="By weekday" rows={a.byWeekday} currency={currency} />
+          </div>
+
+          {filtered.length > 0 && <TradesTable trades={filtered} currency={currency} />}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function JournalDashboard({
   accounts,
   trades,
+  cashFlows,
   goals,
   analytics,
   leaks,
@@ -700,6 +970,7 @@ export function JournalDashboard({
 }: {
   accounts: JournalAccountRow[];
   trades: JournalTradeRow[];
+  cashFlows: JournalCashFlowRow[];
   goals: JournalGoalsRow | null;
   analytics: JournalAnalytics;
   leaks: LeakResult;
@@ -716,7 +987,6 @@ export function JournalDashboard({
   reportCap: number;
   currency: string | null;
 }) {
-  const a = analytics;
   const closed = trades.filter((t) => t.status === "closed");
   const open = trades.filter((t) => t.status === "open");
 
@@ -752,7 +1022,6 @@ export function JournalDashboard({
             monthCount={monthCount}
             currency={currency}
           />
-          <LevelBar game={game} />
           <MissionCard interventions={interventions} game={game} />
           <LeaksToBeat leaks={leaks} trades={trades} />
         </div>
@@ -787,86 +1056,7 @@ export function JournalDashboard({
             reportCap={reportCap}
           />
 
-          <h2 className="mt-2 font-display text-xl font-bold text-ink">Performance</h2>
-
-          {/* KPI grid */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Kpi
-              label="Net P&L"
-              value={money(a.netProfit, currency)}
-              tone={a.netProfit > 0 ? "up" : a.netProfit < 0 ? "down" : undefined}
-              hint={`${a.closedCount} closed · ${a.openCount} open`}
-            />
-            <Kpi label="Win rate" value={pct(a.winRate)} />
-            <Kpi
-              label="Profit factor"
-              value={a.profitFactor == null ? "—" : a.profitFactor.toFixed(2)}
-            />
-            <Kpi
-              label="Max drawdown"
-              value={money(-a.maxDrawdown, currency)}
-              tone={a.maxDrawdown > 0 ? "down" : undefined}
-              hint={a.maxDrawdownPct == null ? undefined : pct(a.maxDrawdownPct)}
-            />
-            <Kpi
-              label="Payoff (R:R)"
-              value={a.payoffRatio == null ? "—" : a.payoffRatio.toFixed(2)}
-              hint="avg win ÷ avg loss"
-            />
-            <Kpi
-              label="Expectancy"
-              value={money(a.expectancy, currency)}
-              hint="per trade"
-            />
-            <Kpi
-              label="Best / worst"
-              value={`${money(a.largestWin, currency)} / ${money(a.largestLoss, currency)}`}
-            />
-            <Kpi
-              label="Streaks"
-              value={`${a.longestWinStreak}W · ${a.longestLossStreak}L`}
-              hint={
-                a.currentStreak === 0
-                  ? "no current streak"
-                  : `current ${Math.abs(a.currentStreak)}${a.currentStreak > 0 ? "W" : "L"}`
-              }
-            />
-            <Kpi
-              label="Avg win / loss"
-              value={`${money(a.avgWin, currency)} / ${money(a.avgLoss == null ? null : -a.avgLoss, currency)}`}
-            />
-            <Kpi label="Avg size" value={a.avgLots == null ? "—" : `${a.avgLots} lots`} />
-            <Kpi
-              label="Max exposure"
-              value={`${a.maxConcurrentOpen} open`}
-              hint="concurrent positions"
-            />
-            <Kpi label="Avg hold" value={fmtDuration(a.avgDurationSec)} />
-          </div>
-
-          {/* Charts */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <ChartCard title="Cumulative P&L" subtitle="Closed trades, in order">
-              <EquityCurveChart points={a.equityCurve} />
-            </ChartCard>
-            <ChartCard title="Drawdown" subtitle="Distance below running peak">
-              <DrawdownChart points={a.drawdownCurve} />
-            </ChartCard>
-          </div>
-
-          <ChartCard
-            title="P&L distribution"
-            subtitle="How your winners and losers are spread"
-          >
-            <PnlHistogram bins={a.pnlHistogram} />
-          </ChartCard>
-
-          {/* Breakdowns */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <BreakdownCard title="By symbol" rows={a.bySymbol} currency={currency} />
-            <BreakdownCard title="By session" rows={a.bySession} currency={currency} />
-            <BreakdownCard title="By weekday" rows={a.byWeekday} currency={currency} />
-          </div>
+          <PerformanceSection trades={trades} cashFlows={cashFlows} currency={currency} />
 
           {closed.length > 0 && (
             <RulesCard rules={rules} config={rulesConfig} trades={trades} />
@@ -898,17 +1088,6 @@ export function JournalDashboard({
                   </span>
                 ))}
               </div>
-            </section>
-          )}
-
-          {closed.length > 0 ? (
-            <TradesTable trades={closed} currency={currency} />
-          ) : (
-            <section className="rounded-2xl border border-line bg-card p-6 text-center shadow-soft">
-              <p className="text-[14px] text-subtle">
-                No closed trades yet — history appears here after the first sync
-                completes.
-              </p>
             </section>
           )}
         </div>
