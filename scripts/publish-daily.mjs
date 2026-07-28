@@ -43,6 +43,47 @@ function serviceKey() {
   return null;
 }
 
+// Read any KEY from process.env or .env.local (so the script works both in CI
+// and from Gordon's shell without exporting everything).
+function envVar(name) {
+  if (process.env[name]) return process.env[name];
+  try {
+    const env = fs.readFileSync(path.join(process.cwd(), ".env.local"), "utf8");
+    const m = env.match(new RegExp(`^${name}=(.*)$`, "m"));
+    if (m) return m[1].trim().replace(/^"|"$/g, "");
+  } catch {}
+  return null;
+}
+
+// After publishing to the app, hand the day's Telegram text + macro image to
+// the channel bot's enqueue route. Best-effort: a failure here never fails the
+// publish. Skipped in --dry-run and when CRON_SECRET is unavailable.
+async function enqueueChannel(date) {
+  if (arg("no-channel", false)) { console.log("  (channel enqueue skipped: --no-channel)"); return; }
+  const appUrl = envVar("APP_URL") || "https://app.marketmakersfx.net";
+  const cron = envVar("CRON_SECRET");
+  if (!cron) { console.log("  (channel enqueue skipped: CRON_SECRET not set)"); return; }
+
+  const txtPath = path.join(ANALYST_DIR, `MMFX_Telegram_${date}.txt`);
+  const macroPath = path.join(ANALYST_DIR, `MMFX_Macro_${date}.png`);
+  if (!fs.existsSync(txtPath)) { console.log(`  (channel enqueue skipped: ${txtPath} missing)`); return; }
+
+  const txt = fs.readFileSync(txtPath, "utf8");
+  const macroImageBase64 = fs.existsSync(macroPath) ? fs.readFileSync(macroPath).toString("base64") : null;
+
+  try {
+    const r = await fetch(`${appUrl}/api/channel/enqueue-analysis`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cron}` },
+      body: JSON.stringify({ date, txt, macroImageBase64 }),
+    });
+    const j = await r.json().catch(() => ({}));
+    console.log(r.ok ? `  ✓ channel enqueued: ${JSON.stringify(j.enqueued)}` : `  ✗ channel enqueue ${r.status}: ${JSON.stringify(j)}`);
+  } catch (e) {
+    console.log(`  ✗ channel enqueue error: ${e.message}`);
+  }
+}
+
 function gumletId(url) {
   return String(url).split("/embed/").pop().split(/[?#]/)[0].trim();
 }
@@ -131,6 +172,7 @@ async function main() {
     if (!ins.ok) throw new Error(`insert ${ins.status}: ${(await ins.text()).slice(0, 300)}`);
     console.log("  ✓ row inserted");
   }
+  await enqueueChannel(date);
   console.log(`\n✓ Published ${date} — live on app.marketmakersfx.net/daily-analysis\n`);
 }
 
