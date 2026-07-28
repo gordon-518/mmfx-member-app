@@ -28,7 +28,10 @@ export async function POST(req: Request) {
   }
 
   const cb = update?.callback_query;
-  if (cb?.data) {
+  // Only the configured approver may approve/skip drafts — the secret-token
+  // header proves the request is from Telegram, not who tapped the button.
+  const fromApprover = String(cb?.from?.id) === process.env.APPROVER_CHAT_ID;
+  if (cb?.data && fromApprover) {
     const [action, id] = String(cb.data).split(":");
     if ((action === "approve" || action === "skip") && id) {
       await adminDb()

@@ -83,6 +83,34 @@ describe("POST /api/channel/dispatch", () => {
     expect(sendPhotoMock.mock.calls[0][1]).toContain("Full breakdown in the app");
   });
 
+  it("long caption: posts photo then text reply, marks posted with the photo id", async () => {
+    const longBody = "x".repeat(1200);
+    const row = { id: "r4", kind: "analysis_macro", status: "queued", body: longBody,
+      image_url: "https://img/m.png", link_url: null, attempts: 0 };
+    const db = stubDb({ queued: [row], claim: [{ id: "r4" }] });
+    adminDbMock.mockReturnValue(db);
+    sendPhotoMock.mockResolvedValue({ ok: true, messageId: 5 });
+    sendTextMock.mockResolvedValue({ ok: true, messageId: 6 });
+
+    await POST(req() as never);
+    expect(sendPhotoMock).toHaveBeenCalledOnce();
+    expect(sendTextMock.mock.calls[0][1]).toMatchObject({ replyTo: 5 });
+    // tracked message id is the photo (the visible post), and it is not re-queued
+    expect(db._updates.some((u) => u.status === "posted" && u.telegram_message_id === 5)).toBe(true);
+  });
+
+  it("long caption: re-queues (no duplicate) when the photo itself fails", async () => {
+    const row = { id: "r5", kind: "analysis_macro", status: "queued", body: "y".repeat(1200),
+      image_url: "https://img/m.png", link_url: null, attempts: 0 };
+    const db = stubDb({ queued: [row], claim: [{ id: "r5" }] });
+    adminDbMock.mockReturnValue(db);
+    sendPhotoMock.mockResolvedValue({ ok: false, detail: "photo boom" });
+
+    await POST(req() as never);
+    expect(sendTextMock).not.toHaveBeenCalled();
+    expect(db._updates.some((u) => u.status === "queued" && u.attempts === 1)).toBe(true);
+  });
+
   it("re-queues a row on send failure and records the error", async () => {
     const row = { id: "r3", kind: "library", status: "queued", body: "x",
       image_url: null, link_url: null, attempts: 0 };

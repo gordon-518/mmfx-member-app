@@ -55,8 +55,22 @@ export async function POST(req: Request) {
       if (html.length <= CAPTION_LIMIT) {
         send = await sendChannelPhoto(row.image_url, html, { buttons });
       } else {
-        await sendChannelPhoto(row.image_url, ""); // image first
-        send = await sendChannelText(html, { buttons }); // full text carries the buttons
+        // Caption too long for one photo message: post the image, then the full
+        // text as a reply. Retry-safety: only the photo re-queues on failure. If
+        // the photo posts but the text remainder fails, we still mark the row
+        // posted (never re-queue) so a retry can't duplicate the photo — the
+        // remainder failure is recorded in detail instead.
+        const photo = await sendChannelPhoto(row.image_url, "", { buttons });
+        if (!photo.ok) {
+          send = photo;
+        } else {
+          const text = await sendChannelText(html, { replyTo: photo.messageId });
+          send = {
+            ok: true,
+            messageId: photo.messageId,
+            detail: text.ok ? "ok" : { textRemainderFailed: text.detail },
+          };
+        }
       }
     } else {
       send = await sendChannelText(html, { buttons });
