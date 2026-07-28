@@ -9,6 +9,15 @@ export const runtime = "nodejs";
 const MAX_ATTEMPTS = 3;
 const CAPTION_LIMIT = 1024;
 
+// Build a Telegram inline keyboard from the post's button set. Each button is a
+// URL button pointing at the /go redirect with this post's id, so clicks are
+// attributed back to the post (and library item) that earned them.
+function buildButtons(row: ChannelPostRow): unknown | undefined {
+  if (!row.button_set || row.button_set.length === 0) return undefined;
+  const base = process.env.APP_URL || "https://app.marketmakersfx.net";
+  return row.button_set.map((b) => [{ text: b.text, url: `${base}/go/${b.slug}?p=${row.id}` }]);
+}
+
 export async function POST(req: Request) {
   const auth = req.headers.get("authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -39,17 +48,18 @@ export async function POST(req: Request) {
 
     let html = houseMarkdownToHtml(row.body);
     if (row.link_url) html += `\n\n<a href="${row.link_url}">Full breakdown in the app →</a>`;
+    const buttons = buildButtons(row);
 
     let send;
     if (row.image_url) {
       if (html.length <= CAPTION_LIMIT) {
-        send = await sendChannelPhoto(row.image_url, html);
+        send = await sendChannelPhoto(row.image_url, html, { buttons });
       } else {
         await sendChannelPhoto(row.image_url, ""); // image first
-        send = await sendChannelText(html); // full text as its own message
+        send = await sendChannelText(html, { buttons }); // full text carries the buttons
       }
     } else {
-      send = await sendChannelText(html);
+      send = await sendChannelText(html, { buttons });
     }
 
     if (send.ok) {

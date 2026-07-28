@@ -22,22 +22,31 @@ async function call(method: string, payload: Record<string, unknown>): Promise<S
   }
 }
 
-export function sendChannelText(html: string, opts: { replyTo?: number } = {}): Promise<SendResult> {
+export function sendChannelText(
+  html: string,
+  opts: { replyTo?: number; buttons?: unknown } = {}
+): Promise<SendResult> {
   return call("sendMessage", {
     chat_id: process.env.CHANNEL_CHAT_ID,
     text: html,
     parse_mode: "HTML",
     disable_web_page_preview: false,
     ...(opts.replyTo ? { reply_to_message_id: opts.replyTo } : {}),
+    ...(opts.buttons ? { reply_markup: { inline_keyboard: opts.buttons } } : {}),
   });
 }
 
-export function sendChannelPhoto(photoUrl: string, htmlCaption: string): Promise<SendResult> {
+export function sendChannelPhoto(
+  photoUrl: string,
+  htmlCaption: string,
+  opts: { buttons?: unknown } = {}
+): Promise<SendResult> {
   return call("sendPhoto", {
     chat_id: process.env.CHANNEL_CHAT_ID,
     photo: photoUrl,
     caption: htmlCaption,
     parse_mode: "HTML",
+    ...(opts.buttons ? { reply_markup: { inline_keyboard: opts.buttons } } : {}),
   });
 }
 

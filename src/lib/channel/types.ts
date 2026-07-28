@@ -3,6 +3,12 @@ export type PostStatus = "queued" | "posting" | "posted" | "failed" | "skipped";
 export type LibraryKind = "educational" | "cta";
 export type LibraryStatus = "draft" | "approved" | "retired";
 
+/** A single inline button: label + an allowlisted destination slug. */
+export interface CtaButton {
+  text: string;
+  slug: string;
+}
+
 export interface ChannelPostRow {
   id: string;
   kind: PostKind;
@@ -14,7 +20,10 @@ export interface ChannelPostRow {
   dedupe_key: string;
   telegram_message_id: number | null;
   source_id: string | null;
+  button_set: CtaButton[] | null;
   attempts: number;
+  clicks: number;
+  reactions: number;
   error: string | null;
 }
 
@@ -23,6 +32,15 @@ export interface LibraryItem {
   kind: LibraryKind;
   body: string;
   status: LibraryStatus;
+  button_set: CtaButton[] | null;
   last_posted_at: string | null;
   times_posted: number;
+}
+
+/** Per-item engagement rollup (public.library_engagement view). */
+export interface LibraryEngagement {
+  item_id: string;
+  impressions: number;
+  clicks: number;
+  reactions: number;
 }

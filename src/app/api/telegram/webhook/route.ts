@@ -13,6 +13,20 @@ export async function POST(req: Request) {
   }
 
   const update = await req.json().catch(() => null);
+
+  // Aggregate reaction counts on a channel post (👍🔥…). Telegram sends these as
+  // message_reaction_count updates for channels (anonymous reactions).
+  const rc = update?.message_reaction_count;
+  if (rc?.message_id) {
+    const total = Array.isArray(rc.reactions)
+      ? rc.reactions.reduce((sum: number, r: { total_count?: number }) => sum + (r.total_count ?? 0), 0)
+      : 0;
+    await adminDb()
+      .from("channel_posts")
+      .update({ reactions: total, updated_at: new Date().toISOString() })
+      .eq("telegram_message_id", rc.message_id);
+  }
+
   const cb = update?.callback_query;
   if (cb?.data) {
     const [action, id] = String(cb.data).split(":");

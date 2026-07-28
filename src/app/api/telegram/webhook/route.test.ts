@@ -53,6 +53,16 @@ describe("POST /api/telegram/webhook", () => {
     expect(db._calls[0].payload.status).toBe("retired");
   });
 
+  it("stores aggregate reaction counts against the post", async () => {
+    const db = stubDb(); adminDbMock.mockReturnValue(db);
+    const res = await POST(req({
+      message_reaction_count: { message_id: 777, reactions: [{ total_count: 3 }, { total_count: 2 }] },
+    }) as never);
+    expect(res.status).toBe(200);
+    expect(db._calls[0]).toMatchObject({ table: "channel_posts", id: 777 });
+    expect(db._calls[0].payload.reactions).toBe(5);
+  });
+
   it("ignores unrelated updates with 200", async () => {
     adminDbMock.mockReturnValue(stubDb());
     const res = await POST(req({ message: { text: "hi" } }) as never);
