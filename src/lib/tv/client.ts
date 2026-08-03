@@ -300,9 +300,20 @@ export async function grantTVAccess(
     : null;
 
   const results = await runPerScript(async (pineId) => {
-    const body = new URLSearchParams({ pine_id: pineId, username_recip: tvUsername });
-    if (expiration) body.set("expiration", expiration);
-    await tvPost("/pine_perm/add/", body);
+    const add = new URLSearchParams({ pine_id: pineId, username_recip: tvUsername });
+    if (expiration) {
+      // Trial grant: add/ sets (and updates) the expiration date.
+      add.set("expiration", expiration);
+      await tvPost("/pine_perm/add/", add);
+    } else {
+      // Permanent grant (member). TradingView's add/ will NOT clear an existing
+      // expiration — so a trial→member conversion would otherwise keep the old
+      // trial expiry and lapse (this is the AkaniR bug, 2026-08). Remove first
+      // to reset any prior grant, then add with no expiration = permanent.
+      const remove = new URLSearchParams({ pine_id: pineId, username_recip: tvUsername });
+      await tvPost("/pine_perm/remove/", remove);
+      await tvPost("/pine_perm/add/", add);
+    }
   });
 
   const result = buildResult("granted", results);
