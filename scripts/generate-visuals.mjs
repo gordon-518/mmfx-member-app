@@ -2,26 +2,35 @@
 /**
  * MM Channel Bot — build the reusable visual library (Option A).
  *
+ * The bot reuses these images across CTA posts (LRU rotation), so posting itself
+ * spends zero generation credits. Generate in occasional batches.
+ *
  * Two modes:
- *   1) REGISTER existing images (CLI-agnostic, works today):
- *        node scripts/generate-visuals.mjs --register ./my-visuals   (file or dir of .png/.jpg)
+ *   1) REGISTER images you already have:
+ *        node scripts/generate-visuals.mjs --register ./my-visuals    (file or dir)
  *
- *   2) GENERATE via your Higgsfield CLI, then register. Set a command template
- *      in env HIGGSFIELD_GEN_CMD using {prompt} and {out} placeholders, e.g.:
- *        HIGGSFIELD_GEN_CMD='higgsfield generate --prompt "{prompt}" --output "{out}"'
- *        node scripts/generate-visuals.mjs --generate --count 6
+ *   2) GENERATE via the Higgsfield CLI (@higgsfield/cli), then register:
+ *        higgsfield auth login          # once, if the session expired
+ *        node scripts/generate-visuals.mjs --generate --count 4
  *
- * Uploads each image to the channel-assets/visuals/ bucket path and inserts a
- * public.visual_library row. Skips generation if the active pool already has
- * >= --target (default 8). Reads SUPABASE_SERVICE_ROLE_KEY from env/.env.local.
+ *      The CLI returns a RESULT URL (not a file), so this runs
+ *        higgsfield generate create <model> --prompt "..." --wait --json
+ *      and downloads the URL from the response.
+ *
+ *      Options: --model <id> (default nano_banana_2) · --count N · --target N
+ *               --dry-run  (print the commands without spending credits)
+ *
+ * Uploads each image to channel-assets/visuals/ and inserts a public.visual_library
+ * row. Reads SUPABASE_SERVICE_ROLE_KEY from env or .env.local.
  */
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 const REF = "dldrcitoeoxzfctsqlmo";
 const PROJ = `https://${REF}.supabase.co`;
+const DEFAULT_MODEL = "nano_banana_2";
 
 function arg(name, fallback = undefined) {
   const i = process.argv.indexOf(`--${name}`);
@@ -39,18 +48,19 @@ function envVar(name) {
   return null;
 }
 
-// On-brand prompts (no text baked into the image — the post copy carries the words).
+// On-brand prompts. No text baked into the image — the post copy carries the words.
 const PROMPTS = [
-  "Minimalist financial hero image, XAUUSD gold trading, deep navy background with teal accents, soft studio light, abstract candlestick glow, premium fintech, no text",
-  "Close-up of a gold bar on dark reflective surface, teal rim light, cinematic, luxurious, editorial, no text",
-  "Abstract upward market chart made of light, navy-to-teal gradient, calm and disciplined mood, premium, no text",
-  "A single desk with a trading screen at dawn, warm light through blinds, focused calm atmosphere, muted navy palette, no text",
-  "Macro shot of gold texture and subtle grid lines, dark elegant fintech branding, teal highlights, no text",
-  "Minimal geometric emblem suggesting structure and discipline, navy + teal + gold, flat premium brand style, no text",
+  "Minimalist financial hero image for a gold trading brand, deep navy background, teal accent light, abstract candlestick glow, premium fintech, cinematic studio lighting, no text, no words, no letters",
+  "Close-up of a gold bar on a dark reflective surface, teal rim light, cinematic, luxurious, editorial product photography, no text, no words, no letters",
+  "Abstract market structure chart rendered as flowing light, navy-to-teal gradient, calm disciplined mood, premium brand visual, no text, no words, no letters",
+  "A single trading desk with a screen at dawn, warm light through blinds, focused calm atmosphere, muted navy palette, cinematic, no text, no words, no letters",
+  "Macro shot of gold texture with subtle grid lines, dark elegant fintech branding, teal highlights, no text, no words, no letters",
+  "Minimal geometric emblem suggesting structure and discipline, navy teal and gold palette, flat premium brand style, no text, no words, no letters",
 ];
 
+const DRY = !!arg("dry-run", false);
 const SERVICE = envVar("SUPABASE_SERVICE_ROLE_KEY");
-if (!SERVICE) { console.error("✗ SUPABASE_SERVICE_ROLE_KEY missing (env or .env.local)."); process.exit(1); }
+if (!SERVICE && !DRY) { console.error("✗ SUPABASE_SERVICE_ROLE_KEY missing (env or .env.local)."); process.exit(1); }
 const H = { apikey: SERVICE, Authorization: `Bearer ${SERVICE}` };
 
 async function activeCount() {
@@ -59,10 +69,59 @@ async function activeCount() {
   return Array.isArray(rows) ? rows.length : 0;
 }
 
+/** Recursively collect http(s) URLs that look like generated media. */
+function findUrls(node, out = []) {
+  if (typeof node === "string") {
+    if (/^https?:\/\//.test(node) && /\.(png|jpe?g|webp)(\?|$)/i.test(node)) out.push(node);
+  } else if (Array.isArray(node)) {
+    for (const v of node) findUrls(v, out);
+  } else if (node && typeof node === "object") {
+    for (const v of Object.values(node)) findUrls(v, out);
+  }
+  return out;
+}
+
+/** Run the CLI and pull the first result image URL out of its output. */
+function generateOne(model, prompt) {
+  const args = ["generate", "create", model, "--prompt", prompt, "--wait", "--json"];
+  if (DRY) {
+    console.log(`  [DRY] higgsfield ${args.map((a) => (a.includes(" ") ? `"${a}"` : a)).join(" ")}`);
+    return null;
+  }
+
+  const stdout = execFileSync("higgsfield", args, { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+
+  let urls = [];
+  try {
+    urls = findUrls(JSON.parse(stdout));
+  } catch {
+    // Not clean JSON (progress lines mixed in) — try each line, then raw regex.
+    for (const line of stdout.split("\n")) {
+      const t = line.trim();
+      if (!t.startsWith("{") && !t.startsWith("[")) continue;
+      try { urls.push(...findUrls(JSON.parse(t))); } catch {}
+    }
+    if (!urls.length) {
+      urls = stdout.match(/https?:\/\/\S+?\.(?:png|jpe?g|webp)(?=[\s")]|$)/gi) || [];
+    }
+  }
+  if (!urls.length) {
+    throw new Error(`no image URL in CLI output. First 400 chars:\n${stdout.slice(0, 400)}`);
+  }
+  return urls[0];
+}
+
+async function download(url, dest) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`download ${r.status} for ${url.slice(0, 80)}`);
+  fs.writeFileSync(dest, Buffer.from(await r.arrayBuffer()));
+}
+
 async function uploadAndRegister(file, prompt = null, tag = "generic") {
   const name = `visuals/${path.basename(file).replace(/\s+/g, "_")}`;
   const ext = path.extname(file).toLowerCase();
-  const contentType = ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : "image/png";
+  const contentType =
+    ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : ext === ".webp" ? "image/webp" : "image/png";
   const up = await fetch(`${PROJ}/storage/v1/object/channel-assets/${name}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${SERVICE}`, "Content-Type": contentType, "x-upsert": "true" },
@@ -84,7 +143,7 @@ function listImages(target) {
   const stat = fs.statSync(target);
   if (stat.isDirectory()) {
     return fs.readdirSync(target)
-      .filter((f) => /\.(png|jpe?g)$/i.test(f))
+      .filter((f) => /\.(png|jpe?g|webp)$/i.test(f))
       .map((f) => path.join(target, f));
   }
   return [target];
@@ -101,31 +160,45 @@ async function main() {
   }
 
   if (arg("generate")) {
-    const cmdTemplate = envVar("HIGGSFIELD_GEN_CMD");
-    if (!cmdTemplate) {
-      console.error("✗ Set HIGGSFIELD_GEN_CMD, e.g.\n    HIGGSFIELD_GEN_CMD='higgsfield generate --prompt \"{prompt}\" --output \"{out}\"'");
-      process.exit(1);
-    }
+    const model = arg("model", DEFAULT_MODEL);
     const target = Number(arg("target", 8));
-    const have = await activeCount();
-    if (have >= target) { console.log(`Pool already has ${have} active visuals (target ${target}) — nothing to do.`); return; }
-
+    const have = DRY ? 0 : await activeCount();
+    if (!DRY && have >= target) {
+      console.log(`Pool already has ${have} active visuals (target ${target}) — nothing to do.`);
+      return;
+    }
     const want = Math.min(Number(arg("count", target - have)), PROMPTS.length);
-    console.log(`Generating ${want} visuals via HIGGSFIELD_GEN_CMD...`);
+    console.log(`Generating ${want} visual(s) with ${model}${DRY ? "  [DRY RUN]" : ""}...`);
+
+    let ok = 0;
     for (let i = 0; i < want; i++) {
       const prompt = PROMPTS[i % PROMPTS.length];
-      const out = path.join(os.tmpdir(), `mmfx-visual-${i}-${process.pid}.png`);
-      const cmd = cmdTemplate.replaceAll("{prompt}", prompt.replace(/"/g, '\\"')).replaceAll("{out}", out);
-      console.log(`  → [${i + 1}/${want}] ${cmd}`);
-      execSync(cmd, { stdio: "inherit" });
-      if (!fs.existsSync(out)) throw new Error(`CLI did not produce ${out} — check the {out} placeholder in HIGGSFIELD_GEN_CMD`);
-      await uploadAndRegister(out, prompt, "generic");
-      fs.rmSync(out, { force: true });
+      console.log(`\n[${i + 1}/${want}] ${prompt.slice(0, 70)}...`);
+      try {
+        const url = generateOne(model, prompt);
+        if (DRY || !url) continue;
+        const out = path.join(os.tmpdir(), `mmfx-visual-${Date.now()}-${i}.png`);
+        await download(url, out);
+        await uploadAndRegister(out, prompt, "generic");
+        fs.rmSync(out, { force: true });
+        ok++;
+      } catch (e) {
+        console.error(`  ✗ ${e.message.split("\n")[0]}`);
+        if (/Session expired|auth login/i.test(e.message)) {
+          console.error("\n→ Run `higgsfield auth login`, then re-run this script.");
+          break;
+        }
+      }
     }
-    console.log(`\n✓ Generated + registered ${want} visuals.`);
+    if (!DRY) console.log(`\n✓ Added ${ok} visual(s) to the library.`);
     return;
   }
 
-  console.log("Usage:\n  --register <file|dir>            register existing images\n  --generate [--count N] [--target N]   generate via HIGGSFIELD_GEN_CMD then register");
+  console.log(
+    "Usage:\n" +
+    "  --register <file|dir>                 register existing images\n" +
+    "  --generate [--count N] [--model ID]   generate via the Higgsfield CLI, then register\n" +
+    "  --dry-run                             show the CLI commands without spending credits"
+  );
 }
 main().catch((e) => { console.error("\n✗ generate-visuals failed:", e.message); process.exit(1); });
