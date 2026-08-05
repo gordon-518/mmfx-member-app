@@ -117,8 +117,31 @@ async function download(url, dest) {
   fs.writeFileSync(dest, Buffer.from(await r.arrayBuffer()));
 }
 
-async function uploadAndRegister(file, prompt = null, tag = "generic") {
-  const name = `visuals/${path.basename(file).replace(/\s+/g, "_")}`;
+// Telegram's sendPhoto-by-URL caps at 5 MB, and raw model output is often
+// 6-8 MB at 2048px. Downscale to 1280px JPEG (q85) — well under the cap and
+// far quicker to load in-app. Uses macOS `sips`; falls back to the original
+// file if sips is unavailable.
+function optimize(file) {
+  if (/\.jpe?g$/i.test(file) && fs.statSync(file).size < 4_000_000) return file;
+  const out = path.join(os.tmpdir(), `${path.basename(file, path.extname(file))}-opt.jpg`);
+  try {
+    execFileSync("sips", ["-Z", "1280", "-s", "format", "jpeg", "-s", "formatOptions", "85", file, "--out", out], {
+      stdio: "ignore",
+    });
+    const before = (fs.statSync(file).size / 1024 / 1024).toFixed(1);
+    const after = (fs.statSync(out).size / 1024).toFixed(0);
+    console.log(`    optimized ${before} MB → ${after} KB`);
+    return out;
+  } catch {
+    console.warn("    (sips unavailable — uploading original; may exceed Telegram's 5 MB URL limit)");
+    return file;
+  }
+}
+
+async function uploadAndRegister(srcFile, prompt = null, tag = "generic") {
+  const file = optimize(srcFile);
+  const base = path.basename(file).replace(/\s+/g, "_");
+  const name = `visuals/${base}`;
   const ext = path.extname(file).toLowerCase();
   const contentType =
     ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : ext === ".webp" ? "image/webp" : "image/png";
