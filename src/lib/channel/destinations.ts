@@ -11,6 +11,9 @@ export const DESTINATIONS: Record<string, string> = {
   library: "/library",
   strategies: "/strategies",
   "live-classes": "/live-classes",
+  calendar: "/calendar",
+  news: "/news",
+  dashboard: "/dashboard",
   fundamental: "/bots/fundamental",
   "know-your-style": "/bots/know-your-style",
 };
