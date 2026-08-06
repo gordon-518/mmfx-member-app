@@ -57,12 +57,12 @@ function envVar(name) {
 
 // After publishing to the app, hand the day's Telegram text + macro image to
 // the channel bot's enqueue route. Best-effort: a failure here never fails the
-// publish. Skipped in --dry-run and when CRON_SECRET is unavailable.
+// publish. Skipped in --dry-run and when CHANNEL_CRON_SECRET is unavailable.
 async function enqueueChannel(date) {
   if (arg("no-channel", false)) { console.log("  (channel enqueue skipped: --no-channel)"); return; }
   const appUrl = envVar("APP_URL") || "https://app.marketmakersfx.net";
-  const cron = envVar("CRON_SECRET");
-  if (!cron) { console.log("  (channel enqueue skipped: CRON_SECRET not set)"); return; }
+  const cron = envVar("CHANNEL_CRON_SECRET");
+  if (!cron) { console.log("  (channel enqueue skipped: CHANNEL_CRON_SECRET not set)"); return; }
 
   const txtPath = path.join(ANALYST_DIR, `MMFX_Telegram_${date}.txt`);
   const macroPath = path.join(ANALYST_DIR, `MMFX_Macro_${date}.png`);

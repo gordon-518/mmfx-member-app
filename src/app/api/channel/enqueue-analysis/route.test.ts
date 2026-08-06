@@ -38,7 +38,7 @@ Macro body.
 
 beforeEach(() => {
   adminDbMock.mockReset();
-  process.env.CRON_SECRET = "testsecret";
+  process.env.CHANNEL_CRON_SECRET = "testsecret";
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supa.test";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "svc";
   vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })));

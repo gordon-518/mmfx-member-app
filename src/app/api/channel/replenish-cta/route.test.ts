@@ -38,7 +38,7 @@ function approvedItem(id: string) {
 
 beforeEach(() => {
   adminDbMock.mockReset(); draftMock.mockReset(); dmMock.mockReset();
-  process.env.CRON_SECRET = "testsecret";
+  process.env.CHANNEL_CRON_SECRET = "testsecret";
 });
 
 describe("POST /api/channel/replenish-cta", () => {

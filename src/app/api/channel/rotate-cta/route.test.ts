@@ -38,7 +38,7 @@ function stubDb({ items, eng, visuals }: { items: unknown[]; eng: unknown[]; vis
 
 beforeEach(() => {
   adminDbMock.mockReset();
-  process.env.CRON_SECRET = "testsecret";
+  process.env.CHANNEL_CRON_SECRET = "testsecret";
 });
 
 describe("POST /api/channel/rotate-cta", () => {

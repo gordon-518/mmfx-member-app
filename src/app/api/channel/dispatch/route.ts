@@ -20,7 +20,7 @@ function buildButtons(row: ChannelPostRow): unknown | undefined {
 
 export async function POST(req: Request) {
   const auth = req.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CHANNEL_CRON_SECRET || auth !== `Bearer ${process.env.CHANNEL_CRON_SECRET}`) {
     return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
   }
 
