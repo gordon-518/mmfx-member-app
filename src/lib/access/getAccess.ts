@@ -74,3 +74,9 @@ export async function getAccess(): Promise<Access> {
     daysLeft: daysRemaining(row.trial_ends_at, now),
   };
 }
+
+/** True only for funded members (member_active). Trials are Full-tier but NOT
+ *  members — this is the gate for member-exclusive features (Team MM, etc.). */
+export function isMemberActive(access: Access): boolean {
+  return access.signedIn && access.profile?.account_status === "member_active";
+}

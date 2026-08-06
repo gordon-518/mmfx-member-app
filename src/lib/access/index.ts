@@ -7,5 +7,5 @@
 //
 //   import { LockedOverlay } from "@/lib/access/LockedOverlay";
 
-export { getAccess, type Access, type AccessProfile } from "./getAccess";
+export { getAccess, isMemberActive, type Access, type AccessProfile } from "./getAccess";
 export { requireFull } from "./requireFull";

@@ -8,7 +8,7 @@ import { signOut } from "@/app/dashboard/actions";
 import type { AccountStatus, AccessTier } from "@/lib/trial/status";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
-  AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon,
+  AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon, TelegramIcon,
   MenuIcon, CloseIcon, SparkIcon, JournalIcon,
 } from "./icons";
 
@@ -24,6 +24,7 @@ const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
   { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
   { label: "Signals", href: "/signals", icon: SignalsIcon },
+  { label: "Team MM", href: "/team-mm", icon: TelegramIcon },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
   { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
   { label: "Strategies", href: "/strategies", icon: StrategiesIcon },
