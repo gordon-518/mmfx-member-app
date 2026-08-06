@@ -55,6 +55,32 @@ function envVar(name) {
   return null;
 }
 
+// The channel enqueue is best-effort by design, so its failures are silent to
+// anyone not reading the console — which is how a wrong secret once went
+// unnoticed for a day. On failure we DM the approver via the same bot that
+// already sends CTA approvals. Never throws: if the alert itself fails, the
+// console line remains the fallback.
+async function alertEnqueueFailure(date, reason) {
+  const token = envVar("CHANNEL_BOT_TOKEN");
+  const chat = envVar("APPROVER_CHAT_ID");
+  if (!token || !chat) return; // nothing to alert with
+  const text =
+    `⚠️ <b>MMFX daily — channel enqueue FAILED</b>\n\n` +
+    `<b>Date:</b> ${date}\n` +
+    `<b>Reason:</b> ${String(reason).slice(0, 300)}\n\n` +
+    `The member app published fine. The Telegram channel did <b>not</b> get this day's post.\n` +
+    `Re-run once fixed: <code>node scripts/publish-daily.mjs --day day-${date}.json</code>`;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chat, text, parse_mode: "HTML" }),
+    });
+  } catch {
+    // Alerting is a convenience, never a failure path.
+  }
+}
+
 // After publishing to the app, hand the day's Telegram text + macro image to
 // the channel bot's enqueue route. Best-effort: a failure here never fails the
 // publish. Skipped in --dry-run and when CHANNEL_CRON_SECRET is unavailable.
@@ -62,7 +88,11 @@ async function enqueueChannel(date) {
   if (arg("no-channel", false)) { console.log("  (channel enqueue skipped: --no-channel)"); return; }
   const appUrl = envVar("APP_URL") || "https://app.marketmakersfx.net";
   const cron = envVar("CHANNEL_CRON_SECRET");
-  if (!cron) { console.log("  (channel enqueue skipped: CHANNEL_CRON_SECRET not set)"); return; }
+  if (!cron) {
+    console.log("  (channel enqueue skipped: CHANNEL_CRON_SECRET not set)");
+    await alertEnqueueFailure(date, "CHANNEL_CRON_SECRET not set — the channel step was skipped entirely");
+    return;
+  }
 
   const txtPath = path.join(ANALYST_DIR, `MMFX_Telegram_${date}.txt`);
   const macroPath = path.join(ANALYST_DIR, `MMFX_Macro_${date}.png`);
@@ -78,9 +108,15 @@ async function enqueueChannel(date) {
       body: JSON.stringify({ date, txt, macroImageBase64 }),
     });
     const j = await r.json().catch(() => ({}));
-    console.log(r.ok ? `  ✓ channel enqueued: ${JSON.stringify(j.enqueued)}` : `  ✗ channel enqueue ${r.status}: ${JSON.stringify(j)}`);
+    if (r.ok) {
+      console.log(`  ✓ channel enqueued: ${JSON.stringify(j.enqueued)}`);
+    } else {
+      console.log(`  ✗ channel enqueue ${r.status}: ${JSON.stringify(j)}`);
+      await alertEnqueueFailure(date, `HTTP ${r.status} — ${JSON.stringify(j)}`);
+    }
   } catch (e) {
     console.log(`  ✗ channel enqueue error: ${e.message}`);
+    await alertEnqueueFailure(date, e.message);
   }
 }
 
