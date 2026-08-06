@@ -177,7 +177,13 @@ async function main() {
   if (registerTarget) {
     const files = listImages(registerTarget);
     if (!files.length) { console.log("No images found to register."); return; }
-    for (const f of files) await uploadAndRegister(f);
+    // A "<tag>__whatever.png" filename sets the feature tag, so a CTA for that
+    // feature can be paired with a matching visual. Otherwise --tag, else generic.
+    const fallback = arg("tag", "generic");
+    for (const f of files) {
+      const m = path.basename(f).match(/^([a-z0-9-]+)__/i);
+      await uploadAndRegister(f, null, m ? m[1] : fallback);
+    }
     console.log(`\n✓ Registered ${files.length} visuals.`);
     return;
   }

@@ -45,8 +45,8 @@ describe("pickNext", () => {
   });
 });
 
-function visual(id: string, last: string | null, status: VisualItem["status"] = "active"): VisualItem {
-  return { id, image_url: `${id}.png`, status, last_used_at: last, times_used: 0 };
+function visual(id: string, last: string | null, status: VisualItem["status"] = "active", tag: string | null = null): VisualItem {
+  return { id, image_url: `${id}.png`, tag, status, last_used_at: last, times_used: 0 };
 }
 
 describe("pickVisual", () => {
@@ -64,5 +64,27 @@ describe("pickVisual", () => {
       visual("c", "2026-06-02T00:00:00Z"),
     ], 1);
     expect(picked?.id).toBe("b");
+  });
+});
+
+describe("pickVisual — feature matching", () => {
+  const pool = [
+    visual("gen1", null, "active", "generic"),
+    visual("ind1", null, "active", "indicators"),
+    visual("crs1", null, "active", "course"),
+  ];
+  it("prefers a visual tagged for the post's feature", () => {
+    expect(pickVisual(pool, 4, "indicators")?.id).toBe("ind1");
+    expect(pickVisual(pool, 4, "course")?.id).toBe("crs1");
+  });
+  it("falls back to generic when the feature has no artwork", () => {
+    expect(pickVisual(pool, 4, "signals")?.id).toBe("gen1");
+  });
+  it("falls back to the whole pool when there is no generic either", () => {
+    const noGeneric = [visual("ind1", null, "active", "indicators")];
+    expect(pickVisual(noGeneric, 4, "signals")?.id).toBe("ind1");
+  });
+  it("ignores tags when no preference is given", () => {
+    expect(pickVisual(pool, 4)).not.toBeNull();
   });
 });

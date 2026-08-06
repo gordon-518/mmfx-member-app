@@ -44,9 +44,26 @@ export function pickNext(
 // recently used so the same image doesn't reappear back-to-back. Prefers a
 // never-used image first. Returns null when there are no active visuals (the
 // post then goes out text-only).
-export function pickVisual(visuals: VisualItem[], avoidLastN: number): VisualItem | null {
-  const active = visuals.filter((v) => v.status === "active");
-  if (active.length === 0) return null;
+//
+// When `preferTag` is given (the post's feature slug), only visuals tagged for
+// that feature are considered — so an Indicators CTA gets an indicators
+// creative, not a generic gold bar. Falls back to untagged/'generic' visuals,
+// and finally to the whole pool, so a feature with no artwork still gets an
+// image rather than nothing.
+export function pickVisual(
+  visuals: VisualItem[],
+  avoidLastN: number,
+  preferTag?: string | null
+): VisualItem | null {
+  const allActive = visuals.filter((v) => v.status === "active");
+  if (allActive.length === 0) return null;
+
+  let active = allActive;
+  if (preferTag) {
+    const matched = allActive.filter((v) => v.tag === preferTag);
+    const generic = allActive.filter((v) => !v.tag || v.tag === "generic");
+    active = matched.length ? matched : generic.length ? generic : allActive;
+  }
 
   const ts = (v: VisualItem) => (v.last_used_at ? Date.parse(v.last_used_at) : -1);
 

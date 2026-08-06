@@ -49,6 +49,8 @@ export interface LibraryEngagement {
 export interface VisualItem {
   id: string;
   image_url: string;
+  /** Feature slug this artwork promotes ('indicators', 'course', …) or 'generic'. */
+  tag: string | null;
   status: "active" | "retired";
   last_used_at: string | null;
   times_used: number;

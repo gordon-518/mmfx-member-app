@@ -26,9 +26,12 @@ export async function POST(req: Request) {
   const pick = pickNext((items ?? []) as LibraryItem[], AVOID_LAST_N, scoreById);
   if (!pick) return NextResponse.json({ ok: true, posted: false, reason: "empty_pool" });
 
-  // Reuse a pre-generated visual (Option A). null → the post goes out text-only.
+  // Reuse a pre-generated visual (Option A). Prefer artwork tagged for the same
+  // feature this post links to, so the image matches the copy.
+  // null → the post goes out text-only.
   const { data: visuals } = await db.from("visual_library").select("*").eq("status", "active");
-  const visual = pickVisual((visuals ?? []) as VisualItem[], AVOID_LAST_N);
+  const featureTag = pick.button_set?.[0]?.slug ?? null;
+  const visual = pickVisual((visuals ?? []) as VisualItem[], AVOID_LAST_N, featureTag);
 
   const now = new Date().toISOString();
   const slot = now.slice(0, 13); // yyyy-mm-ddThh → one post per item per hour-slot max
