@@ -31,8 +31,8 @@ const POSTS = [
   { kind: "educational", button_set: READ, body: "⚜️ **Risk first, always.** Decide what you'll lose before you think about what you'll make. Size the position to the stop, not the dream. One clean 1:2 beats three revenge trades. __Protect the account and the account protects you.__" },
   { kind: "educational", button_set: TOOLS, body: "⚜️ **Your bias is a hypothesis, not a promise.** Higher-timeframe read sets direction; the lower timeframe only confirms the entry. No confirmation, no trade. Patience is a position." },
   { kind: "educational", button_set: READ, body: "⚜️ **Stop trading other people's opinions.** Social noise is not analysis. Trust your own marked levels and your own rules. The only voice that matters is the one aligned with your plan." },
-  { kind: "cta", button_set: TRIAL, body: "⚜️ **The whole MM desk — free to try.** Course, indicators, daily gold analysis, and the signals channel, all in one login. 14 days, no card. See how we read XAUUSD." },
-  { kind: "cta", button_set: TRIAL, body: "⚜️ **New to Market Makers?** Start with the daily gold read — bias, levels, and the reasoning behind them. Try the full desk free for 14 days. __Educational use only. Trading involves risk.__" },
+  { kind: "cta", button_set: TRIAL, body: "⚜️ **The whole MM desk — free to try.** Course, indicators, daily gold analysis, and the signals channel, all in one login. 7 days, no card. See how we read XAUUSD." },
+  { kind: "cta", button_set: TRIAL, body: "⚜️ **New to Market Makers?** Start with the daily gold read — bias, levels, and the reasoning behind them. Try the full desk free for 7 days. __Educational use only. Trading involves risk.__" },
 ];
 
 async function main() {

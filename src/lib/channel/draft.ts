@@ -15,7 +15,7 @@ const SYSTEM = [
   "House markdown only: **bold**, __italic__, `code`. Each post 40–90 words.",
   "COMPLIANCE — NEVER: promise or guarantee returns; mention broker payouts,",
   "per-lot rebates, IB numbers/links, or any 'no fee' claim; give financial advice.",
-  "CTA posts may invite a free 14-day trial at app.marketmakersfx.net framed as",
+  "CTA posts may invite a free 7-day trial at app.marketmakersfx.net framed as",
   "'the whole desk, free to try'. Educational posts end on a discipline line.",
 ].join(" ");
 

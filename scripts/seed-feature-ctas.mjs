@@ -142,10 +142,10 @@ const POSTS = [
     feature: "Whole desk / free trial",
     button: { text: "Start your free trial →", slug: "signup" },
     body:
-      "⚜️ **The whole desk. Free for 14 days.**\n\n" +
+      "⚜️ **The whole desk. Free for 7 days.**\n\n" +
       "Course, 10 indicators, strategies, eBooks, daily Gold analysis, live classes, " +
       "the calendar, and two AI tools — __one login, no card.__\n\n" +
-      "Use it for two weeks. Decide with evidence.",
+      "Use it for a week. Decide with evidence.",
   },
 ];
 
