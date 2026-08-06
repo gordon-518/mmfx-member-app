@@ -86,12 +86,21 @@ const POSTS = [
       "You're not meant to copy it. You're meant to learn to build it.",
   },
   {
-    feature: "Signals",
-    button: { text: "See the signals desk →", slug: "signals" },
+    feature: "Signals (TeamMM private desk)",
+    button: { text: "Ask about TeamMM access →", slug: "teammm" },
     body:
-      "⚜️ **The levels we're watching — on the record.**\n\n" +
-      "Entry, stop, target. Minimum 1:2 R:R. London and New York sessions, " +
-      "with a weekly recap so nothing quietly disappears.\n\n" +
+      "\u269c\ufe0f **TeamMM \u2014 the private signals desk.**\n" +
+      "\n" +
+      "\ud83c\udfaf Entry. Stop. Target.\n" +
+      "Minimum 1:2 R:R \u00b7 London & New York sessions.\n" +
+      "\n" +
+      "This one isn't public.\n" +
+      "__TeamMM is for Market Makers clients only.__\n" +
+      "\n" +
+      "Every call on the record, with a weekly recap.\n" +
+      "\n" +
+      "Talk to the desk about access \u2193\n" +
+      "\n" +
       "__Educational use only. Trading involves risk.__",
   },
   {

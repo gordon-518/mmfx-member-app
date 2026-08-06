@@ -34,4 +34,13 @@ describe("GET /go/[slug]", () => {
     expect(res.status).toBe(302);
     expect(rpcMock).not.toHaveBeenCalled();
   });
+
+  it("external destination: logs the click but redirects clean (no UTM appended)", async () => {
+    const res = await GET(new Request("https://app.test/go/teammm?p=post-9"), ctx("teammm"));
+    expect(res.status).toBe(302);
+    const loc = res.headers.get("location")!;
+    expect(loc).toBe("https://t.me/m/FtwoPlcaMjFl");   // deep link left intact
+    expect(loc).not.toContain("utm_");
+    expect(rpcMock).toHaveBeenCalledWith("increment_post_clicks", { post_id: "post-9" });
+  });
 });

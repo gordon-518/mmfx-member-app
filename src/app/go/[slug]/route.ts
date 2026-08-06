@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/channel/db";
-import { resolveDestination } from "@/lib/channel/destinations";
+import { resolveDestination, isAppDestination } from "@/lib/channel/destinations";
 
 export const runtime = "nodejs";
 
@@ -22,6 +22,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     }
   }
 
+  // UTM only for our own app. External deep links (e.g. t.me/m/<hash>) can break
+  // when query params are appended, and we can't read the UTM on the far side
+  // anyway — the click is already recorded above.
+  if (!isAppDestination(slug)) {
+    return NextResponse.redirect(dest, 302);
+  }
   const target = new URL(dest);
   target.searchParams.set("utm_source", "telegram");
   target.searchParams.set("utm_medium", "cta");
