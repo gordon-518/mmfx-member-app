@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient as createSupabaseAdmin, type SupabaseClient } from "@supabase/supabase-js";
 import { sendAdminAlert } from "@/lib/notify";
+import { planPermanentGrant, type TvGrant } from "./grantPlan";
 
 // All MM invite-only scripts. The pine_id the permissions API expects is the
 // script's internal `script_id_part` (PUB;<32-hex>), NOT the short URL slug —
@@ -260,6 +261,34 @@ async function tvPost(path: string, body: URLSearchParams, attempt = 0): Promise
   await captureRotatedCookie(res);
 }
 
+// Look up ONE user's grant on ONE script. Returns null if the lookup itself
+// fails (session dead, 429, network) so callers fall back to a safe plain add
+// and NEVER remove a grant on uncertain information. A permanent grant comes
+// back with no `expiration` field; a trial grant carries an ISO date string.
+async function listGrant(pineId: string, tvUsername: string): Promise<TvGrant | null> {
+  const body = new URLSearchParams({ pine_id: pineId, username: tvUsername }).toString();
+  try {
+    let cookie = await ensureSession();
+    let res = await rawPost("/pine_perm/list_users/?limit=10", body, cookie);
+    if (res.status === 403) {
+      cookie = await refreshSession(cookie);
+      res = await rawPost("/pine_perm/list_users/?limit=10", body, cookie);
+    }
+    if (!res.ok) return null;
+    await captureRotatedCookie(res);
+    const json = (await res.json().catch(() => null)) as
+      | { results?: Array<{ username?: string; expiration?: string | null }> }
+      | null;
+    if (!json?.results) return null;
+    const want = tvUsername.toLowerCase();
+    const match = json.results.find((r) => (r.username ?? "").toLowerCase() === want);
+    if (!match) return { granted: false, expiration: null };
+    return { granted: true, expiration: match.expiration ?? null };
+  } catch {
+    return null;
+  }
+}
+
 // Run an operation against every script SEQUENTIALLY with a small gap.
 // TradingView 429s when all 12 fire in parallel, so we pace them. Returns
 // settled results so buildResult() can be reused unchanged.
@@ -306,12 +335,21 @@ export async function grantTVAccess(
       add.set("expiration", expiration);
       await tvPost("/pine_perm/add/", add);
     } else {
-      // Permanent grant (member). TradingView's add/ will NOT clear an existing
-      // expiration — so a trial→member conversion would otherwise keep the old
-      // trial expiry and lapse (this is the AkaniR bug, 2026-08). Remove first
-      // to reset any prior grant, then add with no expiration = permanent.
-      const remove = new URLSearchParams({ pine_id: pineId, username_recip: tvUsername });
-      await tvPost("/pine_perm/remove/", remove);
+      // Permanent grant (member). Do NOT blindly remove-then-add: this runs
+      // nightly for every member, and a remove whose paired add later fails
+      // would strip the member's script until a future run — the "indicator
+      // disappeared" bug (Fernando/Structure Map, 2026-08). Act idempotently on
+      // the current grant state, and only ever remove when we've positively
+      // confirmed a stale (trial) expiration to clear (the AkaniR case):
+      //   skip  → already permanent, leave it (no removal window at all)
+      //   reset → still carries a trial expiry, remove then add to clear it
+      //   add   → not granted / lookup failed, plain add (never removes)
+      const plan = planPermanentGrant(await listGrant(pineId, tvUsername));
+      if (plan === "skip") return;
+      if (plan === "reset") {
+        const remove = new URLSearchParams({ pine_id: pineId, username_recip: tvUsername });
+        await tvPost("/pine_perm/remove/", remove);
+      }
       await tvPost("/pine_perm/add/", add);
     }
   });
