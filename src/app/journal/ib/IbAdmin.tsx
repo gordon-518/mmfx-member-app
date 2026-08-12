@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { money } from "../format";
 
 type Broker = { id: string; name: string; mode: string; updatedAt: string | null };
 type Flagged = {
@@ -136,6 +137,13 @@ function BrokerCard({ broker }: { broker: Broker }) {
   );
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  member_active: "Member",
+  trial_active: "Trial",
+  re_trial_active: "Trial",
+  trial_expired: "Trial expired",
+};
+
 function StatusPill({ status }: { status: string }) {
   const active = status === "member_active";
   return (
@@ -144,7 +152,7 @@ function StatusPill({ status }: { status: string }) {
         active ? "bg-accent-soft text-accent-ink" : "bg-canvas text-subtle"
       }`}
     >
-      {status}
+      {STATUS_LABELS[status] ?? status.replace(/_/g, " ")}
     </span>
   );
 }
@@ -265,6 +273,7 @@ export function IbAdmin({
   const [rows, setRows] = useState(flagged);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const brokerName = (id: string) => brokers.find((b) => b.id === id)?.name ?? id;
 
   async function act(id: string, action: "block_journal" | "full_removal") {
     setBusyId(id);
@@ -337,10 +346,8 @@ export function IbAdmin({
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-line">
                 <td className="p-3 font-mono">{r.mt5_login}</td>
-                <td className="p-3">{r.broker_id}</td>
-                <td className="p-3">
-                  {r.balance ?? "—"} {r.currency ?? ""}
-                </td>
+                <td className="p-3">{brokerName(r.broker_id)}</td>
+                <td className="p-3">{money(r.balance, r.currency)}</td>
                 <td className="p-3">
                   {r.last_synced_at
                     ? new Date(r.last_synced_at).toLocaleDateString()

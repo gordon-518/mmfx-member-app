@@ -3,8 +3,18 @@
 import { useState } from "react";
 
 // Small ⓘ affordance that reveals a short explanation of how a metric is
-// derived. Click to toggle; blur to dismiss.
-export function InfoTip({ text, label }: { text: string; label?: string }) {
+// derived. Click to toggle; blur to dismiss. `align="right"` anchors the popover
+// to the icon's right edge so it opens leftward — use it on right-column cards
+// where a left-anchored popover would overflow the viewport on mobile.
+export function InfoTip({
+  text,
+  label,
+  align = "left",
+}: {
+  text: string;
+  label?: string;
+  align?: "left" | "right";
+}) {
   const [open, setOpen] = useState(false);
   return (
     <span className="relative inline-flex align-middle">
@@ -20,7 +30,9 @@ export function InfoTip({ text, label }: { text: string; label?: string }) {
       {open && (
         <span
           role="tooltip"
-          className="absolute left-0 top-5 z-30 w-56 rounded-xl border border-line bg-card p-2.5 text-[11px] font-normal normal-case leading-relaxed tracking-normal text-subtle shadow-soft-lg"
+          className={`absolute top-5 z-30 w-56 max-w-[calc(100vw-2rem)] rounded-xl border border-line bg-card p-2.5 text-[11px] font-normal normal-case leading-relaxed tracking-normal text-subtle shadow-soft-lg ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
         >
           {text}
         </span>

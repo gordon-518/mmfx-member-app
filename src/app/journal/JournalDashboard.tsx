@@ -9,6 +9,7 @@ import type { Health } from "@/lib/journal/health";
 import type { RulesResult } from "@/lib/journal/rules";
 import type { Intervention } from "@/lib/journal/interventions";
 import type { GameState } from "@/lib/journal/gamification";
+import { friendlySyncError } from "@/lib/journal/syncError";
 import { InterventionBanner } from "./InterventionBanner";
 import { JournalHero } from "./JournalHero";
 import { MissionCard } from "./MissionCard";
@@ -97,6 +98,13 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
     }
   }
 
+  // Member-safe error copy — never leak MetaApi billing / provisioning / DB
+  // detail to the card (the raw string stays in the DB for admin debugging).
+  const failMsg =
+    account.state === "failed" ? friendlySyncError(account.state_detail) : null;
+  const syncMsg =
+    account.state === "deployed" ? friendlySyncError(account.sync_error) : null;
+
   return (
     <section className="rise rounded-2xl border border-line bg-card p-6 shadow-soft sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -114,17 +122,25 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
           <p className="mt-1 text-[13px] text-subtle">
             {account.mt5_login} · {account.broker_server}
           </p>
-          {account.state === "failed" && account.state_detail && (
+          {account.state === "failed" && failMsg && (
             <p className="mt-2 text-[13px] text-red-600">
-              {account.state_detail}{" "}
+              {failMsg.message}{" "}
               <Link href="/journal/connect" className="font-semibold underline">
                 Retry
               </Link>
             </p>
           )}
-          {account.sync_error && account.state === "deployed" && (
+          {syncMsg && (
             <p className="mt-2 text-[13px] text-amber-700">
-              Last sync problem: {account.sync_error}
+              {syncMsg.message}
+              {syncMsg.canReconnect && (
+                <>
+                  {" "}
+                  <Link href="/journal/connect" className="font-semibold underline">
+                    Reconnect
+                  </Link>
+                </>
+              )}
             </p>
           )}
         </div>
@@ -172,18 +188,20 @@ function Kpi({
   tone,
   hint,
   info,
+  infoAlign,
 }: {
   label: string;
   value: string;
   tone?: "up" | "down";
   hint?: string;
   info?: string;
+  infoAlign?: "left" | "right";
 }) {
   return (
     <div className="rounded-2xl border border-line bg-card p-4 shadow-soft">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
         {label}
-        {info && <InfoTip text={info} />}
+        {info && <InfoTip text={info} align={infoAlign} />}
       </p>
       <p
         className={`mt-1 font-display text-xl font-bold ${
@@ -875,6 +893,7 @@ function PerformanceSection({
               label="Win rate"
               value={pct(a.winRate)}
               info="Percentage of the closed trades in this range that finished in profit."
+              infoAlign="right"
             />
             <Kpi
               label="Profit factor"
@@ -887,6 +906,7 @@ function PerformanceSection({
               tone={a.maxDrawdown > 0 ? "down" : undefined}
               hint={a.maxDrawdownPct == null ? undefined : pct(a.maxDrawdownPct)}
               info="Largest peak-to-trough drop in cumulative P&L over this range."
+              infoAlign="right"
             />
             <Kpi
               label="Payoff (R:R)"
@@ -899,10 +919,12 @@ function PerformanceSection({
               value={money(a.expectancy, currency)}
               hint="per trade"
               info="Average P&L per trade: (win% × avg win) − (loss% × avg loss)."
+              infoAlign="right"
             />
             <Kpi
               label="Best / worst"
               value={`${money(a.largestWin, currency)} / ${money(a.largestLoss, currency)}`}
+              info="Your single largest winning trade and largest losing trade in this range."
             />
             <Kpi
               label="Streaks"
@@ -912,18 +934,32 @@ function PerformanceSection({
                   ? "no current streak"
                   : `current ${Math.abs(a.currentStreak)}${a.currentStreak > 0 ? "W" : "L"}`
               }
+              info="Your longest run of consecutive wins and consecutive losses in this range; the hint shows your current active streak."
+              infoAlign="right"
             />
             <Kpi
               label="Avg win / loss"
               value={`${money(a.avgWin, currency)} / ${money(a.avgLoss == null ? null : -a.avgLoss, currency)}`}
+              info="Average profit on your winning trades and average loss on your losing trades."
             />
-            <Kpi label="Avg size" value={a.avgLots == null ? "—" : `${a.avgLots} lots`} />
+            <Kpi
+              label="Avg size"
+              value={a.avgLots == null ? "—" : `${a.avgLots} lots`}
+              info="Average position size, in lots, across the closed trades in this range."
+              infoAlign="right"
+            />
             <Kpi
               label="Max exposure"
               value={`${a.maxConcurrentOpen} open`}
               hint="concurrent positions"
+              info="The most positions you had open at the same time in this range."
             />
-            <Kpi label="Avg hold" value={fmtDuration(a.avgDurationSec)} />
+            <Kpi
+              label="Avg hold"
+              value={fmtDuration(a.avgDurationSec)}
+              info="Average time a trade stayed open, from entry to exit."
+              infoAlign="right"
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
