@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import { ExternalIcon } from "@/components/icons";
 import { MM_INDICATORS_DISCLAIMER } from "@/lib/content/disclaimer";
 import { setTradingViewUsernameFromStrategies } from "./actions";
+import { TV_USERNAME_HINT } from "@/lib/tvUsername";
 
 // Published MM TradingView strategy scripts. The .pine source is NEVER served
 // here — these are just links to the public TradingView publications + a chart
@@ -127,6 +128,10 @@ export default async function StrategiesPage({
               ✕ {tvError}
             </p>
           )}
+          <p className="mt-2.5 flex max-w-xl items-start gap-1.5 text-[12px] leading-snug text-faint">
+            <span aria-hidden className="text-orange">⚠</span>
+            <span>{TV_USERNAME_HINT}</span>
+          </p>
         </section>
 
         {/* Grid: live strategies + coming-soon slots */}

@@ -5,6 +5,7 @@ import { ExternalIcon } from "@/components/icons";
 import { MM_INDICATORS_DISCLAIMER } from "@/lib/content/disclaimer";
 import { INDICATORS } from "./data";
 import { setTradingViewUsername } from "./actions";
+import { TV_USERNAME_HINT } from "@/lib/tvUsername";
 
 export default async function IndicatorsPage({
   searchParams,
@@ -101,6 +102,10 @@ export default async function IndicatorsPage({
               ✕ {tvError}
             </p>
           )}
+          <p className="mt-2.5 flex max-w-xl items-start gap-1.5 text-[12px] leading-snug text-faint">
+            <span aria-hidden className="text-orange">⚠</span>
+            <span>{TV_USERNAME_HINT}</span>
+          </p>
         </section>
 
         {/* Indicator grid */}

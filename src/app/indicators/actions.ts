@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { grantTVAccess } from "@/lib/tv/client";
+import { validateTradingViewUsername } from "@/lib/tvUsername";
 import type { AccountStatus } from "@/lib/trial/status";
 
 const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
@@ -14,6 +15,13 @@ const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "me
 
 export async function setTradingViewUsername(formData: FormData) {
   const username = String(formData.get("tradingview_username") ?? "");
+
+  // Catch the common mistakes (email / display name with spaces / bad chars)
+  // before we grant to a handle that doesn't exist.
+  const check = validateTradingViewUsername(username);
+  if (!check.ok) {
+    redirect(`/indicators?tv_error=${encodeURIComponent(check.message)}`);
+  }
 
   const supabase = await createClient();
   const {

@@ -4,12 +4,18 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { grantTVAccess } from "@/lib/tv/client";
+import { validateTradingViewUsername } from "@/lib/tvUsername";
 import type { AccountStatus } from "@/lib/trial/status";
 
 const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
 
 export async function setTradingViewUsernameFromStrategies(formData: FormData) {
   const username = String(formData.get("tradingview_username") ?? "");
+
+  const check = validateTradingViewUsername(username);
+  if (!check.ok) {
+    redirect(`/strategies?tv_error=${encodeURIComponent(check.message)}`);
+  }
 
   const supabase = await createClient();
   const {
