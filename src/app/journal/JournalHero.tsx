@@ -13,29 +13,36 @@ const SURVIVAL: Record<Health["status"], { label: string; cls: string }> = {
   critical: { label: "Critical", cls: "bg-red-50 border-red-200 text-red-700" },
 };
 
-function Ring({ score }: { score: number }) {
-  const v = useCountUp(score);
+// score is null until the trader sets rules — show a muted "—" placeholder ring
+// rather than a solid "0", which reads as a real (terrible) discipline score.
+function Ring({ score }: { score: number | null }) {
+  const v = useCountUp(score ?? 0);
+  const hasScore = score != null;
   const C = 2 * Math.PI * 52;
   const off = C * (1 - Math.max(0, Math.min(100, v)) / 100);
   return (
     <div className="relative h-[132px] w-[132px] shrink-0">
       <svg viewBox="0 0 120 120" className="h-[132px] w-[132px] -rotate-90">
         <circle cx="60" cy="60" r="52" fill="none" strokeWidth="12" className="stroke-line" />
-        <circle
-          cx="60"
-          cy="60"
-          r="52"
-          fill="none"
-          strokeWidth="12"
-          strokeLinecap="round"
-          stroke="#ff5a1f"
-          strokeDasharray={C}
-          strokeDashoffset={off}
-        />
+        {hasScore && (
+          <circle
+            cx="60"
+            cy="60"
+            r="52"
+            fill="none"
+            strokeWidth="12"
+            strokeLinecap="round"
+            stroke="#ff5a1f"
+            strokeDasharray={C}
+            strokeDashoffset={off}
+          />
+        )}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-4xl font-extrabold leading-none text-ink">
-          {Math.round(v)}
+        <span
+          className={`font-display text-4xl font-extrabold leading-none ${hasScore ? "text-ink" : "text-subtle"}`}
+        >
+          {hasScore ? Math.round(v) : "—"}
         </span>
         <span className="text-[10px] font-bold uppercase tracking-wider text-subtle">
           Discipline
@@ -92,7 +99,7 @@ export function JournalHero({
     <section className="rise rounded-3xl border border-line bg-card p-6 shadow-soft">
       <div className="flex flex-wrap items-center gap-6">
         <div className="flex shrink-0 flex-col items-center">
-          <Ring score={game.score ?? 0} />
+          <Ring score={game.score} />
           {game.rulesSet ? (
             <span className="mt-2 inline-flex items-center text-[11px] text-subtle">
               % of clean trading days

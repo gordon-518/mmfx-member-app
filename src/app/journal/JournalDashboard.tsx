@@ -248,7 +248,7 @@ function BreakdownCard({
               <td className="py-1.5 font-semibold">{r.key}</td>
               <td className="py-1.5 text-right text-subtle">{r.count}</td>
               <td className="py-1.5 text-right text-subtle">
-                {Math.round(r.winRate * 100)}%
+                {pct(r.winRate)}
               </td>
               <td
                 className={`py-1.5 text-right font-semibold ${
@@ -556,10 +556,12 @@ function CoachCard({
   report,
   reportsRemaining,
   reportCap,
+  hasClosedTrades,
 }: {
   report: JournalReportRow | null;
   reportsRemaining: number;
   reportCap: number;
+  hasClosedTrades: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -616,16 +618,18 @@ function CoachCard({
         <div className="flex flex-col items-end gap-1">
           <button
             onClick={generate}
-            disabled={busy || outOfQuota}
+            disabled={busy || outOfQuota || !hasClosedTrades}
             className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy
               ? "Analysing…"
-              : outOfQuota
-                ? "Daily limit reached"
-                : report
-                  ? "Regenerate"
-                  : "Generate today’s report"}
+              : !hasClosedTrades
+                ? "No closed trades yet"
+                : outOfQuota
+                  ? "Daily limit reached"
+                  : report
+                    ? "Regenerate"
+                    : "Generate today’s report"}
           </button>
           <span className="text-[11px] text-subtle">
             {reportsRemaining} of {reportCap} left today
@@ -707,7 +711,7 @@ function CoachCard({
         <p className="mt-3 text-[14px] leading-relaxed text-subtle">
           Generate an AI read of your trading — it measures your habits against
           your goals, flags what’s working and what isn’t, and gives concrete
-          trade-management tips. Runs automatically each day once live.
+          trade-management tips. Generate one anytime — up to {reportCap} a day.
         </p>
       )}
     </section>
@@ -749,8 +753,8 @@ function GoalsCard({ goals }: { goals: JournalGoalsRow | null }) {
         </div>
       ) : (
         <p className="mt-2 text-[14px] text-subtle">
-          Tell the journal what you’re aiming for — the AI coach (coming soon)
-          measures every habit against it.
+          Tell the journal what you’re aiming for — the AI coach measures every
+          habit against it.
         </p>
       )}
     </section>
@@ -1023,7 +1027,7 @@ export function JournalDashboard({
             currency={currency}
           />
           <MissionCard interventions={interventions} game={game} />
-          <LeaksToBeat leaks={leaks} trades={trades} />
+          <LeaksToBeat leaks={leaks} trades={trades} currency={currency} />
         </div>
       )}
 
@@ -1054,6 +1058,7 @@ export function JournalDashboard({
             report={report}
             reportsRemaining={reportsRemaining}
             reportCap={reportCap}
+            hasClosedTrades={closed.length > 0}
           />
 
           <PerformanceSection trades={trades} cashFlows={cashFlows} currency={currency} />

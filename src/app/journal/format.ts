@@ -10,9 +10,15 @@ export function money(n: number | null | undefined, currency?: string | null): s
   return `${n < 0 ? "−" : ""}${s}${currency ? ` ${currency}` : ""}`;
 }
 
+// Mirrors money() (2 decimals, currency-code suffix, no hardcoded symbol) but
+// always shows an explicit +/− sign. A hardcoded "$" here was wrong for non-USD
+// accounts and made one dashboard show three different money formats.
 export function signedMoney(n: number, currency?: string | null): string {
-  const s = Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
-  return `${n < 0 ? "−" : "+"}$${s}${currency ? ` ${currency}` : ""}`;
+  const s = Math.abs(n).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${n < 0 ? "−" : "+"}${s}${currency ? ` ${currency}` : ""}`;
 }
 
 export function pct(frac: number | null | undefined): string {

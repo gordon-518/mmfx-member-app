@@ -45,24 +45,33 @@ function BrokerCard({ broker }: { broker: Broker }) {
     if (!file) return;
     setBusy(true);
     setMsg(null);
-    const fd = new FormData();
-    fd.set("file", file);
-    fd.set("broker_id", broker.id);
-    fd.set("mode", mode);
-    if (override) fd.set("override", "1");
-    const res = await fetch("/api/journal/ib/import", { method: "POST", body: fd });
-    const body = await res.json();
-    setBusy(false);
-    if (body.mode === "committed") {
-      setPreview(null);
-      setMsg(
-        `Committed: ${body.parsedCount} accounts · ${
-          (body.flaggedConnected as string[])?.length ?? 0
-        } flagged. Reload to see the flagged table.`
-      );
-    } else {
-      setPreview(body);
-      if (body.needOverride) setMsg("Guardrail tripped — review, then Confirm anyway.");
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      fd.set("broker_id", broker.id);
+      fd.set("mode", mode);
+      if (override) fd.set("override", "1");
+      const res = await fetch("/api/journal/ib/import", { method: "POST", body: fd });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(body.error ?? `Import failed (${res.status})`);
+        return;
+      }
+      if (body.mode === "committed") {
+        setPreview(null);
+        setMsg(
+          `Committed: ${body.parsedCount} accounts · ${
+            (body.flaggedConnected as string[])?.length ?? 0
+          } flagged. Reload to see the flagged table.`
+        );
+      } else {
+        setPreview(body);
+        if (body.needOverride) setMsg("Guardrail tripped — review, then Confirm anyway.");
+      }
+    } catch {
+      setMsg("Network error — please try again.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -79,6 +88,7 @@ function BrokerCard({ broker }: { broker: Broker }) {
       <input
         type="file"
         accept=".xlsx,.xls,.csv"
+        aria-label={`${broker.name} IB report file`}
         className="text-[13px]"
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
       />
@@ -254,19 +264,28 @@ export function IbAdmin({
 }) {
   const [rows, setRows] = useState(flagged);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   async function act(id: string, action: "block_journal" | "full_removal") {
     setBusyId(id);
-    const res = await fetch(`/api/journal/accounts/${id}/ib-action`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    const body = await res.json();
-    setBusyId(null);
-    if (res.ok) {
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/journal/accounts/${id}/ib-action`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setActionError(body.error ?? `Action failed (${res.status})`);
+        return;
+      }
       setRows((r) => r.filter((x) => x.id !== id));
       if (body.handoff) window.open(body.handoff, "_blank");
+    } catch {
+      setActionError("Network error — please try again.");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -296,6 +315,12 @@ export function IbAdmin({
           Download CSV
         </a>
       </div>
+
+      {actionError && (
+        <p role="alert" className="text-[13px] font-medium text-red-600">
+          {actionError}
+        </p>
+      )}
 
       <div className="overflow-x-auto rounded-2xl border border-line-strong">
         <table className="w-full text-[13px]">

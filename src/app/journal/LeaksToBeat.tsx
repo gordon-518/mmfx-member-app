@@ -8,9 +8,11 @@ import type { JournalTradeRow } from "@/lib/journal/types";
 function LeakRow({
   leak,
   tradesById,
+  currency,
 }: {
   leak: Leak;
   tradesById: Map<string, JournalTradeRow>;
+  currency: string | null;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -31,7 +33,7 @@ function LeakRow({
             leak.dollarImpact < 0 ? "text-red-600" : "text-emerald-600"
           }`}
         >
-          {signedMoney(leak.dollarImpact)}
+          {signedMoney(leak.dollarImpact, currency)}
         </span>
       </button>
       {open && (
@@ -46,7 +48,7 @@ function LeakRow({
                   {tr.close_time ? new Date(tr.close_time).toLocaleDateString() : ""}
                 </span>
                 <span className={tr.net_profit < 0 ? "text-red-600" : "text-emerald-600"}>
-                  {signedMoney(tr.net_profit)}
+                  {signedMoney(tr.net_profit, currency)}
                 </span>
               </div>
             );
@@ -60,9 +62,11 @@ function LeakRow({
 export function LeaksToBeat({
   leaks,
   trades,
+  currency,
 }: {
   leaks: LeakResult;
   trades: JournalTradeRow[];
+  currency: string | null;
 }) {
   if (!leaks.leaks.length) return null;
   const tradesById = new Map(trades.map((t) => [t.id, t]));
@@ -75,13 +79,13 @@ export function LeaksToBeat({
         <h2 className="font-display text-lg font-bold text-ink">Leaks to beat</h2>
         {recoverable < 0 && (
           <p className="text-[12px] text-subtle">
-            Fix all → recover <strong className="text-accent-ink">{signedMoney(-recoverable)}</strong>
+            Fix all → recover <strong className="text-accent-ink">{signedMoney(-recoverable, currency)}</strong>
           </p>
         )}
       </div>
       <div className="space-y-2">
         {leaks.leaks.map((l) => (
-          <LeakRow key={l.type} leak={l} tradesById={tradesById} />
+          <LeakRow key={l.type} leak={l} tradesById={tradesById} currency={currency} />
         ))}
       </div>
       {leaks.strengths.length > 0 && (
@@ -91,7 +95,7 @@ export function LeaksToBeat({
           </p>
           <div className="space-y-2">
             {leaks.strengths.map((st) => (
-              <LeakRow key={st.type} leak={st} tradesById={tradesById} />
+              <LeakRow key={st.type} leak={st} tradesById={tradesById} currency={currency} />
             ))}
           </div>
         </div>

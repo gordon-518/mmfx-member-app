@@ -35,34 +35,61 @@ export default async function JournalPage() {
   if (!profile.is_admin) redirect("/dashboard");
   const supabase = await createClient();
 
+  const { data: accounts } = await supabase
+    .from("journal_accounts")
+    .select()
+    .neq("state", "disconnected")
+    .order("created_at", { ascending: true });
+
+  // Scope every trade-derived query to the CURRENTLY-CONNECTED accounts.
+  // Disconnect is a soft delete that keeps history (the journal_trades /
+  // journal_cash_flows rows remain), so without this filter a disconnected
+  // account's trades keep feeding leaks/coach/performance/rules after the trader
+  // switches to a different account. The sentinel id keeps the query well-typed
+  // and empty when nothing is connected.
+  const accountIds = (accounts ?? []).map((a) => a.id as string);
+  const scopeIds = accountIds.length
+    ? accountIds
+    : ["00000000-0000-0000-0000-000000000000"];
+
   const [
-    { data: accounts },
     { data: trades },
     { data: cashFlows },
     { data: goals },
     { data: rulesRow },
+    { data: report },
   ] = await Promise.all([
-    supabase
-      .from("journal_accounts")
-      .select()
-      .neq("state", "disconnected")
-      .order("created_at", { ascending: true }),
     supabase
       .from("journal_trades")
       .select()
+      .in("account_id", scopeIds)
       .order("close_time", { ascending: false, nullsFirst: true })
       .limit(TRADES_CAP),
-    supabase.from("journal_cash_flows").select(),
+    supabase.from("journal_cash_flows").select().in("account_id", scopeIds),
     supabase.from("journal_goals").select().maybeSingle(),
     supabase.from("journal_rules").select().maybeSingle(),
+    supabase
+      .from("journal_reports")
+      .select()
+      .order("report_date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
-  const { data: report } = await supabase
-    .from("journal_reports")
-    .select()
-    .order("report_date", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // The coach report is per-user (not per-account), so after switching to a new
+  // account an earlier report is stale. Surface it only if it was generated at
+  // or after the newest connected account — otherwise fall back to the Generate
+  // prompt. (Quota below still uses the raw report so switching accounts cannot
+  // mint fresh daily generations.)
+  const newestAccountAt = (accounts ?? []).reduce<string | null>(
+    (max, a) =>
+      max == null || (a.created_at as string) > max ? (a.created_at as string) : max,
+    null
+  );
+  const freshReport =
+    report && (!newestAccountAt || (report.created_at as string) >= newestAccountAt)
+      ? report
+      : null;
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const usedToday =
@@ -165,7 +192,7 @@ export default async function JournalPage() {
         monthNet={monthNet}
         monthCount={monthClosed.length}
         profileName={profileName}
-        report={(report ?? null) as JournalReportRow | null}
+        report={(freshReport ?? null) as JournalReportRow | null}
         reportsRemaining={reportsRemaining}
         reportCap={DAILY_REPORT_CAP}
         currency={(accounts ?? [])[0]?.currency ?? null}
