@@ -5,11 +5,12 @@ import { requireAdminApi, serviceClient } from "@/lib/journal/api";
 
 // POST /api/journal/accounts/:id/sync — manual "Sync now".
 //
-// Rate-limited to one request per account per 5 minutes (queued/running jobs
-// or a very recent run both count). Enqueues a job and nudges the worker so
-// the sync starts immediately instead of waiting for the next cron tick.
+// Each sync DEPLOYS the account at MetaApi = a fresh 6-hour minimum billing
+// block, so the cooldown is aligned with that block (not the old 5 min, which
+// let a member start ~288 billing blocks/day by mashing the button). Fresh data
+// also auto-syncs daily. Enqueues a job + nudges the worker to start now.
 
-const RATE_LIMIT_MS = 5 * 60_000;
+const MANUAL_SYNC_COOLDOWN_MS = 6 * 60 * 60_000; // one MetaApi billing block
 
 export async function POST(
   _req: NextRequest,
@@ -23,7 +24,7 @@ export async function POST(
 
   const { data: account } = await supabase
     .from("journal_accounts")
-    .select("id, state")
+    .select("id, state, last_synced_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -39,31 +40,40 @@ export async function POST(
 
   const db = serviceClient();
 
-  const { data: lastJob } = await db
+  // One active job at a time (also enforced by a partial unique index).
+  const { data: activeJob } = await db
     .from("journal_sync_jobs")
-    .select("status, scheduled_at, started_at")
+    .select("id")
     .eq("account_id", id)
-    .order("id", { ascending: false })
+    .in("status", ["queued", "running"])
     .limit(1)
     .maybeSingle();
-
-  if (lastJob) {
-    const recent =
-      new Date(lastJob.started_at ?? lastJob.scheduled_at).getTime() >
-      Date.now() - RATE_LIMIT_MS;
-    if (["queued", "running"].includes(lastJob.status) || recent) {
-      return NextResponse.json(
-        { error: "Sync already ran recently — try again in a few minutes" },
-        { status: 429 }
-      );
-    }
+  if (activeJob) {
+    return NextResponse.json(
+      { error: "A sync is already in progress." },
+      { status: 429 }
+    );
   }
 
-  const { error } = await db
-    .from("journal_sync_jobs")
-    .insert({ account_id: id });
+  // Cost guard: refuse a manual sync within one MetaApi billing block of the last
+  // successful sync — otherwise each click starts another 6h block.
+  if (
+    account.last_synced_at &&
+    Date.now() - new Date(account.last_synced_at).getTime() < MANUAL_SYNC_COOLDOWN_MS
+  ) {
+    return NextResponse.json(
+      { error: "Synced recently — your data refreshes automatically. You can sync again in a few hours." },
+      { status: 429 }
+    );
+  }
+
+  const { error } = await db.from("journal_sync_jobs").insert({ account_id: id });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Raced against the partial unique index — a sync is already pending.
+    return NextResponse.json(
+      { error: "A sync is already in progress." },
+      { status: 429 }
+    );
   }
 
   // Nudge the worker after the response is sent (fire-and-forget).

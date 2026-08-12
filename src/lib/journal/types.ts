@@ -81,6 +81,7 @@ export interface JournalAccountRow {
   sync_cursor: string | null;
   last_synced_at: string | null;
   sync_error: string | null;
+  connect_failures: number;
   created_at: string;
   disconnected_at: string | null;
 }

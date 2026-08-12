@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   MetaApiError,
   deployMetaApiAccount,
+  deleteMetaApiAccount,
   fetchAccountInformation,
   fetchDealsByTimeRange,
   getMetaApiAccount,
@@ -45,6 +46,15 @@ const OVERLAP_MS = 60_000;
 /** How long to wait for a freshly-deployed account to connect to the broker. */
 const CONNECT_TIMEOUT_MS = 120_000;
 const CONNECT_POLL_MS = 3_000;
+
+/**
+ * After this many cumulative "deployed but never connected" failures, stop
+ * retrying: it's almost certainly a wrong investor password / server, and each
+ * retry deploys the account = a fresh 6-hour MetaApi billing block. We delete the
+ * MetaApi account and mark the row failed so it's no longer re-enqueued; the
+ * member reconnects with correct credentials (which re-provisions cleanly).
+ */
+const CONNECT_FAILURE_LIMIT = 3;
 
 /** Window start for an incremental sync. Pure — see sync.test.ts. */
 export function syncWindowStart(cursor: string | null): Date {
@@ -199,16 +209,43 @@ export async function syncAccount(
     const conn = await waitForConnected(accountId);
     if (!conn.connected) {
       // Deployed but the broker connection didn't establish in time. Usually a
-      // transient broker-side delay; a persistently wrong investor
-      // password/server fails repeatedly and the queue surfaces it after its
-      // retry budget. UNDEPLOYED here means MetaApi rejected the deploy outright.
-      return {
-        ok: false,
-        error: `Account did not connect (state ${conn.state ?? "?"}${
-          conn.connectionStatus ? `, ${conn.connectionStatus}` : ""
-        })`,
-        permanent: conn.state === "UNDEPLOYED",
-      };
+      // transient broker-side delay — but a persistently wrong investor
+      // password/server would otherwise re-deploy (6h billing) every 20h forever.
+      // Count the failures; once they pass the limit, escalate to terminal so the
+      // account stops billing and stops re-enqueuing.
+      const failures = (account.connect_failures ?? 0) + 1;
+      const detail = `Account did not connect (state ${conn.state ?? "?"}${
+        conn.connectionStatus ? `, ${conn.connectionStatus}` : ""
+      })`;
+
+      if (conn.state === "UNDEPLOYED" || failures >= CONNECT_FAILURE_LIMIT) {
+        // Give up: delete the MetaApi account (stops billing + avoids orphans on
+        // reconnect) and mark the row failed so fn_enqueue no longer picks it up.
+        try {
+          await deleteMetaApiAccount(accountId);
+          deployed = false; // deleted — the finally must not try to undeploy it
+        } catch {
+          // best-effort; the undeploy finally still stops the current block
+        }
+        await db
+          .from("journal_accounts")
+          .update({
+            state: "failed",
+            state_detail:
+              "We couldn't connect to your account. Reconnect with your read-only investor password and the correct server.",
+            connect_failures: failures,
+            metaapi_account_id: null,
+          })
+          .eq("id", account.id);
+        return { ok: false, error: detail, permanent: true };
+      }
+
+      // Still within budget — record the failure and let the queue retry.
+      await db
+        .from("journal_accounts")
+        .update({ connect_failures: failures })
+        .eq("id", account.id);
+      return { ok: false, error: detail, permanent: false };
     }
 
     // First successful connect promotes a still-connecting account to active.
@@ -317,6 +354,7 @@ export async function syncAccount(
         sync_cursor: nextCursor(deals, account.sync_cursor),
         last_synced_at: now.toISOString(),
         sync_error: null,
+        connect_failures: 0,
         ...(snapshot.balance != null ? { balance: snapshot.balance } : {}),
         ...(snapshot.equity != null ? { equity: snapshot.equity } : {}),
         ...(snapshot.currency ? { currency: snapshot.currency } : {}),

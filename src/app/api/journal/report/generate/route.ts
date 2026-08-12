@@ -25,17 +25,18 @@ export async function POST() {
   const db = serviceClient();
   const date = today();
 
-  // Enforce the per-user daily cap. gen_count only ever increments on a
-  // SUCCESSFUL generation below, so a failed model call never burns the quota.
-  const { data: existing } = await db
-    .from("journal_reports")
-    .select("gen_count")
-    .eq("user_id", profile.id)
-    .eq("report_date", date)
-    .maybeSingle();
-  const used = existing?.gen_count ?? 0;
-
-  if (used >= DAILY_REPORT_CAP) {
+  // Atomically RESERVE a slot before the (paid) model call. The old cap was a
+  // non-atomic read-then-write, so N parallel POSTs each passed the check and
+  // each burned an Anthropic call. fn_reserve_journal_report increments under a
+  // single statement and returns NULL when the daily cap is already reached.
+  const { data: reserved, error: reserveErr } = await db.rpc(
+    "fn_reserve_journal_report",
+    { p_user: profile.id, p_cap: DAILY_REPORT_CAP }
+  );
+  if (reserveErr) {
+    return NextResponse.json({ error: reserveErr.message }, { status: 500 });
+  }
+  if (reserved == null) {
     return NextResponse.json(
       {
         error: `Daily limit reached — you can generate up to ${DAILY_REPORT_CAP} reports per day. Try again tomorrow.`,
@@ -44,9 +45,12 @@ export async function POST() {
       { status: 429 }
     );
   }
+  const genCount = reserved as number;
+  const refund = () => db.rpc("fn_refund_journal_report", { p_user: profile.id });
 
   const ctx = await loadReportContext(db, profile.id);
   if (!ctx) {
+    await refund();
     return NextResponse.json(
       { error: "You need some closed trades before the coach can review them." },
       { status: 400 }
@@ -55,17 +59,17 @@ export async function POST() {
 
   const result = await generateReport(ctx);
   if (!result) {
+    await refund();
     return NextResponse.json(
       { error: "The AI coach is temporarily unavailable — please try again." },
       { status: 502 }
     );
   }
 
-  const genCount = used + 1;
-  const { error } = await db.from("journal_reports").upsert(
-    {
-      user_id: profile.id,
-      report_date: date,
+  // Fill in the reserved row's content (gen_count was already set by the reserve).
+  const { error } = await db
+    .from("journal_reports")
+    .update({
       status: result.report.status,
       summary: result.report.summary,
       habits: result.report.habits,
@@ -78,10 +82,9 @@ export async function POST() {
         maxDrawdown: ctx.analytics.maxDrawdown,
       },
       model: result.model,
-      gen_count: genCount,
-    },
-    { onConflict: "user_id,report_date" }
-  );
+    })
+    .eq("user_id", profile.id)
+    .eq("report_date", date);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
