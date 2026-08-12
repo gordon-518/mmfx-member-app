@@ -101,21 +101,41 @@ export function evaluateRules(
     const c = config.max_daily_loss;
     if (c?.enabled && typeof c.value === "number") {
       anyEnabled = true;
-      const limit = c.is_pct && startingBalance ? (c.value / 100) * startingBalance : c.value;
-      for (const [day, arr] of byDay) {
-        const net = arr.reduce((s, t) => s + t.net_profit, 0);
-        if (net < -limit) {
-          markDay("max_daily_loss", day);
-          breaches.push({
-            rule: "max_daily_loss",
-            title: TITLES.max_daily_loss,
-            when: day,
-            detail: `Lost $${r2(-net)} vs your $${r2(limit)} limit`,
-            tradeIds: arr.map((t) => t.id),
-          });
+      // A percent limit needs a known starting balance. When it's unknown (no
+      // BALANCE cash flow — common for credit/demo/prop accounts) do NOT fall
+      // back to treating the percent as raw dollars: that turned "5%" into a $5
+      // limit and fabricated a daily-loss breach almost every day (which then
+      // cratered the discipline score and fired false interventions). Mark the
+      // rule inert instead — it's simply not assessable without a balance.
+      const inert = !!c.is_pct && !(startingBalance && startingBalance > 0);
+      if (inert) {
+        perRule.push({
+          rule: "max_daily_loss",
+          title: TITLES.max_daily_loss,
+          unit: "day",
+          kept: 0,
+          total: tradingDays,
+          breachCount: 0,
+          enabled: true,
+          inert: true,
+        });
+      } else {
+        const limit = c.is_pct ? (c.value / 100) * (startingBalance as number) : c.value;
+        for (const [day, arr] of byDay) {
+          const net = arr.reduce((s, t) => s + t.net_profit, 0);
+          if (net < -limit) {
+            markDay("max_daily_loss", day);
+            breaches.push({
+              rule: "max_daily_loss",
+              title: TITLES.max_daily_loss,
+              when: day,
+              detail: `Lost $${r2(-net)} vs your $${r2(limit)} limit`,
+              tradeIds: arr.map((t) => t.id),
+            });
+          }
         }
+        dayAdherence("max_daily_loss");
       }
-      dayAdherence("max_daily_loss");
     }
   }
 
@@ -238,7 +258,11 @@ export function evaluateRules(
   );
 
   const cleanDays = days.filter((d) => !anyBreachDay.has(d)).length;
-  const score = anyEnabled && tradingDays > 0 ? Math.round((cleanDays / tradingDays) * 100) : null;
+  // Only score off rules that are actually being checked — an all-inert config
+  // (e.g. a percent rule with no known balance, or instruments-only with no
+  // instruments) can't assess discipline, so show "—" rather than a fake 100%.
+  const anyActive = perRule.some((r) => r.enabled && !r.inert);
+  const score = anyActive && tradingDays > 0 ? Math.round((cleanDays / tradingDays) * 100) : null;
   breaches.sort((a, b) => b.when.localeCompare(a.when));
   return { score, cleanDays, tradingDays, perRule, breaches };
 }

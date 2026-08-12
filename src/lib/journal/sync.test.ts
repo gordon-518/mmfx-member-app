@@ -81,7 +81,7 @@ describe("fetchStoredDealsForPositions", () => {
 describe("syncWindowStart", () => {
   it("starts from the default epoch when there is no cursor", () => {
     expect(syncWindowStart(null).toISOString()).toBe(
-      "2000-01-01T00:00:00.000Z"
+      "2024-01-01T00:00:00.000Z"
     );
   });
 

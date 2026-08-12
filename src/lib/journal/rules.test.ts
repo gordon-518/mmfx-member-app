@@ -29,6 +29,43 @@ function t(o: Partial<JournalTradeRow> & { net_profit: number; day: string }): J
 }
 
 describe("evaluateRules", () => {
+  it("percent max_daily_loss with a known starting balance evaluates in dollars", () => {
+    const trades = [
+      t({ day: "2026-07-01", net_profit: -600 }), // 6% of 10k > 5% limit → breach
+      t({ day: "2026-07-02", net_profit: -100 }), // 1% → fine
+    ];
+    const cfg: JournalRulesConfig = { max_daily_loss: { enabled: true, value: 5, is_pct: true } };
+    const r = evaluateRules(trades, cfg, null, 10000);
+    expect(r.breaches.filter((b) => b.rule === "max_daily_loss").length).toBe(1);
+    expect(r.score).toBe(50);
+  });
+
+  it("percent max_daily_loss with NO starting balance is inert (no $5 trap), not scored", () => {
+    // The $5-trap regression: 5% must NOT collapse to a $5 limit that breaches
+    // almost every losing day when startingBalance is null.
+    const trades = [
+      t({ day: "2026-07-01", net_profit: -50 }),
+      t({ day: "2026-07-02", net_profit: -80 }),
+      t({ day: "2026-07-03", net_profit: -20 }),
+    ];
+    const cfg: JournalRulesConfig = { max_daily_loss: { enabled: true, value: 5, is_pct: true } };
+    for (const bal of [null, 0]) {
+      const r = evaluateRules(trades, cfg, null, bal);
+      expect(r.breaches.filter((b) => b.rule === "max_daily_loss").length, `bal=${bal}`).toBe(0);
+      const rule = r.perRule.find((x) => x.rule === "max_daily_loss");
+      expect(rule?.inert, `bal=${bal}`).toBe(true);
+      expect(r.score, `bal=${bal}`).toBeNull(); // only rule is inert → unassessable
+    }
+  });
+
+  it("a DOLLAR max_daily_loss still works with no starting balance", () => {
+    const trades = [t({ day: "2026-07-01", net_profit: -250 })];
+    const cfg: JournalRulesConfig = { max_daily_loss: { enabled: true, value: 200 } };
+    const r = evaluateRules(trades, cfg, null, null);
+    expect(r.breaches.length).toBe(1);
+    expect(r.score).toBe(0);
+  });
+
   it("max_daily_loss: breaches a day below the $ limit", () => {
     const trades = [
       t({ day: "2026-07-01", net_profit: -150 }),

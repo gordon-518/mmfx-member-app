@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdminApi } from "@/lib/journal/api";
+import { requireAdminApi, serviceClient } from "@/lib/journal/api";
 import { deleteMetaApiAccount } from "@/lib/journal/metaapi";
 
 // DELETE /api/journal/accounts/:id — disconnect an MT5 account.
@@ -15,6 +15,7 @@ export async function DELETE(
 ) {
   const guard = await requireAdminApi();
   if ("response" in guard) return guard.response;
+  const { profile } = guard;
 
   const { id } = await params;
   const supabase = await createClient();
@@ -42,14 +43,17 @@ export async function DELETE(
     }
   }
 
-  const { error } = await supabase
+  // Service role (journal_accounts is write-locked to members); the select above
+  // already proved ownership via RLS, and the user_id filter is defense-in-depth.
+  const { error } = await serviceClient()
     .from("journal_accounts")
     .update({
       state: "disconnected",
       disconnected_at: new Date().toISOString(),
       state_detail: metaapiRemoved ? null : "MetaApi cleanup pending",
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", profile.id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

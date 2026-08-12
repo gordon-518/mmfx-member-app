@@ -29,8 +29,15 @@ import type { JournalAccountRow, MetaApiDeal } from "./types";
 // step is safely retried by the queue with no data loss. Undeploy runs in a
 // finally so we never leave an account deployed (which would defeat the saving).
 
-/** Accounts with no cursor backfill from here — far enough for any history. */
-const DEFAULT_START = "2000-01-01T00:00:00.000Z";
+/**
+ * First-sync backfill window start. Bounded (not epoch) so a very active
+ * account's initial sync can't pull a decade of history in one shot and blow
+ * past the worker's maxDuration — which would leave the account deployed and
+ * billing. A few years is ample for a trading journal; older history is out of
+ * scope. Combined with the reaper's attempts-bump + undeploy, a genuinely huge
+ * account fails safely rather than looping.
+ */
+const DEFAULT_START = "2024-01-01T00:00:00.000Z";
 
 /** Re-fetch this much behind the cursor so boundary-time deals never slip. */
 const OVERLAP_MS = 60_000;

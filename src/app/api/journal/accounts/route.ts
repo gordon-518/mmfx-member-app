@@ -122,7 +122,11 @@ export async function POST(req: NextRequest) {
         : "Could not reach MetaApi — please try again";
   }
 
-  const { data: account, error } = await supabase
+  // Service role: journal_accounts is write-locked to members (they cannot set
+  // ib_review / state / balance via direct PostgREST). user_id is fixed to the
+  // caller and the conflict target is scoped by user_id, so this only ever
+  // touches the caller's own row.
+  const { data: account, error } = await svc
     .from("journal_accounts")
     .upsert(
       {

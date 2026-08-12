@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { serviceClient } from "@/lib/journal/api";
 import { syncAccount } from "@/lib/journal/sync";
+import { undeployMetaApiAccount } from "@/lib/journal/metaapi";
 import type { JournalAccountRow } from "@/lib/journal/types";
 
 // The sync worker. Triggered every 15 min by Supabase pg_cron + pg_net (same
@@ -26,16 +27,18 @@ export const maxDuration = 300;
 // syncing more than once per ~6h would overlap blocks and lose the saving.
 // ~20h keeps a steady once-a-day rhythm with margin (see sync.ts §COST).
 const STALE_SYNC = "20 hours";
-// Each sync now deploys → waits for the broker connection (up to ~90s) → reads
-// → undeploys, so batches are smaller and concurrency lower than the old
-// always-on path. A claimed batch's worst case (CLAIM_BATCH/CONCURRENCY ×
-// connect-timeout) must fit under maxDuration; we stop claiming new batches
-// once TIME_BUDGET is spent so the last batch can't overrun the 300s cap.
-const CLAIM_BATCH = 6;
+// Each sync deploys → waits for the broker connection (up to ~120s) → reads →
+// undeploys. A claimed batch must finish within maxDuration (300s) or Vercel
+// kills the function mid-sync, leaving accounts DEPLOYED (= perpetual MetaApi
+// billing) and jobs stuck 'running'. With CLAIM_BATCH == CONCURRENCY every
+// worker runs exactly ONE job, so a batch's worst case is a single job
+// (~deploy 15s + connect 120s + undeploy 15s ≈ 165s), not 2× that. TIME_BUDGET
+// then bounds the last-claimable batch: 90s + 165s ≈ 255s < 300s.
+const CLAIM_BATCH = 3;
 const CONCURRENCY = 3;
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 5 * 60_000;
-const TIME_BUDGET_MS = 120_000; // stop claiming here; worst batch ~180s ⇒ <300s
+const TIME_BUDGET_MS = 90_000; // stop claiming here; worst last batch ~165s ⇒ <300s
 const MAX_CHAIN_DEPTH = 8;
 // A 'running' job older than this was orphaned by a killed invocation — reap it.
 const STALE_RUNNING_MS = 15 * 60_000;
@@ -126,6 +129,62 @@ async function runPool(
   await Promise.all(workers);
 }
 
+/**
+ * Reap 'running' jobs orphaned by a killed invocation. Critically it (a) bumps
+ * `attempts` so a job that keeps getting killed eventually FAILS instead of
+ * looping forever, and (b) undeploys the account at MetaApi — a killed sync never
+ * ran its own undeploy `finally`, so the account is almost certainly left
+ * DEPLOYED and billing. Without this the old reaper re-queued forever with a
+ * permanently-deployed (= permanently-billing) account.
+ */
+async function reapOrphans(db: ReturnType<typeof serviceClient>): Promise<void> {
+  const cutoff = new Date(Date.now() - STALE_RUNNING_MS).toISOString();
+  const { data: stale } = await db
+    .from("journal_sync_jobs")
+    .select("id, account_id, attempts")
+    .eq("status", "running")
+    .lt("started_at", cutoff);
+  if (!stale?.length) return;
+
+  const ids = [...new Set(stale.map((j) => j.account_id as string))];
+  const { data: accts } = await db
+    .from("journal_accounts")
+    .select("id, metaapi_account_id")
+    .in("id", ids);
+  const metaById = new Map(
+    (accts ?? []).map((a) => [a.id as string, a.metaapi_account_id as string | null])
+  );
+
+  for (const job of stale as { id: number; account_id: string; attempts: number }[]) {
+    const metaId = metaById.get(job.account_id);
+    if (metaId) {
+      try {
+        await undeployMetaApiAccount(metaId); // stop billing
+      } catch {
+        /* best-effort; a later reap/sync retries */
+      }
+    }
+    const attempts = (job.attempts ?? 0) + 1;
+    if (attempts >= MAX_ATTEMPTS) {
+      const err = "Sync repeatedly timed out (orphaned)";
+      await db
+        .from("journal_sync_jobs")
+        .update({ status: "failed", attempts, finished_at: new Date().toISOString(), error: err })
+        .eq("id", job.id);
+      await db.from("journal_accounts").update({ sync_error: err }).eq("id", job.account_id);
+    } else {
+      await db
+        .from("journal_sync_jobs")
+        .update({
+          status: "queued",
+          attempts,
+          scheduled_at: new Date(Date.now() + RETRY_DELAY_MS).toISOString(),
+        })
+        .eq("id", job.id);
+    }
+  }
+}
+
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!process.env.JOURNAL_CRON_SECRET || auth !== `Bearer ${process.env.JOURNAL_CRON_SECRET}`) {
@@ -144,13 +203,8 @@ export async function POST(req: NextRequest) {
   const startedAt = Date.now();
   const counts = { done: 0, retried: 0, failed: 0 };
 
-  // Reap orphaned 'running' jobs (a prior invocation killed mid-sync) back to
-  // queued — otherwise their account is blocked from ever re-enqueuing.
-  await db
-    .from("journal_sync_jobs")
-    .update({ status: "queued" })
-    .eq("status", "running")
-    .lt("started_at", new Date(Date.now() - STALE_RUNNING_MS).toISOString());
+  // Reap orphaned 'running' jobs (a prior invocation killed mid-sync).
+  await reapOrphans(db);
 
   const { data: enqueued, error: enqueueErr } = await db.rpc(
     "fn_enqueue_due_sync_jobs",
