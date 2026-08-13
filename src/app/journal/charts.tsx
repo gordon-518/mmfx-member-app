@@ -121,6 +121,47 @@ export function PnlHistogram({ bins }: { bins: HistogramBin[] }) {
   );
 }
 
+// Generic radar/spider chart. Each axis value is normalised 0..1. Brand-tinted.
+export function RadarChart({ axes }: { axes: { label: string; value: number }[] }) {
+  const N = axes.length;
+  const cx = 100;
+  const cy = 94;
+  const R = 60;
+  const pt = (i: number, v: number): [number, number] => {
+    const ang = (-90 + (360 / N) * i) * (Math.PI / 180);
+    return [cx + R * v * Math.cos(ang), cy + R * v * Math.sin(ang)];
+  };
+  const ring = (g: number) => axes.map((_, i) => pt(i, g).join(",")).join(" ");
+  const data = axes.map((a) => Math.max(0, Math.min(1, a.value || 0)));
+  const dataPoly = axes.map((_, i) => pt(i, data[i]).join(",")).join(" ");
+
+  return (
+    <svg viewBox="0 0 200 200" className="mx-auto w-full max-w-[240px]" role="img" aria-label="Trading profile across five dimensions">
+      {[0.25, 0.5, 0.75, 1].map((g) => (
+        <polygon key={g} points={ring(g)} fill="none" className="stroke-line" strokeWidth="1" />
+      ))}
+      {axes.map((_, i) => {
+        const [x, y] = pt(i, 1);
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} className="stroke-line" strokeWidth="1" />;
+      })}
+      <polygon points={dataPoly} className="fill-orange/15 stroke-orange" strokeWidth="2" strokeLinejoin="round" />
+      {axes.map((_, i) => {
+        const [x, y] = pt(i, data[i]);
+        return <circle key={i} cx={x} cy={y} r="3" className="fill-orange" />;
+      })}
+      {axes.map((a, i) => {
+        const [x, y] = pt(i, 1.32);
+        const anchor = x < cx - 4 ? "end" : x > cx + 4 ? "start" : "middle";
+        return (
+          <text key={i} x={x} y={y + 3} textAnchor={anchor} className="fill-subtle text-[9px] font-semibold">
+            {a.label}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
+
 function EmptyChart({ label }: { label: string }) {
   return (
     <div className="flex h-[120px] items-center justify-center text-[13px] text-subtle">

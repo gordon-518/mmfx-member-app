@@ -26,7 +26,7 @@ import {
   type JournalRulesConfig,
   type JournalTradeRow,
 } from "@/lib/journal/types";
-import { DrawdownChart, EquityCurveChart, PnlHistogram } from "./charts";
+import { DrawdownChart, EquityCurveChart, PnlHistogram, RadarChart } from "./charts";
 
 // Client half of /journal (Phase 2). Data arrives fully-computed from the server
 // component; mutations go through /api/journal/* and re-render via
@@ -182,6 +182,8 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
   );
 }
 
+type KpiDelta = { text: string; tone: "up" | "down" | "flat" };
+
 function Kpi({
   label,
   value,
@@ -189,6 +191,7 @@ function Kpi({
   hint,
   info,
   infoAlign,
+  delta,
 }: {
   label: string;
   value: string;
@@ -196,6 +199,7 @@ function Kpi({
   hint?: string;
   info?: string;
   infoAlign?: "left" | "right";
+  delta?: KpiDelta | null;
 }) {
   return (
     <div className="rounded-2xl border border-line bg-card p-4 shadow-soft">
@@ -214,9 +218,45 @@ function Kpi({
       >
         {value}
       </p>
-      {hint && <p className="mt-0.5 text-[11px] text-subtle">{hint}</p>}
+      {delta ? (
+        <p className="mt-0.5 text-[11px]">
+          <span
+            className={`font-bold ${
+              delta.tone === "up" ? "text-emerald-600" : delta.tone === "down" ? "text-red-500" : "text-faint"
+            }`}
+          >
+            {delta.text}
+          </span>
+          <span className="text-faint"> vs prev</span>
+        </p>
+      ) : hint ? (
+        <p className="mt-0.5 text-[11px] text-subtle">{hint}</p>
+      ) : null}
     </div>
   );
+}
+
+// Format a period-over-period change for a KPI. `higherIsBetter` sets the color
+// (e.g. a bigger max-drawdown is worse). Returns null when either side is unknown.
+function kpiDelta(
+  cur: number | null | undefined,
+  prev: number | null | undefined,
+  kind: "money" | "pct" | "num",
+  opts: { higherIsBetter?: boolean; currency?: string | null } = {}
+): KpiDelta | null {
+  if (cur == null || prev == null) return null;
+  const diff = cur - prev;
+  const eps = kind === "pct" ? 1e-6 : 0.005;
+  if (Math.abs(diff) < eps) return { text: "±0", tone: "flat" };
+  const up = diff > 0;
+  const higherIsBetter = opts.higherIsBetter ?? true;
+  const mag =
+    kind === "money"
+      ? money(Math.abs(diff), opts.currency ?? undefined)
+      : kind === "pct"
+        ? `${(Math.abs(diff) * 100).toFixed(1)} pts`
+        : Math.abs(diff).toFixed(2);
+  return { text: `${up ? "▲" : "▼"} ${mag}`, tone: (up === higherIsBetter ? "up" : "down") };
 }
 
 function ChartCard({
@@ -820,7 +860,7 @@ function PerformanceSection({
   cashFlows: JournalCashFlowRow[];
   currency: string | null;
 }) {
-  const [range, setRange] = useState<RangeKey>("all");
+  const [range, setRange] = useState<RangeKey>("30d");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
@@ -847,6 +887,22 @@ function PerformanceSection({
   );
 
   const a = useMemo(() => computeAnalytics(filtered, cashFlows), [filtered, cashFlows]);
+
+  // Analytics for the immediately-preceding equal-length window, for ▲/▼ deltas.
+  // Only meaningful for the fixed-length presets (not all / ytd / custom).
+  const prior = useMemo(() => {
+    const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 0;
+    if (!days) return null;
+    const now = new Date();
+    const curStart = new Date(now.getTime() - days * 86_400_000).toISOString().slice(0, 10);
+    const prevStart = new Date(now.getTime() - 2 * days * 86_400_000).toISOString().slice(0, 10);
+    const priorTrades = closed.filter((t) => {
+      const d = (t.close_time as string).slice(0, 10);
+      return d >= prevStart && d < curStart;
+    });
+    if (priorTrades.length === 0) return null;
+    return computeAnalytics(priorTrades, cashFlows);
+  }, [range, closed, cashFlows]);
 
   const pill = (active: boolean) =>
     `cursor-pointer rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-colors ${
@@ -898,17 +954,20 @@ function PerformanceSection({
               value={money(a.netProfit, currency)}
               tone={a.netProfit > 0 ? "up" : a.netProfit < 0 ? "down" : undefined}
               hint={`${a.closedCount} closed`}
+              delta={kpiDelta(a.netProfit, prior?.netProfit ?? null, "money", { currency })}
               info="Sum of realised profit and loss across the closed trades in this range, after commission and swap."
             />
             <Kpi
               label="Win rate"
               value={pct(a.winRate)}
+              delta={kpiDelta(a.winRate, prior?.winRate ?? null, "pct")}
               info="Percentage of the closed trades in this range that finished in profit."
               infoAlign="right"
             />
             <Kpi
               label="Profit factor"
               value={a.profitFactor == null ? "—" : a.profitFactor.toFixed(2)}
+              delta={kpiDelta(a.profitFactor, prior?.profitFactor ?? null, "num")}
               info="Gross profit ÷ gross loss. Above 1.0 means your winners outweigh your losers."
             />
             <Kpi
@@ -916,6 +975,7 @@ function PerformanceSection({
               value={money(-a.maxDrawdown, currency)}
               tone={a.maxDrawdown > 0 ? "down" : undefined}
               hint={a.maxDrawdownPct == null ? undefined : pct(a.maxDrawdownPct)}
+              delta={kpiDelta(a.maxDrawdown, prior?.maxDrawdown ?? null, "money", { higherIsBetter: false, currency })}
               info="Largest peak-to-trough drop in cumulative P&L over this range."
               infoAlign="right"
             />
@@ -923,12 +983,14 @@ function PerformanceSection({
               label="Payoff (R:R)"
               value={a.payoffRatio == null ? "—" : a.payoffRatio.toFixed(2)}
               hint="avg win ÷ avg loss"
+              delta={kpiDelta(a.payoffRatio, prior?.payoffRatio ?? null, "num")}
               info="Average winning trade divided by the average losing trade."
             />
             <Kpi
               label="Expectancy"
               value={money(a.expectancy, currency)}
               hint="per trade"
+              delta={kpiDelta(a.expectancy, prior?.expectancy ?? null, "money", { currency })}
               info="Average P&L per trade: (win% × avg win) − (loss% × avg loss)."
               infoAlign="right"
             />
@@ -996,6 +1058,25 @@ function PerformanceSection({
         </>
       )}
     </div>
+  );
+}
+
+function TraderRadar({ analytics, game }: { analytics: JournalAnalytics; game: GameState }) {
+  const axes = [
+    { label: "Win rate", value: analytics.winRate ?? 0 },
+    { label: "Profit", value: Math.min(1, (analytics.profitFactor ?? 0) / 2.5) },
+    { label: "R:R", value: Math.min(1, (analytics.payoffRatio ?? 0) / 3) },
+    { label: "Discipline", value: (game.score ?? 0) / 100 },
+    { label: "Consistency", value: 1 - Math.min(1, analytics.maxDrawdownPct ?? 0) },
+  ];
+  return (
+    <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
+      <h3 className="font-display text-[15px] font-bold text-ink">Your trading profile</h3>
+      <p className="mt-0.5 text-[12px] text-subtle">Five dimensions, one glance</p>
+      <div className="mt-1">
+        <RadarChart axes={axes} />
+      </div>
+    </section>
   );
 }
 
@@ -1136,6 +1217,7 @@ export function JournalDashboard({
             </div>
 
             <div className="space-y-6 lg:sticky lg:top-6">
+              {closed.length > 0 && <TraderRadar analytics={analytics} game={game} />}
               <CoachCard
                 report={report}
                 reportsRemaining={reportsRemaining}
