@@ -248,41 +248,48 @@ function BreakdownCard({
   rows: { key: string; count: number; netProfit: number; winRate: number }[];
   currency: string | null;
 }) {
+  // Sorted horizontal bars read faster than a table for "where do I make money".
+  const sorted = [...rows].sort((a, b) => b.netProfit - a.netProfit);
+  const max = Math.max(1, ...sorted.map((r) => Math.abs(r.netProfit)));
   return (
     <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
-      <h3 className="mb-2 font-display text-[15px] font-bold text-ink">{title}</h3>
-      <table className="w-full text-left text-[13px]">
-        <thead>
-          <tr className="text-[10px] uppercase tracking-wider text-subtle">
-            <th className="py-1 font-semibold">Name</th>
-            <th className="py-1 text-right font-semibold">Trades</th>
-            <th className="py-1 text-right font-semibold">Win %</th>
-            <th className="py-1 text-right font-semibold">Net P&L</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.key} className="border-t border-line/50 text-ink">
-              <td className="py-1.5 font-semibold">{r.key}</td>
-              <td className="py-1.5 text-right text-subtle">{r.count}</td>
-              <td className="py-1.5 text-right text-subtle">
-                {pct(r.winRate)}
-              </td>
-              <td
-                className={`py-1.5 text-right font-semibold ${
-                  r.netProfit > 0
-                    ? "text-emerald-600"
-                    : r.netProfit < 0
-                      ? "text-red-500"
-                      : "text-ink"
-                }`}
+      <h3 className="mb-2.5 font-display text-[15px] font-bold text-ink">{title}</h3>
+      {sorted.length === 0 ? (
+        <p className="text-[13px] text-subtle">No trades in this range.</p>
+      ) : (
+        <div className="space-y-0.5">
+          {sorted.map((r) => {
+            const pos = r.netProfit >= 0;
+            return (
+              <div
+                key={r.key}
+                title={`${r.count} trade${r.count === 1 ? "" : "s"} · ${pct(r.winRate)} win`}
+                className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-paper/70"
               >
-                {money(r.netProfit, currency)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <span className="w-16 shrink-0 truncate font-display text-[13px] font-semibold text-ink">
+                  {r.key}
+                </span>
+                <div className="relative h-[18px] flex-1 overflow-hidden rounded-md bg-paper">
+                  <div
+                    className={`h-full rounded-md ${pos ? "bg-emerald-500/85" : "bg-red-400/85"}`}
+                    style={{ width: `${Math.max(4, (Math.abs(r.netProfit) / max) * 100)}%` }}
+                  />
+                </div>
+                <span
+                  className={`w-[86px] shrink-0 text-right font-display text-[13px] font-bold ${
+                    r.netProfit > 0 ? "text-emerald-600" : r.netProfit < 0 ? "text-red-500" : "text-ink"
+                  }`}
+                >
+                  {money(r.netProfit, currency)}
+                </span>
+                <span className="hidden w-10 shrink-0 text-right text-[11px] text-subtle sm:inline">
+                  {pct(r.winRate)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
@@ -610,20 +617,19 @@ function CoachCard({
     <section className="rise rounded-2xl border border-orange/30 bg-accent-soft/30 p-6 shadow-soft sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange text-white">
-            ✦
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink font-display text-[16px] font-bold text-white">
+            D
           </span>
           <div>
-            <h2 className="font-display text-lg font-bold text-ink">AI Coach</h2>
-            {report && (
-              <p className="text-[12px] text-subtle">
-                {new Date(report.report_date).toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </p>
-            )}
+            <h2 className="font-display text-lg font-bold text-ink">Don’s read</h2>
+            <p className="text-[12px] text-subtle">
+              {report
+                ? `AI coach · ${new Date(report.report_date).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                  })}`
+                : "AI coach"}
+            </p>
           </div>
           {chip && (
             <span

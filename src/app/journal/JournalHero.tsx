@@ -1,8 +1,9 @@
 "use client";
 
 import { useCountUp } from "./useCountUp";
-import { signedMoney, pct } from "./format";
+import { signedMoney, money, pct } from "./format";
 import { InfoTip } from "./InfoTip";
+import { EquityCurveChart } from "./charts";
 import type { GameState } from "@/lib/journal/gamification";
 import type { Health } from "@/lib/journal/health";
 import type { JournalAnalytics } from "@/lib/journal/analytics";
@@ -12,45 +13,6 @@ const SURVIVAL: Record<Health["status"], { label: string; cls: string }> = {
   at_risk: { label: "At risk", cls: "bg-amber-50 border-amber-200 text-amber-700" },
   critical: { label: "Critical", cls: "bg-red-50 border-red-200 text-red-700" },
 };
-
-// score is null until the trader sets rules — show a muted "—" placeholder ring
-// rather than a solid "0", which reads as a real (terrible) discipline score.
-function Ring({ score }: { score: number | null }) {
-  const v = useCountUp(score ?? 0);
-  const hasScore = score != null;
-  const C = 2 * Math.PI * 52;
-  const off = C * (1 - Math.max(0, Math.min(100, v)) / 100);
-  return (
-    <div className="relative h-[132px] w-[132px] shrink-0">
-      <svg viewBox="0 0 120 120" className="h-[132px] w-[132px] -rotate-90">
-        <circle cx="60" cy="60" r="52" fill="none" strokeWidth="12" className="stroke-line" />
-        {hasScore && (
-          <circle
-            cx="60"
-            cy="60"
-            r="52"
-            fill="none"
-            strokeWidth="12"
-            strokeLinecap="round"
-            stroke="#ff5a1f"
-            strokeDasharray={C}
-            strokeDashoffset={off}
-          />
-        )}
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span
-          className={`font-display text-4xl font-extrabold leading-none ${hasScore ? "text-ink" : "text-subtle"}`}
-        >
-          {hasScore ? Math.round(v) : "—"}
-        </span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-subtle">
-          Discipline
-        </span>
-      </div>
-    </div>
-  );
-}
 
 function Vital({
   label,
@@ -62,7 +24,7 @@ function Vital({
   label: string;
   value: string;
   sub?: string;
-  tone?: "up";
+  tone?: "up" | "down";
   info?: string;
 }) {
   return (
@@ -71,7 +33,11 @@ function Vital({
         {label}
         {info && <InfoTip text={info} />}
       </p>
-      <p className={`mt-1 font-display text-lg font-extrabold ${tone === "up" ? "text-emerald-600" : "text-ink"}`}>
+      <p
+        className={`mt-1 font-display text-lg font-extrabold ${
+          tone === "up" ? "text-emerald-600" : tone === "down" ? "text-red-600" : "text-ink"
+        }`}
+      >
         {value}
       </p>
       {sub && <p className="text-[11px] text-subtle">{sub}</p>}
@@ -95,49 +61,75 @@ export function JournalHero({
   currency: string | null;
 }) {
   const s = SURVIVAL[health.status];
+  const net = useCountUp(monthNet);
+  const up = monthNet >= 0;
+
   return (
     <section className="rise rounded-3xl border border-line bg-card p-6 shadow-soft">
-      <div className="flex flex-wrap items-center gap-6">
-        <div className="flex shrink-0 flex-col items-center">
-          <Ring score={game.score} />
-          {game.rulesSet ? (
-            <span className="mt-2 inline-flex items-center text-[11px] text-subtle">
-              % of clean trading days
-              <InfoTip text="Your discipline score is the share of your last 30 trading days with zero breaches of the rules you set — process, independent of P&L." />
-            </span>
-          ) : (
-            <a
-              href="/journal#rules"
-              className="mt-2.5 rounded-full border border-line-strong px-3 py-1 text-[12px] font-semibold text-ink"
-            >
-              Set rules to track discipline →
-            </a>
+      {/* Headline: net P&L this month + risk snapshot */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-subtle">
+            Net P&amp;L · this month
+          </p>
+          <p
+            className={`mt-1 font-display text-4xl font-extrabold leading-none ${
+              up ? "text-emerald-600" : "text-red-600"
+            }`}
+          >
+            {signedMoney(net, currency)}
+          </p>
+          <p className="mt-1.5 text-[13px] text-subtle">
+            {monthCount} trade{monthCount === 1 ? "" : "s"}
+            {analytics.winRate != null ? ` · ${pct(analytics.winRate)} win rate` : ""}
+            {analytics.expectancy != null ? ` · ${signedMoney(analytics.expectancy, currency)}/trade` : ""}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[11px] text-faint">Max drawdown</p>
+          <p className="font-display text-base font-bold text-ink">
+            {money(-analytics.maxDrawdown, currency)}
+          </p>
+          {analytics.maxDrawdownPct != null && (
+            <p className="text-[12px] font-medium text-red-600">
+              {pct(analytics.maxDrawdownPct)} peak-to-trough
+            </p>
           )}
         </div>
+      </div>
 
-        <div className="grid flex-1 grid-cols-2 gap-2.5 sm:grid-cols-3">
-          <div className={`rounded-2xl border p-3 ${s.cls}`}>
-            <p className="text-[11px] font-bold uppercase tracking-wider">
-              Survival
-              <InfoTip text="How close you are to your max-drawdown limit, in losing trades of runway. Uses your goal's max drawdown, or a 15% default if unset." />
-            </p>
-            <p className="mt-1 font-display text-lg font-extrabold">{s.label}</p>
-            <p className="text-[11px] opacity-80">{health.runwaySentence}</p>
-          </div>
-          <Vital
-            label="Win rate"
-            value={pct(analytics.winRate)}
-            sub={analytics.profitFactor == null ? undefined : `PF ${analytics.profitFactor.toFixed(2)}`}
-            info="Share of your closed trades that finished in profit, across all synced history."
-          />
-          <Vital
-            label="This month"
-            value={signedMoney(monthNet, currency)}
-            sub={`${monthCount} trades`}
-            tone={monthNet > 0 ? "up" : undefined}
-            info="Net realised P&L from trades closed since the 1st of the current calendar month."
-          />
+      {/* The signature: cumulative equity curve */}
+      <div className="mt-3">
+        <EquityCurveChart points={analytics.equityCurve} />
+      </div>
+
+      {/* Supporting vitals */}
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className={`rounded-2xl border p-3 ${s.cls}`}>
+          <p className="text-[11px] font-bold uppercase tracking-wider">
+            Survival
+            <InfoTip text="How close you are to your max-drawdown limit, in losing trades of runway. Uses your goal's max drawdown, or a 15% default if unset." />
+          </p>
+          <p className="mt-1 font-display text-lg font-extrabold">{s.label}</p>
+          <p className="text-[11px] opacity-80">{health.runwaySentence}</p>
         </div>
+        <Vital
+          label="Win rate"
+          value={pct(analytics.winRate)}
+          sub={analytics.profitFactor == null ? undefined : `PF ${analytics.profitFactor.toFixed(2)}`}
+          info="Share of your closed trades that finished in profit, across all synced history."
+        />
+        <Vital
+          label="Profit factor"
+          value={analytics.profitFactor == null ? "—" : analytics.profitFactor.toFixed(2)}
+          info="Gross profit ÷ gross loss. Above 1.0 means your winners outweigh your losers."
+        />
+        <Vital
+          label="Discipline"
+          value={game.score == null ? "—" : `${game.score}%`}
+          sub={game.rulesSet ? "clean days" : "set rules →"}
+          info="Share of your last 30 trading days with zero rule breaches — process, independent of P&L."
+        />
       </div>
     </section>
   );
