@@ -309,23 +309,29 @@ export async function loadReportContext(
   db: SupabaseClient,
   userId: string
 ): Promise<ReportContext | null> {
+  // Scope to CONNECTED accounts only — otherwise the coach analyses a
+  // disconnected account's trades (the "265% drawdown on the old account" bug).
+  // Mirrors the scoping in app/journal/page.tsx. Trades are keyed by account, so
+  // the sentinel id keeps the query well-typed and empty when nothing's connected.
   const { data: accounts } = await db
     .from("journal_accounts")
     .select("id")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .neq("state", "disconnected");
   const accountIds = (accounts ?? []).map((a) => a.id as string);
+  const scopeIds = accountIds.length
+    ? accountIds
+    : ["00000000-0000-0000-0000-000000000000"];
 
   const [{ data: trades }, { data: cashFlows }, { data: goals }, { data: rulesRow }] =
     await Promise.all([
       db
         .from("journal_trades")
         .select()
-        .eq("user_id", userId)
+        .in("account_id", scopeIds)
         .order("close_time", { ascending: false, nullsFirst: true })
         .limit(TRADES_CAP),
-      accountIds.length
-        ? db.from("journal_cash_flows").select().in("account_id", accountIds)
-        : Promise.resolve({ data: [] as JournalCashFlowRow[] }),
+      db.from("journal_cash_flows").select().in("account_id", scopeIds),
       db.from("journal_goals").select().eq("user_id", userId).maybeSingle(),
       db.from("journal_rules").select().eq("user_id", userId).maybeSingle(),
     ]);
