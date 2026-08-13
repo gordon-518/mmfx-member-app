@@ -57,4 +57,36 @@ describe("accountHealth", () => {
     const h = accountHealth([], a, { max_drawdown_pct: 10 } as never, 0);
     expect(h.runwayTrades).toBeNull();
   });
+
+  it("no balance basis → no fabricated drawdown % (credit/demo inflation bug)", () => {
+    const a = analytics({
+      startingBalance: null,
+      endingBalance: null,
+      equityCurve: [
+        { time: "t1", value: 1000 }, // +1000 profit peak
+        { time: "t2", value: 100 }, // dropped to +100
+      ],
+      avgLoss: -50,
+    });
+    const h = accountHealth([], a, { max_drawdown_pct: 10 } as never, 0);
+    expect(h.hasEquityBasis).toBe(false);
+    expect(h.currentDrawdownPct).toBe(0); // old bug measured 900/1000 = 90%
+    expect(h.status).toBe("healthy");
+    expect(h.runwayTrades).toBeNull();
+  });
+
+  it("with a balance basis, a small dip is a small drawdown %", () => {
+    const a = analytics({
+      startingBalance: 250000,
+      equityCurve: [
+        { time: "t1", value: 18000 },
+        { time: "t2", value: 12000 },
+      ],
+      avgLoss: -500,
+    });
+    const h = accountHealth([], a, { max_drawdown_pct: 10 } as never, 0);
+    expect(h.hasEquityBasis).toBe(true);
+    expect(h.currentDrawdownPct).toBeLessThan(3); // 6000 / 268000 ≈ 2.2%
+    expect(h.status).toBe("healthy");
+  });
 });

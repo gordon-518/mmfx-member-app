@@ -60,7 +60,9 @@ export function JournalHero({
   monthCount: number;
   currency: string | null;
 }) {
-  const s = SURVIVAL[health.status];
+  const s = health.hasEquityBasis
+    ? SURVIVAL[health.status]
+    : { label: "—", cls: "border-line bg-paper/60 text-subtle" };
   const net = useCountUp(monthNet);
   const up = monthNet >= 0;
 

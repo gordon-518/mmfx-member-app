@@ -163,7 +163,8 @@ function maxConcurrent(trades: JournalTradeRow[]): number {
 
 export function computeAnalytics(
   allTrades: JournalTradeRow[],
-  cashFlows: JournalCashFlowRow[]
+  cashFlows: JournalCashFlowRow[],
+  opts: { currentBalance?: number | null } = {}
 ): JournalAnalytics {
   const closed = allTrades
     .filter((t) => t.status === "closed")
@@ -224,7 +225,7 @@ export function computeAnalytics(
   const firstTradeAt = closed[0]?.open_time
     ? new Date(closed[0].open_time).getTime()
     : null;
-  const startingBalance =
+  const cashFlowStart =
     cashFlows.length === 0
       ? null
       : round2(
@@ -236,6 +237,15 @@ export function computeAnalytics(
             )
             .reduce((s, c) => s + c.amount, 0)
         );
+  // Fallback for accounts with no BALANCE cash flows (credit / demo / prop):
+  // derive the starting balance from the account's current balance minus the
+  // realised P&L already baked into it. Guarded positive so heavy withdrawals
+  // can't yield a nonsensical base (which would inflate the drawdown %).
+  const derivedStart =
+    opts.currentBalance != null && opts.currentBalance - netProfit > 0
+      ? round2(opts.currentBalance - netProfit)
+      : null;
+  const startingBalance = cashFlowStart ?? derivedStart;
   const totalDeposits = cashFlows.length
     ? round2(cashFlows.reduce((s, c) => s + c.amount, 0))
     : null;

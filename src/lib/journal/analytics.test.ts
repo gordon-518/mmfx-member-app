@@ -37,6 +37,33 @@ function trade(
 
 const T = (h: number) => `2026-07-01T${String(h).padStart(2, "0")}:00:00.000Z`;
 
+describe("computeAnalytics starting-balance fallback", () => {
+  it("derives startingBalance from currentBalance when there are no cash flows", () => {
+    const trades = [
+      trade({ net_profit: -600, open_time: T(1), close_time: T(2) }),
+      trade({ net_profit: -400, open_time: T(3), close_time: T(4) }),
+    ];
+    const a = computeAnalytics(trades, [], { currentBalance: 250000 });
+    expect(a.startingBalance).toBe(251000); // 250000 − (−1000)
+    expect(a.maxDrawdownPct).not.toBeNull();
+    expect(a.maxDrawdownPct! < 0.01).toBe(true); // small % of real equity, not inflated
+  });
+
+  it("no balance and no cash flows → startingBalance null (no fabricated %)", () => {
+    const trades = [trade({ net_profit: -600, open_time: T(1), close_time: T(2) })];
+    const a = computeAnalytics(trades, []);
+    expect(a.startingBalance).toBeNull();
+    expect(a.maxDrawdownPct).toBeNull();
+  });
+
+  it("ignores a currentBalance that would make the base non-positive", () => {
+    // netProfit +5000 but current balance only 3000 (profits withdrawn) → base ≤ 0
+    const trades = [trade({ net_profit: 5000, open_time: T(1), close_time: T(2) })];
+    const a = computeAnalytics(trades, [], { currentBalance: 3000 });
+    expect(a.startingBalance).toBeNull();
+  });
+});
+
 describe("sessionOf", () => {
   it("buckets UTC hours into forex sessions", () => {
     expect(sessionOf(3)).toBe("Asian");

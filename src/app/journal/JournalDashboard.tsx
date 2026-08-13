@@ -856,10 +856,12 @@ function PerformanceSection({
   trades,
   cashFlows,
   currency,
+  accountBalance,
 }: {
   trades: JournalTradeRow[];
   cashFlows: JournalCashFlowRow[];
   currency: string | null;
+  accountBalance: number | null;
 }) {
   const [range, setRange] = useState<RangeKey>("30d");
   const [from, setFrom] = useState("");
@@ -887,7 +889,10 @@ function PerformanceSection({
     [closed, fromDate, toDate]
   );
 
-  const a = useMemo(() => computeAnalytics(filtered, cashFlows), [filtered, cashFlows]);
+  const a = useMemo(
+    () => computeAnalytics(filtered, cashFlows, { currentBalance: accountBalance }),
+    [filtered, cashFlows, accountBalance]
+  );
 
   // Analytics for the immediately-preceding equal-length window, for ▲/▼ deltas.
   // Only meaningful for the fixed-length presets (not all / ytd / custom).
@@ -902,8 +907,8 @@ function PerformanceSection({
       return d >= prevStart && d < curStart;
     });
     if (priorTrades.length === 0) return null;
-    return computeAnalytics(priorTrades, cashFlows);
-  }, [range, closed, cashFlows]);
+    return computeAnalytics(priorTrades, cashFlows, { currentBalance: accountBalance });
+  }, [range, closed, cashFlows, accountBalance]);
 
   const pill = (active: boolean) =>
     `cursor-pointer rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-colors ${
@@ -1142,6 +1147,7 @@ export function JournalDashboard({
   reportsRemaining,
   reportCap,
   currency,
+  accountBalance,
 }: {
   accounts: JournalAccountRow[];
   trades: JournalTradeRow[];
@@ -1161,6 +1167,7 @@ export function JournalDashboard({
   reportsRemaining: number;
   reportCap: number;
   currency: string | null;
+  accountBalance: number | null;
 }) {
   const closed = trades.filter((t) => t.status === "closed");
   const open = trades.filter((t) => t.status === "open");
@@ -1230,7 +1237,12 @@ export function JournalDashboard({
                 />
               )}
 
-              <PerformanceSection trades={trades} cashFlows={cashFlows} currency={currency} />
+              <PerformanceSection
+                trades={trades}
+                cashFlows={cashFlows}
+                currency={currency}
+                accountBalance={accountBalance}
+              />
 
               {closed.length > 0 && (
                 <RulesCard rules={rules} config={rulesConfig} trades={trades} />

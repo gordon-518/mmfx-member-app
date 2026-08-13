@@ -98,7 +98,11 @@ export default async function JournalPage() {
 
   const allTrades = (trades ?? []) as JournalTradeRow[];
   const cf = (cashFlows ?? []) as JournalCashFlowRow[];
-  const analytics = computeAnalytics(allTrades, cf);
+  // Total balance across connected accounts — the fallback basis for drawdown %
+  // when there are no BALANCE cash flows (credit/demo/prop accounts).
+  const accountBalance =
+    (accounts ?? []).reduce((s, acc) => s + (acc.balance ?? 0), 0) || null;
+  const analytics = computeAnalytics(allTrades, cf, { currentBalance: accountBalance });
 
   // Survival Engine (Layer 1): leaks over the last 90d, health over full history.
   const ninetyAgo = new Date(Date.now() - 90 * 86_400_000).toISOString();
@@ -108,7 +112,7 @@ export default async function JournalPage() {
   const leaks = detectLeaks(
     trades90,
     (goals ?? null) as JournalGoalsRow | null,
-    computeAnalytics(trades90, cf)
+    computeAnalytics(trades90, cf, { currentBalance: accountBalance })
   );
   const health = accountHealth(
     allTrades,
@@ -196,6 +200,7 @@ export default async function JournalPage() {
         reportsRemaining={reportsRemaining}
         reportCap={DAILY_REPORT_CAP}
         currency={(accounts ?? [])[0]?.currency ?? null}
+        accountBalance={accountBalance}
       />
     </AppShell>
   );

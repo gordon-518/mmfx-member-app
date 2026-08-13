@@ -315,13 +315,16 @@ export async function loadReportContext(
   // the sentinel id keeps the query well-typed and empty when nothing's connected.
   const { data: accounts } = await db
     .from("journal_accounts")
-    .select("id")
+    .select("id, balance")
     .eq("user_id", userId)
     .neq("state", "disconnected");
   const accountIds = (accounts ?? []).map((a) => a.id as string);
   const scopeIds = accountIds.length
     ? accountIds
     : ["00000000-0000-0000-0000-000000000000"];
+  // Fallback drawdown-% basis when there are no BALANCE cash flows.
+  const accountBalance =
+    (accounts ?? []).reduce((s, a) => s + ((a.balance as number | null) ?? 0), 0) || null;
 
   const [{ data: trades }, { data: cashFlows }, { data: goals }, { data: rulesRow }] =
     await Promise.all([
@@ -341,13 +344,13 @@ export async function loadReportContext(
 
   const cf = (cashFlows ?? []) as JournalCashFlowRow[];
   const g = (goals ?? null) as JournalGoalsRow | null;
-  const analytics = computeAnalytics(allTrades, cf);
+  const analytics = computeAnalytics(allTrades, cf, { currentBalance: accountBalance });
 
   const ninetyAgo = new Date(Date.now() - 90 * 86_400_000).toISOString();
   const trades90 = allTrades.filter(
     (t) => t.status === "closed" && t.close_time && t.close_time >= ninetyAgo
   );
-  const leaks = detectLeaks(trades90, g, computeAnalytics(trades90, cf));
+  const leaks = detectLeaks(trades90, g, computeAnalytics(trades90, cf, { currentBalance: accountBalance }));
   const health = accountHealth(allTrades, analytics, g, leaks.leaks.length);
 
   const thirtyAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
