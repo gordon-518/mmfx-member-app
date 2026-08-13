@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MMFX Journal — Redesign Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --orange:#ff5a1f; --accent-soft:#ffece2; --accent-ink:#c2410c;
+    --paper:#fbfaf8; --card:#ffffff; --ink:#1a1714; --subtle:#79716a; --faint:#a8a09a;
+    --line:#ece7e0; --line-strong:#ddd6cd;
+    --up:#12915f; --up-soft:#e7f4ee; --down:#d1493b; --down-soft:#fbeae7;
+    --display:'Bricolage Grotesque',system-ui,sans-serif;
+    --sans:'Hanken Grotesk',system-ui,sans-serif;
+    --soft:0 1px 2px rgba(26,23,20,.04),0 2px 10px rgba(26,23,20,.045);
+    --soft-lg:0 6px 24px rgba(26,23,20,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased;padding:28px 20px 60px}
+  .wrap{max-width:1120px;margin:0 auto}
+  .disp{font-family:var(--display);font-weight:800;letter-spacing:-.02em}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--subtle)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--soft)}
+  .muted{color:var(--subtle)} .faint{color:var(--faint)}
+  .up{color:var(--up)} .down{color:var(--down)}
+  .badge{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:999px;background:var(--orange);color:#fff;font-size:11px;font-weight:800;font-family:var(--display);margin-left:7px;box-shadow:0 1px 3px rgba(255,90,31,.4)}
+  .delta{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;padding:2px 7px;border-radius:999px}
+  .delta.pos{color:var(--up);background:var(--up-soft)} .delta.neg{color:var(--down);background:var(--down-soft)}
+  .pill{cursor:pointer;border:1px solid var(--line-strong);background:var(--card);color:var(--ink);font-family:var(--sans);font-size:13px;font-weight:600;padding:7px 13px;border-radius:999px;transition:all .18s}
+  .pill:hover{border-color:var(--orange);color:var(--accent-ink)}
+  .pill.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  svg{display:block}
+  .grid-main{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:980px){.grid-main{grid-template-columns:1.9fr 1fr;align-items:start}}
+  .rail{display:flex;flex-direction:column;gap:16px}
+  @media(min-width:980px){.rail{position:sticky;top:20px}}
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(min-width:640px){.kpi-grid{grid-template-columns:repeat(4,1fr)}}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 15px;transition:all .18s;cursor:default}
+  .kpi:hover{border-color:var(--line-strong);box-shadow:var(--soft)}
+  .kpi .lab{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--subtle);display:flex;align-items:center;gap:4px}
+  .kpi .val{font-family:var(--display);font-weight:800;font-size:21px;margin-top:5px;letter-spacing:-.02em}
+  .kpi .sub{font-size:11px;color:var(--faint);margin-top:1px}
+  .barrow{display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:10px;transition:background .18s;cursor:default}
+  .barrow:hover{background:#faf7f2}
+  .bartrack{flex:1;height:22px;border-radius:6px;background:#f4f0ea;overflow:hidden;position:relative}
+  .barfill{height:100%;border-radius:6px}
+  .info{display:inline-flex;width:13px;height:13px;border-radius:999px;border:1px solid var(--line-strong);color:var(--faint);align-items:center;justify-content:center;cursor:help}
+  .chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px}
+  .legend{margin-top:26px;border-top:1px dashed var(--line-strong);padding-top:16px;font-size:12.5px;color:var(--subtle);display:grid;gap:6px;grid-template-columns:1fr;}
+  @media(min-width:720px){.legend{grid-template-columns:1fr 1fr}}
+  .legend b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ HEADER + FILTERS ============ -->
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:16px">
+    <div>
+      <p class="eyebrow" style="color:var(--orange)">Trading Journal</p>
+      <h1 class="disp" style="font-size:30px;margin-top:3px">Good evening, Gordon</h1>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="pill" style="display:flex;align-items:center;gap:7px">
+        <span style="width:7px;height:7px;border-radius:999px;background:var(--up)"></span>MM Real
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <span style="width:1px;height:22px;background:var(--line-strong)"></span>
+      <button class="pill">7D</button>
+      <button class="pill on">30D</button>
+      <button class="pill">90D</button>
+      <button class="pill">YTD</button>
+      <button class="pill">All</button>
+    </div>
+  </div>
+
+  <!-- ============ ① ACCOUNT + SYNC STRIP ============ -->
+  <div class="card" style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:13px 18px;margin-bottom:16px">
+    <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--up);background:var(--up-soft);padding:4px 10px;border-radius:999px">
+      <svg class="ico" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M20 6L9 17l-5-5"/></svg>Connected
+    </span>
+    <div style="display:flex;align-items:baseline;gap:9px">
+      <strong class="disp" style="font-size:16px">MM Real<span class="badge">1</span></strong>
+      <span class="muted" style="font-size:13px">900009797 · DupoinMarkets-Real</span>
+    </div>
+    <span class="faint" style="font-size:12.5px;display:inline-flex;align-items:center;gap:5px">
+      <svg class="ico" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M21 12a9 9 0 11-2.6-6.4M21 3v6h-6"/></svg>Synced 2h ago
+    </span>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:18px">
+      <div style="text-align:right"><div class="faint" style="font-size:10.5px;letter-spacing:.05em;text-transform:uppercase">Balance</div><div class="disp" style="font-size:16px">$254,079</div></div>
+      <div style="text-align:right"><div class="faint" style="font-size:10.5px;letter-spacing:.05em;text-transform:uppercase">Equity</div><div class="disp" style="font-size:16px">$256,430</div></div>
+      <button class="pill" style="padding:7px 10px" aria-label="Account menu"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></button>
+    </div>
+  </div>
+
+  <div class="grid-main">
+    <!-- ============ MAIN COLUMN ============ -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- ② EQUITY-CURVE HERO -->
+      <div class="card" style="padding:20px 22px;overflow:hidden">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div>
+            <p class="eyebrow">Net P&amp;L · this month<span class="badge">2</span></p>
+            <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px">
+              <span class="disp up" style="font-size:40px;line-height:1">+$18,420</span>
+              <span class="delta pos"><svg class="ico" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M7 17L17 7M9 7h8v8"/></svg>12.4% vs last month</span>
+            </div>
+            <p class="muted" style="font-size:13px;margin-top:5px">142 trades · 61.5% win rate · avg +$142/trade</p>
+          </div>
+          <div style="text-align:right">
+            <div class="faint" style="font-size:11px">Peak equity</div>
+            <div class="disp" style="font-size:16px">$261,900</div>
+            <div class="down" style="font-size:12px;font-weight:600;margin-top:2px">−$6,240 max drawdown</div>
+          </div>
+        </div>
+        <!-- area equity curve -->
+        <svg viewBox="0 0 620 190" style="width:100%;height:auto;margin-top:14px" role="img" aria-label="Equity curve trending up with a mid-month drawdown">
+          <defs>
+            <linearGradient id="eq" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#ff5a1f" stop-opacity=".22"/><stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="47" x2="620" y2="47" stroke="var(--line)" stroke-dasharray="3 5"/>
+          <line x1="0" y1="95" x2="620" y2="95" stroke="var(--line)" stroke-dasharray="3 5"/>
+          <line x1="0" y1="143" x2="620" y2="143" stroke="var(--line)" stroke-dasharray="3 5"/>
+          <path d="M0,150 C50,140 80,120 120,124 C170,129 190,150 240,146 C290,142 300,150 340,150 C380,150 410,96 450,86 C490,76 520,104 560,58 C590,30 600,36 620,24 L620,190 L0,190 Z" fill="url(#eq)"/>
+          <path d="M0,150 C50,140 80,120 120,124 C170,129 190,150 240,146 C290,142 300,150 340,150 C380,150 410,96 450,86 C490,76 520,104 560,58 C590,30 600,36 620,24" fill="none" stroke="var(--orange)" stroke-width="2.5"/>
+          <circle cx="620" cy="24" r="4.5" fill="var(--orange)" stroke="#fff" stroke-width="2"/>
+          <circle cx="340" cy="150" r="3.5" fill="var(--down)"/>
+        </svg>
+        <div class="faint" style="display:flex;justify-content:space-between;font-size:11px;margin-top:2px"><span>Aug 1</span><span>Aug 12 · today</span></div>
+      </div>
+
+      <!-- ③ HEADLINE KPIs + GROUPS -->
+      <div>
+        <p class="eyebrow" style="margin:2px 2px 9px">Headline<span class="badge">3</span></p>
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+          <div class="kpi" style="padding:16px 17px"><div class="lab">Net P&amp;L</div><div class="val up">+$18,420</div><div class="sub"><span class="up" style="font-weight:700">▲ 12.4%</span> vs last</div></div>
+          <div class="kpi" style="padding:16px 17px"><div class="lab">Win rate</div><div class="val">61.5%</div><div class="sub"><span class="up" style="font-weight:700">▲ 3.2 pts</span> vs last</div></div>
+          <div class="kpi" style="padding:16px 17px"><div class="lab">Profit factor</div><div class="val">1.84</div><div class="sub"><span class="up" style="font-weight:700">▲ 0.21</span> vs last</div></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:14px">
+        <div>
+          <p class="eyebrow" style="margin:0 2px 8px">Risk</p>
+          <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="kpi"><div class="lab">Max drawdown <span class="info">i</span></div><div class="val down">−$6,240</div><div class="sub">8.1% peak-to-trough</div></div>
+            <div class="kpi"><div class="lab">Expectancy</div><div class="val">+$142</div><div class="sub"><span class="up" style="font-weight:700">▲ $18</span> · per trade</div></div>
+            <div class="kpi"><div class="lab">Payoff (R:R)</div><div class="val">1.6</div><div class="sub"><span class="down" style="font-weight:700">▼ 0.1</span> avg win÷loss</div></div>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow" style="margin:0 2px 8px">Behaviour</p>
+          <div class="kpi-grid">
+            <div class="kpi"><div class="lab">Streaks</div><div class="val">7W · 3L</div><div class="sub">current 4W</div></div>
+            <div class="kpi"><div class="lab">Avg hold</div><div class="val">2.3h</div><div class="sub"><span class="down" style="font-weight:700">▼ 0.4h</span></div></div>
+            <div class="kpi"><div class="lab">Max exposure</div><div class="val">3 open</div><div class="sub">concurrent</div></div>
+            <div class="kpi"><div class="lab">Avg size</div><div class="val">0.8 lots</div><div class="sub"><span class="up" style="font-weight:700">▲ 0.1</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑥ BY-SYMBOL SORTED BARS -->
+      <div class="card" style="padding:18px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <h3 class="disp" style="font-size:16px">Where you make money<span class="badge">6</span></h3>
+          <div style="display:flex;gap:6px"><button class="pill on" style="padding:5px 11px;font-size:12px">Symbol</button><button class="pill" style="padding:5px 11px;font-size:12px">Session</button><button class="pill" style="padding:5px 11px;font-size:12px">Weekday</button></div>
+        </div>
+        <div class="barrow"><span class="disp" style="width:74px;font-size:13px">XAUUSD</span><div class="bartrack"><div class="barfill" style="width:100%;background:var(--up)"></div></div><span class="disp up" style="width:78px;text-align:right;font-size:14px">+$12,300</span></div>
+        <div class="barrow"><span class="disp" style="width:74px;font-size:13px">EURUSD</span><div class="bartrack"><div class="barfill" style="width:33%;background:var(--up)"></div></div><span class="disp up" style="width:78px;text-align:right;font-size:14px">+$4,100</span></div>
+        <div class="barrow"><span class="disp" style="width:74px;font-size:13px">USDJPY</span><div class="bartrack"><div class="barfill" style="width:26%;background:var(--up)"></div></div><span class="disp up" style="width:78px;text-align:right;font-size:14px">+$3,220</span></div>
+        <div class="barrow"><span class="disp" style="width:74px;font-size:13px">GBPUSD</span><div class="bartrack"><div class="barfill" style="width:10%;background:var(--down)"></div></div><span class="disp down" style="width:78px;text-align:right;font-size:14px">−$1,200</span></div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT RAIL ============ -->
+    <div class="rail">
+
+      <!-- ④ TRADER RADAR -->
+      <div class="card" style="padding:18px 20px">
+        <h3 class="disp" style="font-size:16px">Your trading profile<span class="badge">4</span></h3>
+        <p class="muted" style="font-size:12px;margin-top:2px">Five dimensions, one glance</p>
+        <svg viewBox="0 0 200 200" style="width:100%;max-width:230px;margin:6px auto 0" role="img" aria-label="Radar of five trading dimensions">
+          <polygon points="100,20 176,75 147,165 53,165 24,75" fill="none" stroke="var(--line)"/>
+          <polygon points="100,49 154,89 138,151 62,151 46,89" fill="none" stroke="var(--line)"/>
+          <polygon points="100,50.4 156.3,81.7 138.6,153.1 71.8,138.8 46.7,82.7" fill="rgba(255,90,31,.16)" stroke="var(--orange)" stroke-width="2"/>
+          <g fill="var(--orange)"><circle cx="100" cy="50.4" r="3"/><circle cx="156.3" cy="81.7" r="3"/><circle cx="138.6" cy="153.1" r="3"/><circle cx="71.8" cy="138.8" r="3"/><circle cx="46.7" cy="82.7" r="3"/></g>
+          <g font-size="9.5" font-weight="700" fill="var(--subtle)" font-family="var(--sans)">
+            <text x="100" y="13" text-anchor="middle">Win rate</text>
+            <text x="182" y="76" text-anchor="start">Profit</text>
+            <text x="150" y="182" text-anchor="middle">Discipline</text>
+            <text x="50" y="182" text-anchor="middle">R:R</text>
+            <text x="18" y="76" text-anchor="end">Consist.</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- ⑤ AI COACH -->
+      <div class="card" style="padding:18px 20px;border-color:var(--accent-soft);background:linear-gradient(180deg,#fffaf7,#ffffff)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:9px">
+            <span style="width:30px;height:30px;border-radius:999px;background:var(--ink);color:#fff;display:inline-flex;align-items:center;justify-content:center" class="disp">D</span>
+            <div><div class="disp" style="font-size:15px">Don’s read<span class="badge">5</span></div><div class="faint" style="font-size:11px">AI coach · today</div></div>
+          </div>
+          <span class="chip" style="background:var(--up-soft);color:var(--up)">On track</span>
+        </div>
+        <p style="font-size:13.5px;margin-top:12px;color:var(--ink)">Strong month — gold is carrying you and your win rate’s up. But your drawdown came from <b>revenge sizing</b> after the Aug&nbsp;7 loss. Cut size back to plan on the trade right after a loser.</p>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;gap:8px;font-size:12.5px"><svg class="ico up" viewBox="0 0 24 24" style="flex:none;margin-top:2px"><path d="M20 6L9 17l-5-5"/></svg><span>Kept your London-session discipline — 82% clean days.</span></div>
+          <div style="display:flex;gap:8px;font-size:12.5px"><svg class="ico down" viewBox="0 0 24 24" style="flex:none;margin-top:2px"><path d="M18 6L6 18M6 6l12 12"/></svg><span>Over-traded EUR/GBP outside your instruments twice.</span></div>
+        </div>
+        <button class="pill" style="margin-top:13px;width:100%;background:var(--orange);border-color:var(--orange);color:#fff">Regenerate · 4 of 5 left today</button>
+      </div>
+
+      <!-- LEAKS -->
+      <div class="card" style="padding:18px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><h3 class="disp" style="font-size:16px">Leaks to beat</h3><span class="muted" style="font-size:12px">recover <b class="up">+$2,140</b></span></div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:12px;padding:10px 12px">
+            <span style="width:34px;height:34px;flex:none;border-radius:10px;background:var(--down-soft);color:var(--down);display:inline-flex;align-items:center;justify-content:center"><svg class="ico" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z"/><path d="M12 9v5M12 18h.01"/></svg></span>
+            <div style="flex:1"><div class="disp" style="font-size:13.5px">Revenge sizing</div><div class="faint" style="font-size:11.5px">4 oversized trades after a loss</div></div>
+            <span class="disp down" style="font-size:15px">−$2,140</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:12px;padding:10px 12px">
+            <span style="width:34px;height:34px;flex:none;border-radius:10px;background:var(--up-soft);color:var(--up);display:inline-flex;align-items:center;justify-content:center"><svg class="ico" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>
+            <div style="flex:1"><div class="disp" style="font-size:13.5px">Sticking to gold</div><div class="faint" style="font-size:11.5px">your highest-edge instrument</div></div>
+            <span class="disp up" style="font-size:15px">+$12,300</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RULES / DISCIPLINE -->
+      <div class="card" style="padding:18px 20px">
+        <div style="display:flex;align-items:center;gap:14px">
+          <svg viewBox="0 0 90 90" style="width:74px;height:74px;flex:none" role="img" aria-label="Discipline 82 percent">
+            <circle cx="45" cy="45" r="34" fill="none" stroke="var(--line)" stroke-width="9"/>
+            <circle cx="45" cy="45" r="34" fill="none" stroke="var(--orange)" stroke-width="9" stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="38.4" transform="rotate(-90 45 45)"/>
+            <text x="45" y="43" text-anchor="middle" class="disp" font-size="22" fill="var(--ink)">82</text>
+            <text x="45" y="58" text-anchor="middle" font-size="8" font-weight="700" fill="var(--subtle)">CLEAN</text>
+          </svg>
+          <div style="flex:1">
+            <h3 class="disp" style="font-size:15px">Discipline</h3>
+            <p class="muted" style="font-size:12px;margin:2px 0 8px">% of last 30 trading days with zero rule breaches</p>
+            <div style="font-size:12px;display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;justify-content:space-between"><span>Max daily loss</span><span class="up" style="font-weight:700">28/30</span></div>
+              <div style="display:flex;justify-content:space-between"><span>London only</span><span class="up" style="font-weight:700">30/30</span></div>
+              <div style="display:flex;justify-content:space-between"><span>Max 5 trades/day</span><span class="down" style="font-weight:700">25/30</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ WHAT CHANGED LEGEND ============ -->
+  <div class="legend">
+    <div><span class="badge" style="margin:0 6px 0 0">1</span><b>Account + sync strip</b> pulled to the top — the anchor (which account, how fresh, balance) leads.</div>
+    <div><span class="badge" style="margin:0 6px 0 0">2</span><b>Equity-curve hero</b> — money is the emotional anchor; net P&amp;L + curve replace a bare gauge.</div>
+    <div><span class="badge" style="margin:0 6px 0 0">3</span><b>Grouped KPIs with deltas</b> — 3 headline + Risk/Behaviour clusters, each vs the previous period.</div>
+    <div><span class="badge" style="margin:0 6px 0 0">4</span><b>Trader radar</b> — five dimensions in one signature visual.</div>
+    <div><span class="badge" style="margin:0 6px 0 0">5</span><b>AI Coach as a premium feature</b> — “Don’s read”, status ribbon, ✓ keep / ✗ fix.</div>
+    <div><span class="badge" style="margin:0 6px 0 0">6</span><b>Breakdowns as sorted bars</b> — scannable, not a 4-column table. Two-column layout kills the scroll.</div>
+  </div>
+
+</div>
+</body>
+</html>

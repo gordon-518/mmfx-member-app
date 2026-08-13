@@ -1031,7 +1031,7 @@ export function JournalDashboard({
   const open = trades.filter((t) => t.status === "open");
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
+    <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-10">
       <InterventionBanner interventions={interventions} />
       <div className="mb-6 flex items-baseline justify-between gap-4">
         <div>
@@ -1052,21 +1052,6 @@ export function JournalDashboard({
         </p>
       </div>
 
-      {closed.length > 0 && (
-        <div className="space-y-4">
-          <JournalHero
-            game={game}
-            health={health}
-            analytics={analytics}
-            monthNet={monthNet}
-            monthCount={monthCount}
-            currency={currency}
-          />
-          <MissionCard interventions={interventions} game={game} />
-          <LeaksToBeat leaks={leaks} trades={trades} currency={currency} />
-        </div>
-      )}
-
       {accounts.length === 0 ? (
         <section className="rise mt-7 rounded-2xl border border-line bg-card p-8 text-center shadow-soft">
           <h2 className="font-display text-xl font-bold text-ink">
@@ -1085,53 +1070,77 @@ export function JournalDashboard({
           </Link>
         </section>
       ) : (
-        <div className="mt-7 space-y-6">
-          {accounts.map((acct) => (
-            <AccountCard key={acct.id} account={acct} />
-          ))}
+        <>
+          {/* Account anchor first — which account, how fresh, how much. */}
+          <div className="space-y-4">
+            {accounts.map((acct) => (
+              <AccountCard key={acct.id} account={acct} />
+            ))}
+          </div>
 
-          <CoachCard
-            report={report}
-            reportsRemaining={reportsRemaining}
-            reportCap={reportCap}
-            hasClosedTrades={closed.length > 0}
-          />
+          {/* Two-column: wide analytics main + a sticky rail of coaching cards. */}
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.9fr_1fr] lg:items-start">
+            <div className="min-w-0 space-y-6">
+              {closed.length > 0 && (
+                <JournalHero
+                  game={game}
+                  health={health}
+                  analytics={analytics}
+                  monthNet={monthNet}
+                  monthCount={monthCount}
+                  currency={currency}
+                />
+              )}
 
-          <PerformanceSection trades={trades} cashFlows={cashFlows} currency={currency} />
+              <PerformanceSection trades={trades} cashFlows={cashFlows} currency={currency} />
 
-          {closed.length > 0 && (
-            <RulesCard rules={rules} config={rulesConfig} trades={trades} />
-          )}
+              {closed.length > 0 && (
+                <RulesCard rules={rules} config={rulesConfig} trades={trades} />
+              )}
 
-          <GoalsCard goals={goals} />
+              {open.length > 0 && (
+                <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
+                  <p className="text-[12px] font-semibold uppercase tracking-wider text-subtle">
+                    Open positions ({open.length})
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {open.map((t) => (
+                      <span
+                        key={t.id}
+                        className="inline-flex items-center gap-2 rounded-full border border-line px-3 py-1 text-[13px] text-ink"
+                      >
+                        <span
+                          className={`font-semibold uppercase ${
+                            t.direction === "buy" ? "text-emerald-600" : "text-red-500"
+                          }`}
+                        >
+                          {t.direction}
+                        </span>
+                        {t.symbol} · {t.volume} lots
+                      </span>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
 
-          {open.length > 0 && (
-            <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
-              <p className="text-[12px] font-semibold uppercase tracking-wider text-subtle">
-                Open positions ({open.length})
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {open.map((t) => (
-                  <span
-                    key={t.id}
-                    className="inline-flex items-center gap-2 rounded-full border border-line px-3 py-1 text-[13px] text-ink"
-                  >
-                    <span
-                      className={`font-semibold uppercase ${
-                        t.direction === "buy"
-                          ? "text-emerald-600"
-                          : "text-red-500"
-                      }`}
-                    >
-                      {t.direction}
-                    </span>
-                    {t.symbol} · {t.volume} lots
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+            <div className="space-y-6 lg:sticky lg:top-6">
+              <CoachCard
+                report={report}
+                reportsRemaining={reportsRemaining}
+                reportCap={reportCap}
+                hasClosedTrades={closed.length > 0}
+              />
+              {closed.length > 0 && (
+                <LeaksToBeat leaks={leaks} trades={trades} currency={currency} />
+              )}
+              {closed.length > 0 && (
+                <MissionCard interventions={interventions} game={game} />
+              )}
+              <GoalsCard goals={goals} />
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
