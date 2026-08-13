@@ -9,13 +9,34 @@ import {
   IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon, LiveIcon, SignalsIcon, DeskIcon, LockIcon,
 } from "@/components/icons";
 
-// Geo-routed broker funnel (see memory mmfx-broker-funnel): MY/ID -> Octa/Elev8,
-// US/UK -> contact, rest of world + unknown -> Dupoin. The funnel itself lives
-// in <UpgradeFlow>; this page is the pitch + the visual lock manifest.
+// Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
+// a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
+// The funnel itself lives in <UpgradeFlow>; this page is the pitch + lock manifest.
+//
+// Dupoin countries: Canada, the EU/EEA member states, Iran, Israel, Japan,
+// Myanmar, New Zealand, North Korea, the Philippines, Singapore.
+const DUPOIN_COUNTRIES = new Set<string>([
+  "CA", // Canada
+  // EU member states
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+  "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
+  "SI", "ES", "SE",
+  // EEA (non-EU) member states
+  "IS", "LI", "NO",
+  "IR", // Iran
+  "IL", // Israel
+  "JP", // Japan
+  "MM", // Myanmar
+  "NZ", // New Zealand
+  "KP", // North Korea
+  "PH", // The Philippines
+  "SG", // Singapore
+]);
+
 function regionFor(country: string): Region {
-  if (country === "MY" || country === "ID") return "octa";
   if (country === "US" || country === "GB") return "contact";
-  return "dupoin";
+  if (DUPOIN_COUNTRIES.has(country)) return "dupoin";
+  return "octa";
 }
 
 // Copy here stays compliance-safe (no profit/return language; risk footer kept
