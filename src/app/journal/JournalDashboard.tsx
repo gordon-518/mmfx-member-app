@@ -106,78 +106,79 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
     account.state === "deployed" ? friendlySyncError(account.sync_error) : null;
 
   return (
-    <section className="rise rounded-2xl border border-line bg-card p-6 shadow-soft sm:p-7">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="font-display text-lg font-bold text-ink">
-              {account.label || `MT5 · ${account.mt5_login}`}
-            </h2>
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${chip.cls}`}
-            >
-              {chip.label}
-            </span>
-          </div>
-          <p className="mt-1 text-[13px] text-subtle">
+    <section className="rise rounded-2xl border border-line bg-card px-5 py-3.5 shadow-soft">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <span
+          className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${chip.cls}`}
+        >
+          {chip.label}
+        </span>
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h2 className="truncate font-display text-[15px] font-bold text-ink">
+            {account.label || `MT5 · ${account.mt5_login}`}
+          </h2>
+          <span className="hidden truncate text-[13px] text-subtle sm:inline">
             {account.mt5_login} · {account.broker_server}
-          </p>
-          {account.state === "failed" && failMsg && (
-            <p className="mt-2 text-[13px] text-red-600">
-              {failMsg.message}{" "}
-              <Link href="/journal/connect" className="font-semibold underline">
-                Retry
-              </Link>
-            </p>
-          )}
-          {syncMsg && (
-            <p className="mt-2 text-[13px] text-amber-700">
-              {syncMsg.message}
-              {syncMsg.canReconnect && (
-                <>
-                  {" "}
-                  <Link href="/journal/connect" className="font-semibold underline">
-                    Reconnect
-                  </Link>
-                </>
-              )}
-            </p>
-          )}
+          </span>
         </div>
-        <div className="text-right">
-          <p className="text-[12px] uppercase tracking-wider text-subtle">
-            Balance / Equity
-          </p>
-          <p className="mt-0.5 font-display text-xl font-bold text-ink">
-            {money(account.balance, account.currency)}
-          </p>
-          <p className="text-[13px] text-subtle">
-            {money(account.equity, account.currency)}
-          </p>
+        <span className="hidden text-[12px] text-faint md:inline">
+          Synced {account.last_synced_at ? fmtTime(account.last_synced_at) : "never"}
+        </span>
+
+        <div className="ml-auto flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-[10px] uppercase tracking-wide text-faint">Balance</p>
+            <p className="font-display text-[15px] font-bold text-ink">
+              {money(account.balance, account.currency)}
+            </p>
+          </div>
+          <div className="hidden text-right sm:block">
+            <p className="text-[10px] uppercase tracking-wide text-faint">Equity</p>
+            <p className="font-display text-[15px] font-bold text-ink">
+              {money(account.equity, account.currency)}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={syncNow}
+              disabled={busy !== null || account.state !== "deployed"}
+              className="cursor-pointer rounded-lg bg-orange px-3 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-[#f24e12] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {busy === "sync" ? "Queuing…" : "Sync"}
+            </button>
+            <button
+              onClick={disconnect}
+              disabled={busy !== null}
+              className="cursor-pointer rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12px] font-semibold text-ink transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-50"
+            >
+              {busy === "disconnect" ? "…" : "Disconnect"}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        <button
-          onClick={syncNow}
-          disabled={busy !== null || account.state !== "deployed"}
-          className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {busy === "sync" ? "Queuing…" : "Sync now"}
-        </button>
-        <button
-          onClick={disconnect}
-          disabled={busy !== null}
-          className="cursor-pointer rounded-xl border border-line-strong bg-card px-4 py-2 text-[13px] font-semibold text-ink transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-50"
-        >
-          {busy === "disconnect" ? "Disconnecting…" : "Disconnect"}
-        </button>
-        <span className="text-[12px] text-subtle">
-          Last synced:{" "}
-          {account.last_synced_at ? fmtTime(account.last_synced_at) : "never"}
-        </span>
-      </div>
-      {message && <p className="mt-3 text-[13px] text-subtle">{message}</p>}
+      {account.state === "failed" && failMsg && (
+        <p className="mt-2 text-[13px] text-red-600">
+          {failMsg.message}{" "}
+          <Link href="/journal/connect" className="font-semibold underline">
+            Retry
+          </Link>
+        </p>
+      )}
+      {syncMsg && (
+        <p className="mt-2 text-[13px] text-amber-700">
+          {syncMsg.message}
+          {syncMsg.canReconnect && (
+            <>
+              {" "}
+              <Link href="/journal/connect" className="font-semibold underline">
+                Reconnect
+              </Link>
+            </>
+          )}
+        </p>
+      )}
+      {message && <p className="mt-2 text-[13px] text-subtle">{message}</p>}
     </section>
   );
 }
@@ -1080,6 +1081,48 @@ function TraderRadar({ analytics, game }: { analytics: JournalAnalytics; game: G
   );
 }
 
+// Connected, but the first sync hasn't produced closed trades yet. A branded
+// "we're on it" state beats an empty dashboard.
+function FirstRunPanel({ connecting }: { connecting: boolean }) {
+  return (
+    <div className="mt-6 rounded-3xl border border-line bg-card p-8 text-center shadow-soft">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
+        <svg
+          className={`h-6 w-6 ${connecting ? "animate-spin" : ""}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M21 12a9 9 0 1 1-6.22-8.56" />
+        </svg>
+      </div>
+      <h2 className="mt-4 font-display text-xl font-bold text-ink">
+        {connecting ? "Pulling your trading history…" : "No closed trades yet"}
+      </h2>
+      <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-subtle">
+        {connecting
+          ? "We’re importing your trades from MetaTrader — this can take a few minutes. Your dashboard fills in automatically as they land."
+          : "As soon as you close a trade it appears here, and your performance, coach and leaks light up."}
+      </p>
+      <div className="mx-auto mt-6 grid max-w-md grid-cols-3 gap-3" aria-hidden>
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-16 animate-pulse rounded-xl bg-paper" />
+        ))}
+      </div>
+      <Link
+        href="/journal/connect?step=goals"
+        className="mt-6 inline-block text-[13px] font-semibold text-accent-ink hover:underline"
+      >
+        Set your goals while you wait →
+      </Link>
+    </div>
+  );
+}
+
 export function JournalDashboard({
   accounts,
   trades,
@@ -1170,7 +1213,10 @@ export function JournalDashboard({
             ))}
           </div>
 
-          {/* Two-column: wide analytics main + a sticky rail of coaching cards. */}
+          {/* First sync pending (no closed trades) → branded loading state. */}
+          {closed.length === 0 ? (
+            <FirstRunPanel connecting={accounts.some((acct) => acct.state === "connecting")} />
+          ) : (
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.9fr_1fr] lg:items-start">
             <div className="min-w-0 space-y-6">
               {closed.length > 0 && (
@@ -1233,6 +1279,7 @@ export function JournalDashboard({
               <GoalsCard goals={goals} />
             </div>
           </div>
+          )}
         </>
       )}
     </div>
