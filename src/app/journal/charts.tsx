@@ -136,7 +136,8 @@ export function RadarChart({ axes }: { axes: { label: string; value: number }[] 
   const dataPoly = axes.map((_, i) => pt(i, data[i]).join(",")).join(" ");
 
   return (
-    <svg viewBox="0 0 200 200" className="mx-auto w-full max-w-[240px]" role="img" aria-label="Trading profile across five dimensions">
+    // extra horizontal room in the viewBox so the side axis labels never clip
+    <svg viewBox="-28 0 256 200" className="mx-auto w-full max-w-[260px]" role="img" aria-label="Trading profile across five dimensions">
       {[0.25, 0.5, 0.75, 1].map((g) => (
         <polygon key={g} points={ring(g)} fill="none" className="stroke-line" strokeWidth="1" />
       ))}
@@ -150,7 +151,7 @@ export function RadarChart({ axes }: { axes: { label: string; value: number }[] 
         return <circle key={i} cx={x} cy={y} r="3" className="fill-orange" />;
       })}
       {axes.map((a, i) => {
-        const [x, y] = pt(i, 1.32);
+        const [x, y] = pt(i, 1.24);
         const anchor = x < cx - 4 ? "end" : x > cx + 4 ? "start" : "middle";
         return (
           <text key={i} x={x} y={y + 3} textAnchor={anchor} className="fill-subtle text-[9px] font-semibold">

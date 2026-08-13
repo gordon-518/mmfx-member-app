@@ -1068,7 +1068,7 @@ function TraderRadar({ analytics, game }: { analytics: JournalAnalytics; game: G
     { label: "Profit", value: Math.min(1, (analytics.profitFactor ?? 0) / 2.5) },
     { label: "R:R", value: Math.min(1, (analytics.payoffRatio ?? 0) / 3) },
     { label: "Discipline", value: (game.score ?? 0) / 100 },
-    { label: "Consistency", value: 1 - Math.min(1, analytics.maxDrawdownPct ?? 0) },
+    { label: "Consist.", value: 1 - Math.min(1, analytics.maxDrawdownPct ?? 0) },
   ];
   return (
     <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
