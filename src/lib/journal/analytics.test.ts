@@ -38,6 +38,25 @@ function trade(
 
 const T = (h: number) => `2026-07-01T${String(h).padStart(2, "0")}:00:00.000Z`;
 
+describe("win rate + profit factor edge cases", () => {
+  it("win rate excludes break-even trades from the denominator", () => {
+    const trades = [
+      trade({ net_profit: 100, open_time: T(1), close_time: T(2) }), // win
+      trade({ net_profit: -50, open_time: T(3), close_time: T(4) }), // loss
+      trade({ net_profit: 0, open_time: T(5), close_time: T(6) }), // scratch
+    ];
+    const a = computeAnalytics(trades, []);
+    expect(a.winRate).toBe(0.5); // 1 win / 2 decisive, not 1/3
+  });
+
+  it("all wins → profitFactor null but grossWin > 0 (label renders ∞)", () => {
+    const trades = [trade({ net_profit: 100, open_time: T(1), close_time: T(2) })];
+    const a = computeAnalytics(trades, []);
+    expect(a.profitFactor).toBeNull();
+    expect(a.grossWin).toBeGreaterThan(0);
+  });
+});
+
 describe("dayKey (SGT-offset calendar day)", () => {
   it("buckets a late-UTC trade into the trader's next local day", () => {
     expect(dayKey("2026-07-27T10:00:00.000Z")).toBe("2026-07-27"); // 18:00 SGT

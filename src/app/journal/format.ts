@@ -25,6 +25,17 @@ export function pct(frac: number | null | undefined): string {
   return frac == null ? "—" : `${(frac * 100).toFixed(1)}%`;
 }
 
+// Profit factor is null both when there are no trades AND when there are wins
+// but no losing trades (division by zero) — the latter is effectively infinite,
+// not "no data". Distinguish them for display.
+export function profitFactorLabel(a: {
+  profitFactor: number | null;
+  grossWin: number;
+}): string {
+  if (a.profitFactor != null) return a.profitFactor.toFixed(2);
+  return a.grossWin > 0 ? "∞" : "—";
+}
+
 export function fmtTime(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("en-GB", {

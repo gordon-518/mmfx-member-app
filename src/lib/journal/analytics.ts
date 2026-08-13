@@ -133,13 +133,14 @@ function groupBreakdown(
   trades: JournalTradeRow[],
   keyOf: (t: JournalTradeRow) => string
 ): Breakdown[] {
-  const map = new Map<string, { count: number; net: number; wins: number }>();
+  const map = new Map<string, { count: number; net: number; wins: number; losses: number }>();
   for (const t of trades) {
     const k = keyOf(t);
-    const g = map.get(k) ?? { count: 0, net: 0, wins: 0 };
+    const g = map.get(k) ?? { count: 0, net: 0, wins: 0, losses: 0 };
     g.count += 1;
     g.net += t.net_profit;
     if (t.net_profit > 0) g.wins += 1;
+    else if (t.net_profit < 0) g.losses += 1;
     map.set(k, g);
   }
   return [...map.entries()]
@@ -147,7 +148,8 @@ function groupBreakdown(
       key,
       count: g.count,
       netProfit: round2(g.net),
-      winRate: g.count > 0 ? g.wins / g.count : 0,
+      // decisive trades only — break-evens aren't wins or losses
+      winRate: g.wins + g.losses > 0 ? g.wins / (g.wins + g.losses) : 0,
     }))
     .sort((a, b) => b.netProfit - a.netProfit);
 }
@@ -197,7 +199,10 @@ export function computeAnalytics(
 
   const avgWin = wins.length ? grossWin / wins.length : null;
   const avgLoss = losses.length ? grossLoss / losses.length : null;
-  const winRate = closed.length ? wins.length / closed.length : null;
+  // Break-even (scratch) trades are neither a win nor a loss — counting them in
+  // the denominator dragged the win rate down. Rate over DECISIVE trades only.
+  const decisive = wins.length + losses.length;
+  const winRate = decisive ? wins.length / decisive : null;
 
   // Streaks over close-time order.
   let longestWin = 0;

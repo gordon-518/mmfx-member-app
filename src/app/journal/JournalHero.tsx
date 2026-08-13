@@ -1,7 +1,7 @@
 "use client";
 
 import { useCountUp } from "./useCountUp";
-import { signedMoney, money, pct } from "./format";
+import { signedMoney, money, pct, profitFactorLabel } from "./format";
 import { InfoTip } from "./InfoTip";
 import { EquityCurveChart } from "./charts";
 import type { GameState } from "@/lib/journal/gamification";
@@ -118,13 +118,17 @@ export function JournalHero({
         <Vital
           label="Win rate"
           value={pct(analytics.winRate)}
-          sub={analytics.profitFactor == null ? undefined : `PF ${analytics.profitFactor.toFixed(2)}`}
-          info="Share of your closed trades that finished in profit, across all synced history."
+          sub={
+            analytics.profitFactor != null || analytics.grossWin > 0
+              ? `PF ${profitFactorLabel(analytics)}`
+              : undefined
+          }
+          info="Share of your DECISIVE trades (wins ÷ wins+losses, excluding break-evens) that finished in profit."
         />
         <Vital
           label="Profit factor"
-          value={analytics.profitFactor == null ? "—" : analytics.profitFactor.toFixed(2)}
-          info="Gross profit ÷ gross loss. Above 1.0 means your winners outweigh your losers."
+          value={profitFactorLabel(analytics)}
+          info="Gross profit ÷ gross loss. Above 1.0 means your winners outweigh your losers; ∞ means no losing trades."
         />
         <Vital
           label="Discipline"

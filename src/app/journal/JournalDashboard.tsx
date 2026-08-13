@@ -16,7 +16,7 @@ import { MissionCard } from "./MissionCard";
 import { LeaksToBeat } from "./LeaksToBeat";
 import { RulesCard } from "./RulesCard";
 import { InfoTip } from "./InfoTip";
-import { money, pct, fmtTime, fmtDuration } from "./format";
+import { money, pct, fmtTime, fmtDuration, profitFactorLabel } from "./format";
 import {
   JOURNAL_EMOTIONS,
   type JournalAccountRow,
@@ -972,7 +972,7 @@ function PerformanceSection({
             />
             <Kpi
               label="Profit factor"
-              value={a.profitFactor == null ? "—" : a.profitFactor.toFixed(2)}
+              value={profitFactorLabel(a)}
               delta={kpiDelta(a.profitFactor, prior?.profitFactor ?? null, "num")}
               info="Gross profit ÷ gross loss. Above 1.0 means your winners outweigh your losers."
             />
@@ -1070,7 +1070,16 @@ function PerformanceSection({
 function TraderRadar({ analytics, game }: { analytics: JournalAnalytics; game: GameState }) {
   const axes = [
     { label: "Win rate", value: analytics.winRate ?? 0 },
-    { label: "Profit", value: Math.min(1, (analytics.profitFactor ?? 0) / 2.5) },
+    {
+      label: "Profit",
+      // all-wins (no losers) reads as a full-strength profit axis, not zero
+      value:
+        analytics.profitFactor == null
+          ? analytics.grossWin > 0
+            ? 1
+            : 0
+          : Math.min(1, analytics.profitFactor / 2.5),
+    },
     { label: "R:R", value: Math.min(1, (analytics.payoffRatio ?? 0) / 3) },
     { label: "Discipline", value: (game.score ?? 0) / 100 },
     { label: "Consist.", value: 1 - Math.min(1, analytics.maxDrawdownPct ?? 0) },

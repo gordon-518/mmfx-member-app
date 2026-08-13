@@ -109,10 +109,12 @@ export function detectLeaks(
         type: "revenge_sizing",
         title: "Sizing up after losses",
         dollarImpact: r2(excess),
-        tier: "excess",
+        // what-if, not a booked loss: it assumes loss scales linearly with size,
+        // so it shouldn't sit in the "real cash leaks" tier a member can dispute.
+        tier: "what_if",
         tradeCount: ids.length,
         tradeIds: ids,
-        detail: `Extra loss from trading bigger than your ${baseline}-lot baseline after a loss.`,
+        detail: `Estimated extra loss from trading bigger than your ${baseline}-lot baseline after a loss.`,
       });
   }
 
