@@ -257,34 +257,39 @@ function BreakdownCard({
       {sorted.length === 0 ? (
         <p className="text-[13px] text-subtle">No trades in this range.</p>
       ) : (
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {sorted.map((r) => {
             const pos = r.netProfit >= 0;
             return (
               <div
                 key={r.key}
-                title={`${r.count} trade${r.count === 1 ? "" : "s"} · ${pct(r.winRate)} win`}
-                className="flex items-center gap-2.5 rounded-lg px-1.5 py-1.5 transition-colors hover:bg-paper/70"
+                className="rounded-lg px-1.5 py-1.5 transition-colors hover:bg-paper/70"
               >
-                <span className="w-16 shrink-0 truncate font-display text-[13px] font-semibold text-ink">
-                  {r.key}
-                </span>
-                <div className="relative h-[18px] flex-1 overflow-hidden rounded-md bg-paper">
-                  <div
-                    className={`h-full rounded-md ${pos ? "bg-emerald-500/85" : "bg-red-400/85"}`}
-                    style={{ width: `${Math.max(4, (Math.abs(r.netProfit) / max) * 100)}%` }}
-                  />
+                {/* name + P&L on top — money can be any width without breaking */}
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate font-display text-[13px] font-semibold text-ink">
+                    {r.key}
+                  </span>
+                  <span
+                    className={`shrink-0 font-display text-[13px] font-bold tabular-nums ${
+                      r.netProfit > 0 ? "text-emerald-600" : r.netProfit < 0 ? "text-red-500" : "text-ink"
+                    }`}
+                  >
+                    {money(r.netProfit, currency)}
+                  </span>
                 </div>
-                <span
-                  className={`w-[86px] shrink-0 text-right font-display text-[13px] font-bold ${
-                    r.netProfit > 0 ? "text-emerald-600" : r.netProfit < 0 ? "text-red-500" : "text-ink"
-                  }`}
-                >
-                  {money(r.netProfit, currency)}
-                </span>
-                <span className="hidden w-10 shrink-0 text-right text-[11px] text-subtle sm:inline">
-                  {pct(r.winRate)}
-                </span>
+                {/* bar + win-rate below */}
+                <div className="mt-1 flex items-center gap-2">
+                  <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-paper">
+                    <div
+                      className={`h-full rounded-full ${pos ? "bg-emerald-500/85" : "bg-red-400/85"}`}
+                      style={{ width: `${Math.max(3, (Math.abs(r.netProfit) / max) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="shrink-0 text-[10.5px] tabular-nums text-faint">
+                    {pct(r.winRate)} win
+                  </span>
+                </div>
               </div>
             );
           })}
