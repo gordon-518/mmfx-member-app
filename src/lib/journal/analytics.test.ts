@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeAnalytics,
+  dayKey,
   histogram,
   sessionOf,
   weekdayOf,
@@ -37,6 +38,31 @@ function trade(
 
 const T = (h: number) => `2026-07-01T${String(h).padStart(2, "0")}:00:00.000Z`;
 
+describe("dayKey (SGT-offset calendar day)", () => {
+  it("buckets a late-UTC trade into the trader's next local day", () => {
+    expect(dayKey("2026-07-27T10:00:00.000Z")).toBe("2026-07-27"); // 18:00 SGT
+    expect(dayKey("2026-07-27T18:00:00.000Z")).toBe("2026-07-28"); // 02:00 SGT next day
+    expect(dayKey("2026-07-28")).toBe("2026-07-28"); // a plain day key passes through
+  });
+});
+
+describe("startingBalance uses the earliest-OPENED trade", () => {
+  it("excludes a deposit made after trading began (not first-to-close)", () => {
+    // A opens Jan 1, closes Mar 1; B opens Feb 1, closes Feb 15 (first to CLOSE).
+    const trades = [
+      trade({ net_profit: 100, open_time: "2026-01-01T00:00:00.000Z", close_time: "2026-03-01T00:00:00.000Z" }),
+      trade({ net_profit: 50, open_time: "2026-02-01T00:00:00.000Z", close_time: "2026-02-15T00:00:00.000Z" }),
+    ];
+    const cf: JournalCashFlowRow[] = [
+      { id: "d1", account_id: "a", deal_id: "1", amount: 1000, time: "2026-01-01T00:00:00.000Z", comment: null },
+      { id: "d2", account_id: "a", deal_id: "2", amount: 500, time: "2026-01-15T00:00:00.000Z", comment: null },
+    ];
+    // Only the Jan 1 deposit is at/before the earliest OPEN (Jan 1). The old bug
+    // used B's open (Feb 1) and wrongly folded in the Jan 15 deposit → 1500.
+    expect(computeAnalytics(trades, cf).startingBalance).toBe(1000);
+  });
+});
+
 describe("computeAnalytics starting-balance fallback", () => {
   it("derives startingBalance from currentBalance when there are no cash flows", () => {
     const trades = [
@@ -65,16 +91,19 @@ describe("computeAnalytics starting-balance fallback", () => {
 });
 
 describe("sessionOf", () => {
-  it("buckets UTC hours into forex sessions", () => {
+  it("buckets UTC hours into the 3 canonical forex sessions", () => {
     expect(sessionOf(3)).toBe("Asian");
     expect(sessionOf(10)).toBe("London");
     expect(sessionOf(15)).toBe("New York");
-    expect(sessionOf(22)).toBe("Off-hours");
+    expect(sessionOf(21)).toBe("New York"); // was "Off-hours" — now agrees with rules/leaks
+    expect(sessionOf(22)).toBe("Asian");
+    expect(sessionOf(2)).toBe("Asian");
   });
 });
 
 describe("weekdayOf", () => {
-  it("returns the short weekday name in UTC", () => {
+  it("returns the short weekday name in the SGT-offset local day", () => {
+    // 10:00 UTC Wed → 18:00 SGT Wed
     expect(weekdayOf("2026-07-01T10:00:00.000Z")).toBe("Wed");
     expect(weekdayOf("2026-07-03T10:00:00.000Z")).toBe("Fri");
   });

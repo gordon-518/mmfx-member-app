@@ -1,5 +1,6 @@
 import type { JournalTradeRow, JournalGoalsRow } from "./types";
 import type { JournalAnalytics } from "./analytics";
+import { sessionOf as sessionForHour, dayKey } from "./analytics";
 
 // Pure leak detection. Trades passed in are already windowed (last 90d) by the
 // caller so this stays deterministic (no Date). Every leak links to the exact
@@ -45,12 +46,9 @@ function median(nums: number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
+// Re-exported for rules.ts; delegates to the single canonical session logic.
 export function sessionOf(iso: string | null): string {
-  if (!iso) return "Unknown";
-  const h = new Date(iso).getUTCHours();
-  if (h >= 7 && h < 13) return "London";
-  if (h >= 13 && h < 22) return "New York";
-  return "Asian";
+  return iso ? sessionForHour(new Date(iso).getUTCHours()) : "Unknown";
 }
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -122,7 +120,7 @@ export function detectLeaks(
   {
     const byDay = new Map<string, JournalTradeRow[]>();
     for (const tr of closed) {
-      const d = (tr.close_time as string).slice(0, 10);
+      const d = dayKey(tr.close_time as string);
       const arr = byDay.get(d) ?? [];
       arr.push(tr);
       byDay.set(d, arr);

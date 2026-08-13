@@ -18,16 +18,34 @@ import type { JournalCashFlowRow, JournalTradeRow } from "./types";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 /** Forex session for a UTC hour. Simple, labeled buckets. */
+// Forex sessions are UTC-time concepts (a "London session" is 07:00–13:00 UTC
+// regardless of the trader's timezone). This is the SINGLE definition — the
+// leaks/rules engines and the Rules UI (London · New York · Asian) all derive
+// from it, so a trade can never land in two different sessions across panels.
+// (Previously analytics used a 4-bucket incl. "Off-hours" that disagreed with
+// leaks/rules on the 21:00–24:00 window.)
 export function sessionOf(hourUtc: number): string {
-  if (hourUtc < 7) return "Asian";
-  if (hourUtc < 13) return "London";
-  if (hourUtc < 21) return "New York";
-  return "Off-hours";
+  if (hourUtc >= 7 && hourUtc < 13) return "London";
+  if (hourUtc >= 13 && hourUtc < 22) return "New York";
+  return "Asian";
 }
 
-/** Short UTC weekday name for an ISO timestamp. */
+// Calendar-day concepts (daily loss, trades/day, P&L by weekday) are the
+// TRADER's local day, not UTC. MMFX's audience is SGT/SEA, so we shift by +8h
+// before bucketing. TODO: per-user timezone once we capture it at signup.
+export const JOURNAL_DAY_OFFSET_HOURS = 8;
+
+const shifted = (iso: string): Date =>
+  new Date(new Date(iso).getTime() + JOURNAL_DAY_OFFSET_HOURS * 3_600_000);
+
+/** Local (offset) calendar day key (YYYY-MM-DD) for an ISO timestamp. */
+export function dayKey(iso: string): string {
+  return shifted(iso).toISOString().slice(0, 10);
+}
+
+/** Short local (offset) weekday name for an ISO timestamp. */
 export function weekdayOf(iso: string): string {
-  return WEEKDAYS[new Date(iso).getUTCDay()];
+  return WEEKDAYS[shifted(iso).getUTCDay()];
 }
 
 export interface HistogramBin {
@@ -222,9 +240,15 @@ export function computeAnalytics(
   maxDrawdown = round2(maxDrawdown);
 
   // Starting balance = deposits that landed before the first trade.
-  const firstTradeAt = closed[0]?.open_time
-    ? new Date(closed[0].open_time).getTime()
-    : null;
+  // Earliest OPEN time — closed[] is sorted by close_time, so closed[0] is the
+  // first trade to CLOSE, whose open can be well after the truly first-opened
+  // trade. Using it wrongly folded a deposit made after trading began into the
+  // starting balance.
+  const firstTradeAt = closed.reduce<number | null>((min, t) => {
+    if (!t.open_time) return min;
+    const ms = new Date(t.open_time).getTime();
+    return min === null || ms < min ? ms : min;
+  }, null);
   const cashFlowStart =
     cashFlows.length === 0
       ? null

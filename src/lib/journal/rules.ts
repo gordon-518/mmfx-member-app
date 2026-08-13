@@ -1,5 +1,6 @@
 import type { JournalTradeRow, JournalGoalsRow, JournalRulesConfig } from "./types";
 import { sessionOf } from "./leaks";
+import { dayKey } from "./analytics";
 
 // Pure discipline-rule evaluation. Trades are already windowed (last 30d) by the
 // caller so this stays deterministic (no Date). Detect + score after the fact —
@@ -62,7 +63,7 @@ export function evaluateRules(
 
   const byDay = new Map<string, JournalTradeRow[]>();
   for (const t of closed) {
-    const d = (t.close_time as string).slice(0, 10);
+    const d = dayKey(t.close_time as string);
     const arr = byDay.get(d) ?? [];
     arr.push(t);
     byDay.set(d, arr);
@@ -213,7 +214,7 @@ export function evaluateRules(
     }
     const bad = closed.filter(predicate);
     for (const t of bad) {
-      markDay(key, (t.close_time as string).slice(0, 10));
+      markDay(key, dayKey(t.close_time as string));
       breaches.push({
         rule: key,
         title: TITLES[key],

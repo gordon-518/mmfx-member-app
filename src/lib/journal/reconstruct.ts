@@ -130,7 +130,13 @@ function buildTrade(positionDeals: MetaApiDeal[]): ReconstructedTrade | null {
  * (or a superset of a position's deals) always yields the same trade row.
  */
 export function reconstructTrades(deals: MetaApiDeal[]): ReconstructionResult {
-  const sorted = [...deals].sort(compareDeals);
+  // Dedup by deal id first — a repeated id (overlapping sync windows, a
+  // re-sent page) would otherwise double-count the trade's P&L, volume,
+  // commission and swap. Last-seen wins, so a re-sent deal carries its latest
+  // values. This makes reconstruction truly idempotent as the contract states.
+  const unique = new Map<string, MetaApiDeal>();
+  for (const d of deals) unique.set(d.id, d);
+  const sorted = [...unique.values()].sort(compareDeals);
 
   const cashFlows: CashFlow[] = [];
   const byPosition = new Map<string, MetaApiDeal[]>();

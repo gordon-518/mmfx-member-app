@@ -1,5 +1,6 @@
 import type { JournalTradeRow, JournalGoalsRow, JournalRulesConfig } from "./types";
 import type { JournalAnalytics } from "./analytics";
+import { dayKey } from "./analytics";
 import { evaluateRules } from "./rules";
 import { isoWeek } from "./interventions";
 
@@ -51,9 +52,12 @@ export function computeGameState(inp: GameInput): GameState {
   // Clean-day map over full history (reuse the rules breach logic), reduced to
   // the current ISO week for the mission card.
   const full = evaluateRules(closed, rulesConfig, goals, startBal);
-  const breachedDays = new Set(full.breaches.map((b) => b.when.slice(0, 10)));
+  // dayKey on both so the clean-day set lines up with the rules' breach days
+  // (both use the SGT-offset calendar day). b.when is either a dayKey string
+  // (daily rules) or an ISO time (trade rules); dayKey handles both.
+  const breachedDays = new Set(full.breaches.map((b) => dayKey(b.when)));
   const tradingDays = [
-    ...new Set(closed.map((t) => (t.close_time as string).slice(0, 10))),
+    ...new Set(closed.map((t) => dayKey(t.close_time as string))),
   ];
   const wk = isoWeek(now);
   const weekDays = tradingDays.filter((d) => isoWeek(`${d}T00:00:00.000Z`) === wk);

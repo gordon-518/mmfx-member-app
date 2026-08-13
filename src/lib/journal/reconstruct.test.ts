@@ -304,3 +304,17 @@ describe("reconstructTrades", () => {
     expect(cashFlows).toEqual([]);
   });
 });
+
+describe("reconstructTrades — dedup by deal id", () => {
+  it("is idempotent: repeated deal ids don't double-count P&L or volume", () => {
+    const deals: MetaApiDeal[] = [
+      deal({ id: "1", positionId: "P1", type: "DEAL_TYPE_BUY", entryType: "DEAL_ENTRY_IN", volume: 1, price: 2400, time: "2026-07-01T10:00:00.000Z" }),
+      deal({ id: "2", positionId: "P1", type: "DEAL_TYPE_SELL", entryType: "DEAL_ENTRY_OUT", volume: 1, price: 2410, profit: 100, commission: -7, swap: -2, time: "2026-07-01T12:00:00.000Z" }),
+    ];
+    const once = reconstructTrades(deals).trades[0];
+    const dupd = reconstructTrades([...deals, ...deals]).trades[0]; // every deal twice
+    expect(dupd.netProfit).toBe(once.netProfit);
+    expect(dupd.volume).toBe(once.volume);
+    expect(dupd.profit).toBe(once.profit);
+  });
+});
