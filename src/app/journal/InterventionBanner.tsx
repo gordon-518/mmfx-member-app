@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import type { Intervention } from "@/lib/journal/interventions";
 
 // Shows the single most-severe banner-channel intervention. Interventions are
@@ -33,9 +32,15 @@ export function InterventionBanner({ interventions }: { interventions: Intervent
         {banner.body && <p className="mt-0.5 text-[13px] text-ink/80">{banner.body}</p>}
         <p className="mt-1 text-[13px] font-semibold text-ink">
           → {banner.action}{" "}
-          <Link href="/journal#rules" className="text-accent-ink underline">
+          <button
+            type="button"
+            onClick={() =>
+              document.getElementById("rules")?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            className="cursor-pointer text-accent-ink underline"
+          >
             Review
-          </Link>
+          </button>
         </p>
       </div>
       <button

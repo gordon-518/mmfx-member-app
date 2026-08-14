@@ -1,5 +1,13 @@
+"use client";
+
 import type { Intervention } from "@/lib/journal/interventions";
 import type { GameState } from "@/lib/journal/gamification";
+
+// The app content scrolls inside AppShell's own container, so a plain #rules
+// anchor doesn't move it — scroll the rules card into view programmatically.
+function scrollToRules() {
+  document.getElementById("rules")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
 
 // The weekly-focus intervention, reframed as a quest with weekly progress.
 export function MissionCard({
@@ -34,12 +42,13 @@ export function MissionCard({
             </span>
           </div>
         </div>
-        <a
-          href="/journal#rules"
-          className="whitespace-nowrap rounded-xl bg-orange px-5 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-[#f24e12]"
+        <button
+          type="button"
+          onClick={scrollToRules}
+          className="cursor-pointer whitespace-nowrap rounded-xl bg-orange px-5 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-[#f24e12]"
         >
           View plan
-        </a>
+        </button>
       </div>
     </section>
   );
