@@ -26,7 +26,7 @@ const NAV: NavItem[] = [
   { label: "Signals", href: "/signals", icon: SignalsIcon },
   { label: "Team MM", href: "/team-mm", icon: TelegramIcon },
   // Members-only proprietary habit-driver — highest moat, so it sits high.
-  { label: "Trading Journal", href: "/journal", icon: JournalIcon, memberOnly: true },
+  { label: "AI Trading Assistant", href: "/journal", icon: JournalIcon, memberOnly: true },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
   { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
   { label: "Strategies", href: "/strategies", icon: StrategiesIcon },

@@ -353,7 +353,7 @@ export function ConnectWizard({
     <div className="mx-auto max-w-xl px-5 py-8 sm:px-8 lg:py-10">
       <div className="rise">
         <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-          Trading Journal · Setup
+          AI Trading Assistant · Setup
         </p>
         <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">
           {step === "credentials" ? "Connect your MT5" : "Set your goals"}

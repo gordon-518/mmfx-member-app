@@ -30,7 +30,7 @@ export function interventionEmailHtml(p: {
           <div style="margin:0 0 22px;padding:14px 16px;background:#fff4ef;border-left:3px solid #ff5a1f;border-radius:8px;font-size:14px;line-height:1.5">
             <strong>Do this:</strong> ${esc(p.action)}
           </div>
-          <a href="${esc(p.ctaUrl)}" style="display:inline-block;background:#ff5a1f;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:12px">Open your journal</a>
+          <a href="${esc(p.ctaUrl)}" style="display:inline-block;background:#ff5a1f;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:12px">Open your AI Trading Assistant</a>
         </td></tr>
         <tr><td style="padding:18px 28px;border-top:1px solid #eceef1;font-size:12px;color:#8a8f98">
           You're getting this because you track your trading with Market Makers FX.

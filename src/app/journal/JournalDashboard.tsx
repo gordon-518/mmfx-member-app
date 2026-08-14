@@ -1187,7 +1187,7 @@ export function JournalDashboard({
       <div className="mb-6 flex items-baseline justify-between gap-4">
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-            Trading Journal
+            AI Trading Assistant
           </p>
           <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
             {greeting()}
