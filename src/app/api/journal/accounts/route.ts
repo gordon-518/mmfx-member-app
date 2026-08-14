@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdminApi, serviceClient } from "@/lib/journal/api";
+import { requireMemberApi, serviceClient } from "@/lib/journal/api";
 import { MetaApiError, createMetaApiAccount } from "@/lib/journal/metaapi";
 import { loadBrokers, serverMatchesBroker } from "@/lib/journal/ibBrokers";
 
@@ -21,7 +21,7 @@ interface ConnectBody {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdminApi();
+  const guard = await requireMemberApi();
   if ("response" in guard) return guard.response;
   const { profile } = guard;
 

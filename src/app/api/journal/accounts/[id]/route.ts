@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdminApi, serviceClient } from "@/lib/journal/api";
+import { requireMemberApi, serviceClient } from "@/lib/journal/api";
 import { deleteMetaApiAccount } from "@/lib/journal/metaapi";
 
 // DELETE /api/journal/accounts/:id — disconnect an MT5 account.
@@ -13,7 +13,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const guard = await requireAdminApi();
+  const guard = await requireMemberApi();
   if ("response" in guard) return guard.response;
   const { profile } = guard;
 

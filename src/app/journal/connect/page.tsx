@@ -17,7 +17,9 @@ export default async function JournalConnectPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const profile = await requireFull();
-  if (!profile.is_admin) redirect("/dashboard");
+  if (profile.account_status !== "member_active" && !profile.is_admin) {
+    redirect("/upgrade");
+  }
   const { step } = await searchParams;
 
   const supabase = await createClient();

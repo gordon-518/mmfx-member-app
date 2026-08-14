@@ -74,10 +74,11 @@ export async function POST(req: NextRequest) {
       // Rollout gate: admins only, and skip opt-outs.
       const { data: profile } = await db
         .from("profiles")
-        .select("email, full_name, is_admin")
+        .select("email, full_name, account_status")
         .eq("id", userId)
         .maybeSingle();
-      if (!profile?.is_admin || !profile.email) continue;
+      // Members-only feature → only members get intervention emails.
+      if (profile?.account_status !== "member_active" || !profile.email) continue;
 
       const { data: prefs } = await db
         .from("journal_email_prefs")

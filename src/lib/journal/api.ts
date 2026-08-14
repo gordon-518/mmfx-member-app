@@ -51,6 +51,24 @@ export async function requireAdminApi(): Promise<
   return guard;
 }
 
+/**
+ * Members-only variant — the journal is a member_active benefit. Admins are
+ * allowed through too (support / QA). Trials get a 403 (the nav hides it from
+ * them; this stops URL access).
+ */
+export async function requireMemberApi(): Promise<
+  { profile: AccessProfile } | { response: NextResponse }
+> {
+  const guard = await requireFullApi();
+  if ("response" in guard) return guard;
+  if (guard.profile.account_status !== "member_active" && !guard.profile.is_admin) {
+    return {
+      response: NextResponse.json({ error: "Members only" }, { status: 403 }),
+    };
+  }
+  return guard;
+}
+
 /** Service-role client — server-only, used by the worker and job enqueueing. */
 export function serviceClient() {
   return createServiceClient(

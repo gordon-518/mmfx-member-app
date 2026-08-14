@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdminApi } from "@/lib/journal/api";
+import { requireMemberApi } from "@/lib/journal/api";
 import { JOURNAL_EMOTIONS } from "@/lib/journal/types";
 
 // PATCH /api/journal/trades/:id — save the trader's journaling on a trade.
@@ -21,7 +21,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const guard = await requireAdminApi();
+  const guard = await requireMemberApi();
   if ("response" in guard) return guard.response;
 
   const { id } = await params;

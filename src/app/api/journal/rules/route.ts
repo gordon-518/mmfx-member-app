@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { requireAdminApi } from "@/lib/journal/api";
+import { requireMemberApi } from "@/lib/journal/api";
 import type { JournalRulesConfig } from "@/lib/journal/types";
 
 // GET/PUT /api/journal/rules — the trader's discipline rules (Survival Engine
@@ -18,7 +18,7 @@ function cleanNumRule(v: unknown): { enabled: boolean; value?: number; is_pct?: 
 }
 
 export async function GET() {
-  const guard = await requireAdminApi();
+  const guard = await requireMemberApi();
   if ("response" in guard) return guard.response;
 
   const supabase = await createClient();
@@ -27,7 +27,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  const guard = await requireAdminApi();
+  const guard = await requireMemberApi();
   if ("response" in guard) return guard.response;
   const { profile } = guard;
 

@@ -31,8 +31,10 @@ const TRADES_CAP = 1000;
 
 export default async function JournalPage() {
   const profile = await requireFull();
-  // Admin-only during staged rollout — matches the hidden nav entry.
-  if (!profile.is_admin) redirect("/dashboard");
+  // Members-only benefit (admins allowed for support). Trials → upgrade.
+  if (profile.account_status !== "member_active" && !profile.is_admin) {
+    redirect("/upgrade");
+  }
   const supabase = await createClient();
 
   const { data: accounts } = await supabase

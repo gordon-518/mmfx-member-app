@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi, serviceClient } from "@/lib/journal/api";
+import { requireMemberApi, serviceClient } from "@/lib/journal/api";
 import {
   DAILY_REPORT_CAP,
   generateReport,
@@ -18,7 +18,7 @@ function today(): string {
 }
 
 export async function POST() {
-  const guard = await requireAdminApi();
+  const guard = await requireMemberApi();
   if ("response" in guard) return guard.response;
   const { profile } = guard;
 

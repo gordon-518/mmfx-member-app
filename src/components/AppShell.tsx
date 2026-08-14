@@ -14,7 +14,7 @@ import {
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-type NavItem = { label: string; href: string; icon: Icon };
+type NavItem = { label: string; href: string; icon: Icon; memberOnly?: boolean };
 
 const NAV: NavItem[] = [
   // "Start here" roadmap first, then the home hub, then ordered by moat (top =
@@ -25,6 +25,8 @@ const NAV: NavItem[] = [
   { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
   { label: "Signals", href: "/signals", icon: SignalsIcon },
   { label: "Team MM", href: "/team-mm", icon: TelegramIcon },
+  // Members-only proprietary habit-driver — highest moat, so it sits high.
+  { label: "Trading Journal", href: "/journal", icon: JournalIcon, memberOnly: true },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
   { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
   { label: "Strategies", href: "/strategies", icon: StrategiesIcon },
@@ -37,10 +39,9 @@ const NAV: NavItem[] = [
 ];
 
 // Admin-only pages, grouped under an "Admin" nav section — rendered only for
-// is_admin accounts. Any future admin / staged-rollout page goes here so it's
-// visible to admins alone.
+// is_admin accounts. The IB reconciliation view exposes every member's data, so
+// it stays admin-only even after the journal itself goes member-facing.
 const ADMIN_NAV: NavItem[] = [
-  { label: "Trading Journal", href: "/journal", icon: JournalIcon },
   { label: "IB Reconciliation", href: "/journal/ib", icon: JournalIcon },
 ];
 
@@ -73,10 +74,12 @@ function NavLinks({
   pathname,
   onNavigate,
   isAdmin,
+  isMember,
 }: {
   pathname: string;
   onNavigate?: () => void;
   isAdmin: boolean;
+  isMember: boolean;
 }) {
   const renderItem = (n: NavItem) => {
     const active = isActive(pathname, n.href);
@@ -99,7 +102,7 @@ function NavLinks({
   };
   return (
     <>
-      {NAV.map(renderItem)}
+      {NAV.filter((n) => !n.memberOnly || isMember || isAdmin).map(renderItem)}
       {isAdmin && (
         <>
           <p className="mt-4 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
@@ -230,7 +233,7 @@ export function AppShell({
         </Link>
 
         <nav className="mt-8 flex-1 space-y-0.5 overflow-y-auto">
-          <NavLinks pathname={pathname} isAdmin={isAdmin} />
+          <NavLinks pathname={pathname} isAdmin={isAdmin} isMember={isMember} />
         </nav>
 
         {!isMember && (
@@ -319,7 +322,7 @@ export function AppShell({
               </div>
 
               <nav className="mt-6 flex-1 space-y-0.5 overflow-y-auto">
-                <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} isAdmin={isAdmin} />
+                <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} isAdmin={isAdmin} isMember={isMember} />
               </nav>
 
               {!isMember && (
