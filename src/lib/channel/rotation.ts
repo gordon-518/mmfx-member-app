@@ -31,13 +31,19 @@ export function pickNext(
   const neverPosted = pool.filter((i) => !i.last_posted_at);
   if (neverPosted.length) return neverPosted[0];
 
-  if (scoreById) {
-    return [...pool].sort(
-      (a, b) => (scoreById[b.id] ?? 0) - (scoreById[a.id] ?? 0) || ts(a) - ts(b)
-    )[0];
-  }
+  // Priority = how overdue a post is, scaled by its advertising weight and its
+  // engagement. A weight-4 flagship becomes due ~4x sooner than a weight-1
+  // filler, so the heavy features get more airtime without ever starving the
+  // light ones (their staleness keeps climbing until they win).
+  const now = Date.now();
+  const priority = (i: LibraryItem) => {
+    const staleHours = (now - (i.last_posted_at ? Date.parse(i.last_posted_at) : 0)) / 3_600_000;
+    const weight = Math.max(1, i.weight ?? 1);
+    const engagement = scoreById ? 1 + (scoreById[i.id] ?? 0) : 1;
+    return staleHours * weight * engagement;
+  };
 
-  return [...pool].sort((a, b) => ts(a) - ts(b))[0];
+  return [...pool].sort((a, b) => priority(b) - priority(a))[0];
 }
 
 // Least-recently-used pick from the reusable visual pool, avoiding the N most

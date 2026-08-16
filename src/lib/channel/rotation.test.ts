@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { pickNext, pickVisual } from "@/lib/channel/rotation";
 import type { LibraryItem, VisualItem } from "@/lib/channel/types";
 
-function item(id: string, last: string | null, status: LibraryItem["status"] = "approved"): LibraryItem {
-  return { id, kind: "educational", body: id, status, button_set: null, last_posted_at: last, times_posted: 0 };
+function item(id: string, last: string | null, status: LibraryItem["status"] = "approved", weight = 1): LibraryItem {
+  return { id, kind: "educational", body: id, status, button_set: null, weight, last_posted_at: last, times_posted: 0 };
 }
 
 describe("pickNext", () => {
@@ -86,5 +86,31 @@ describe("pickVisual — feature matching", () => {
   });
   it("ignores tags when no preference is given", () => {
     expect(pickVisual(pool, 4)).not.toBeNull();
+  });
+});
+
+describe("pickNext — advertising weight", () => {
+  const HOUR = 3_600_000;
+  const ago = (h: number) => new Date(Date.now() - h * HOUR).toISOString();
+
+  it("a heavier post wins over an equally-stale lighter one", () => {
+    const items = [item("light", ago(10), "approved", 1), item("heavy", ago(10), "approved", 4)];
+    expect(pickNext(items, 0)?.id).toBe("heavy");
+  });
+
+  it("but a light post still wins once it is sufficiently overdue (never starved)", () => {
+    // light: 100h x1 = 100 ; heavy: 10h x4 = 40
+    const items = [item("light", ago(100), "approved", 1), item("heavy", ago(10), "approved", 4)];
+    expect(pickNext(items, 0)?.id).toBe("light");
+  });
+
+  it("engagement still breaks ties within the same weight", () => {
+    const items = [item("dull", ago(10), "approved", 3), item("popular", ago(10), "approved", 3)];
+    expect(pickNext(items, 0, { dull: 0.0, popular: 2.0 })?.id).toBe("popular");
+  });
+
+  it("treats a missing weight as 1 rather than starving the post", () => {
+    const noW = { ...item("nw", ago(50)), weight: undefined } as unknown as LibraryItem;
+    expect(pickNext([noW, item("w1", ago(10), "approved", 1)], 0)?.id).toBe("nw");
   });
 });

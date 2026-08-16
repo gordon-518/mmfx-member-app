@@ -33,6 +33,8 @@ export interface LibraryItem {
   body: string;
   status: LibraryStatus;
   button_set: CtaButton[] | null;
+  /** Advertising weight 1-5 (4=flagship … 1=light touch). Scales rotation frequency. */
+  weight: number;
   last_posted_at: string | null;
   times_posted: number;
 }

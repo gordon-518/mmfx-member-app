@@ -29,6 +29,7 @@ const MIGRATIONS = [
   "20260629000001_channel_core.sql",
   "20260629000002_channel_engagement.sql",
   "20260629000003_visual_library.sql",
+  "20260817000001_channel_weight.sql",
 ];
 
 const sql = MIGRATIONS.map(
