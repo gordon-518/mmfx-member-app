@@ -19,4 +19,8 @@ describe("resolveDestination", () => {
     expect(isAppDestination("teammm")).toBe(false);
     expect(isAppDestination("nope")).toBe(false);
   });
+
+  it("resolves the AI assistant (journal) destination", () => {
+    expect(resolveDestination("journal")).toBe("https://app.marketmakersfx.net/journal");
+  });
 });

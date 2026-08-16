@@ -18,6 +18,8 @@ export const DESTINATIONS: Record<string, string> = {
   calendar: "/calendar",
   news: "/news",
   dashboard: "/dashboard",
+  // AI Trading Assistant — the flagship (MMFeatures.md §3)
+  journal: "/journal",
   fundamental: "/bots/fundamental",
   "know-your-style": "/bots/know-your-style",
 };
