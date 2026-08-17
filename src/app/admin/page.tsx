@@ -214,6 +214,12 @@ export default async function AdminPage({
         </Link>
         <div className="flex items-center gap-4">
           <Link
+            href="/admin/channel"
+            className="rounded-lg border border-line-strong px-3 py-1.5 text-[13px] font-medium text-subtle transition-colors hover:border-orange/40 hover:text-accent-ink"
+          >
+            Channel →
+          </Link>
+          <Link
             href="/admin/abuse"
             className="rounded-lg border border-line-strong px-3 py-1.5 text-[13px] font-medium text-subtle transition-colors hover:border-orange/40 hover:text-accent-ink"
           >
