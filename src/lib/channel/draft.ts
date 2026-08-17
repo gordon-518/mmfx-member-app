@@ -8,6 +8,15 @@ const MODEL = "claude-sonnet-5";
 
 export interface Draft { kind: LibraryKind; body: string; }
 
+/** A proven post, with the numbers that prove it — fed back to seed new copy. */
+export interface Winner {
+  body: string;
+  feature: string;
+  impressions: number;
+  clicks: number;
+  reactions: number;
+}
+
 const SYSTEM = [
   "You write short educational/mindset and light-CTA posts for MarketMakersFX,",
   "a gold (XAU/USD) trading education + broker-IB brand, for its Telegram channel.",
@@ -23,13 +32,24 @@ const SYSTEM = [
 // best-performing posts — the model is told to write more in that spirit, which
 // is how the self-optimizing loop feeds winners back into new copy.
 // Best-effort: any failure → [].
-export async function draftLibraryPosts(n: number, examples: string[] = []): Promise<Draft[]> {
+export async function draftLibraryPosts(n: number, examples: Winner[] = []): Promise<Draft[]> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return [];
 
+  // Give the model the evidence, not just the text: knowing a post earned a
+  // 40% click rate promoting the AI assistant is far more instructive than
+  // being told, without context, that it "did well".
   const winners = examples.length
-    ? `\n\nOur best-performing posts so far (write more in this spirit, do not copy verbatim):\n` +
-      examples.map((e, i) => `${i + 1}. ${e}`).join("\n")
+    ? `\n\nThese posts have measurably outperformed. Study what they have in common —
+the angle, the sentence rhythm, the specificity — and write new posts in that
+spirit. Do NOT copy them or restate them; write fresh copy that works for the
+same reason.\n` +
+      examples
+        .map((e, i) => {
+          const ctr = e.impressions > 0 ? Math.round((e.clicks / e.impressions) * 100) : 0;
+          return `${i + 1}. [promotes: ${e.feature} · ${e.impressions} posts · ${e.clicks} clicks (${ctr}%) · ${e.reactions} reactions]\n${e.body}`;
+        })
+        .join("\n\n")
     : "";
 
   const prompt =

@@ -36,9 +36,15 @@ describe("draftLibraryPosts", () => {
   it("injects winner examples into the prompt", async () => {
     const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => anthropicReply('[{"kind":"cta","body":"x"}]'));
     vi.stubGlobal("fetch", fetchMock);
-    await draftLibraryPosts(1, ["WINNER POST ONE"]);
+    await draftLibraryPosts(1, [
+      { body: "WINNER POST ONE", feature: "journal", impressions: 10, clicks: 4, reactions: 2 },
+    ]);
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect(body.messages[0].content).toContain("WINNER POST ONE");
+    const prompt = body.messages[0].content;
+    expect(prompt).toContain("WINNER POST ONE");
+    // the model is given the evidence, not just the text
+    expect(prompt).toContain("journal");
+    expect(prompt).toContain("40%");
     expect(body.model).toBe("claude-sonnet-5");
   });
 });
