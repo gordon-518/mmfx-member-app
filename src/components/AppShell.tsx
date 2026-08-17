@@ -42,6 +42,7 @@ const NAV: NavItem[] = [
 // is_admin accounts. The IB reconciliation view exposes every member's data, so
 // it stays admin-only even after the journal itself goes member-facing.
 const ADMIN_NAV: NavItem[] = [
+  { label: "Channel Performance", href: "/admin/channel", icon: TelegramIcon },
   { label: "IB Reconciliation", href: "/journal/ib", icon: JournalIcon },
 ];
 
