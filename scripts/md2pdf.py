@@ -138,8 +138,17 @@ def convert(md: str) -> str:
                 out.append(f"<{kind}>"); list_stack.append(kind)
             elif list_stack and list_stack[-1] != kind:
                 out.append(f"</{list_stack.pop()}>"); out.append(f"<{kind}>"); list_stack.append(kind)
-            out.append(f"<li>{inline(m.group(3))}</li>")
-            i += 1; continue
+            # absorb wrapped continuation lines so bold/links spanning a line
+            # break still match, and the list isn't closed mid-way (which would
+            # restart <ol> numbering at 1)
+            item = [m.group(3)]
+            i += 1
+            while i < len(lines) and lines[i].strip() and not re.match(
+                    r'^(#{1,6}\s|\s*[-*]\s|\s*\d+\.\s|>|```|\s*\|)', lines[i]) \
+                    and not re.match(r'^\s*---+\s*$', lines[i]):
+                item.append(lines[i].strip()); i += 1
+            out.append(f"<li>{inline(' '.join(item))}</li>")
+            continue
 
         # blank
         if not ln.strip():
