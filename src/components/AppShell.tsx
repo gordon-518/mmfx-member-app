@@ -9,7 +9,7 @@ import type { AccountStatus, AccessTier } from "@/lib/trial/status";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
   AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon, TelegramIcon,
-  MenuIcon, CloseIcon, SparkIcon, JournalIcon,
+  MenuIcon, CloseIcon, SparkIcon, JournalIcon, UserPlusIcon,
 } from "./icons";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -42,13 +42,19 @@ const NAV: NavItem[] = [
 // is_admin accounts. The IB reconciliation view exposes every member's data, so
 // it stays admin-only even after the journal itself goes member-facing.
 const ADMIN_NAV: NavItem[] = [
+  { label: "Growth Stats", href: "/stats", icon: AnalysisIcon },
+  { label: "Members", href: "/admin", icon: UserPlusIcon },
   { label: "Channel Performance", href: "/admin/channel", icon: TelegramIcon },
   { label: "IB Reconciliation", href: "/journal/ib", icon: JournalIcon },
 ];
 
+// Exact-match hrefs never light up on a deeper path. /admin needs this because
+// /admin/channel etc. would otherwise also mark the "Members" (/admin) link active.
+const EXACT_MATCH = new Set(["/dashboard", "/admin"]);
+
 function isActive(pathname: string, href: string) {
-  return href === "/dashboard"
-    ? pathname === "/dashboard"
+  return EXACT_MATCH.has(href)
+    ? pathname === href
     : pathname === href || pathname.startsWith(`${href}/`);
 }
 
