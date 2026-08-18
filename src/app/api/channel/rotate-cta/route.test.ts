@@ -80,4 +80,19 @@ describe("POST /api/channel/rotate-cta", () => {
     expect(await res.json()).toMatchObject({ posted: true, visual: null });
     expect(db._inserts[0].image_url).toBeNull();
   });
+
+  it("educational copy draws educational artwork, not the button's feature", async () => {
+    const item = { id: "edu1", kind: "educational", body: "mindset", status: "approved",
+      button_set: [{ text: "Read", slug: "daily-analysis" }], weight: 3,
+      last_posted_at: null, times_posted: 0 };
+    const vis = [
+      { id: "v-edu", image_url: "https://img/edu.png", tag: "educational", status: "active", last_used_at: null, times_used: 0 },
+      { id: "v-da", image_url: "https://img/da.png", tag: "daily-analysis", status: "active", last_used_at: null, times_used: 0 },
+    ];
+    const db = stubDb({ items: [item], eng: [], visuals: vis });
+    adminDbMock.mockReturnValue(db);
+    const res = await POST(req() as never);
+    expect(await res.json()).toMatchObject({ posted: true, visual: "v-edu" });
+    expect(db._inserts[0].image_url).toBe("https://img/edu.png");
+  });
 });

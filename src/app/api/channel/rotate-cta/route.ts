@@ -30,7 +30,12 @@ export async function POST(req: Request) {
   // feature this post links to, so the image matches the copy.
   // null → the post goes out text-only.
   const { data: visuals } = await db.from("visual_library").select("*").eq("status", "active");
-  const featureTag = pick.button_set?.[0]?.slug ?? null;
+  // Educational copy is about mindset, not a feature — pairing it with a
+  // feature poster produces a caption that argues with its own image (a post
+  // about boredom under a "BEFORE THE OPEN" plate). Those posts draw from the
+  // contemplative `educational` series instead of the feature's artwork.
+  const featureTag =
+    pick.kind === "educational" ? "educational" : pick.button_set?.[0]?.slug ?? null;
   const visual = pickVisual((visuals ?? []) as VisualItem[], AVOID_LAST_N, featureTag);
 
   const now = new Date().toISOString();
