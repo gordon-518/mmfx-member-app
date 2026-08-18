@@ -50,3 +50,7 @@ __pycache__/
 
 # local brainstorm/skill scratch
 .superpowers/
+
+# Agency pack media (128MB of Higgsfield video) — delivered out-of-band, not in git
+agency-pack/assets/higgsfield/
+MMFX-Agency-Pack*.zip
