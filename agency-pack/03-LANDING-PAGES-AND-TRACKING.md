@@ -7,7 +7,7 @@ production — please use it as specified so attribution works end to end.**
 
 ## 1. The landing pages
 
-Eight purpose-built landing pages exist for paid traffic. They are
+**Eleven** purpose-built landing pages exist for paid traffic. They are
 **message-matched** to a single feature/hook and **`noindex`** (paid destinations
 only, not organic).
 
@@ -23,14 +23,16 @@ only, not organic).
 | `analysis-bots` | *Two bots: one reads the macro, one reads you.* |
 | `live-classes` | *Twice a week, live on the charts, with the desk.* |
 | `ebook-library` | *The whole system, on paper. Four books you'll re-read.* |
+| `indicators` | *Drop your TradingView name. Ten indicators appear.* |
+| `strategies` | *Backtest the exact entry model — on your own charts.* |
+| `signals` ⚠️ | *A few gold calls a day. Entry, stop, target.* — see compliance |
 
 ⭐ = our recommended starting points (see §6).
 
 ### Supporting pages (organic/reference — usable but not optimised for ads)
 - `https://marketmakersfx.net/` — home
 - `https://marketmakersfx.net/features` — all features, and `/features/{slug}`
-  (11 pages, includes `indicators`, `signals`, `strategies` which have **no
-  dedicated LP** — see §7)
+  (11 pages — the organic/SEO equivalents of the LPs above)
 - `https://marketmakersfx.net/how-it-works` · `/faq`
 - `https://marketmakersfx.net/legal/risk-disclosure` · `/legal/terms` · `/legal/privacy`
 
@@ -88,7 +90,7 @@ CRT-{MMDD}-{FEATURE}-{HOOK}-{VARIANT}
 |---|---|---|
 | `CRT` | fixed prefix | `CRT` |
 | `MMDD` | creative launch date | `0917` |
-| `FEATURE` | which product | `AITA`, `KYS`, `DAILY`, `COURSE`, `FUND`, `CLASSES`, `EBOOK`, `BOTS` |
+| `FEATURE` | which product | `AITA`, `KYS`, `DAILY`, `COURSE`, `FUND`, `CLASSES`, `EBOOK`, `BOTS`, `IND`, `STRAT`, `SIGNALS` |
 | `HOOK` | the angle | `SCORE`, `LEAK`, `BLOWUP`, `QUIZ` |
 | `VARIANT` | version | `V1`, `V2`, `I1` (image), `B1` (body copy variant) |
 
@@ -169,18 +171,18 @@ trial offer in US/UK** (different offer entirely — see `01-BUSINESS-BRIEF.md`)
 
 ---
 
-## 7. Known gaps — flagging honestly
+## 7. Notes and limitations
 
-- **No dedicated LPs** for `indicators`, `signals` or `strategies`. They have
-  `/features/` pages, but those aren't optimised for paid traffic. **Indicators
-  is a strong hook** ("drop your TradingView name, ten indicators appear") and
-  probably deserves an LP — tell us and we'll build one.
-- **`signals` is our most compliance-sensitive surface.** Read `05-COMPLIANCE.md`
-  before proposing any signals-led creative.
-- **Attribution is 7 days.** A member who signs up on day 8 after clicking won't
-  attribute. Worth knowing when reconciling numbers.
-
----
+- **Every feature has a matching LP** — all 11 are built, live and `noindex`.
+- **`signals` is our most compliance-sensitive surface.** The LP itself is
+  carefully worded ("teaching examples, not blind calls"). Read
+  `05-COMPLIANCE.md` before proposing any signals-led creative, and never
+  introduce accuracy, win-rate or profit language in the ad.
+- **`strategies` carries a backtest disclaimer** on-page (historical and
+  hypothetical, past performance ≠ future results). Ad copy must not undercut
+  it by implying returns.
+- **Attribution is 7 days.** A signup on day 8 after the click won't attribute.
+  Worth knowing when reconciling numbers.
 
 ## 8. Reporting we'd like
 

@@ -67,21 +67,21 @@ entry model and trade management. Streamed in-app with downloadable slide decks.
 ---
 
 ## Indicators — 10 proprietary TradingView tools
-**LP:** ⚠️ none yet (`/features/indicators` exists) — see gaps in file 03
+**LP:** `/lp/indicators`
 
 Ten invite-only TradingView indicators, **granted automatically** once the member
 submits their TradingView username: Squeeze Pulse, Wave Pressure, Structure Map,
 Echo Predictor, Trend Rail, Pivot Trend, MTF Minicharts, Auto Trendlines,
 Adaptive MA, Reversion Bands.
 
-**Hook:** *"Drop your TradingView name. Ten MM indicators appear on your charts."*
+**Hook:** *"Drop your TradingView name. Ten indicators appear."*
 **Angle:** genuinely proprietary and unavailable elsewhere; the auto-grant demos
 beautifully. ⚠️ Analysis tools — they never "predict".
 
 ---
 
 ## Strategies
-**LP:** ⚠️ none yet (`/features/strategies` exists)
+**LP:** `/lp/strategies`
 
 Two full TradingView **strategy** scripts (MM AMA SuperTrend, MM System 5m
 Entry), so members can backtest the method themselves. More in build.
@@ -92,9 +92,12 @@ Entry), so members can backtest the method themselves. More in build.
 ---
 
 ## Signals ⚠️
-**LP:** none (deliberately)
+**LP:** `/lp/signals`
 
 The MMFX signals desk, delivered via Telegram.
+
+**Hook:** *"A few gold calls a day. Entry, stop, target."* — the LP is worded
+as *"teaching examples, not blind calls"*; keep ad copy in that register.
 
 ⚠️ **Our most compliance-sensitive surface.** Never quote accuracy, win rate,
 pips or profit. Signals are trade *ideas to evaluate* — never advice, never an
