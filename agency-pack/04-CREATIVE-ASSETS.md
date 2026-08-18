@@ -53,8 +53,8 @@ from Don** before building Assistant-led creative.
 {FEATURE}-{TYPE}{n}-{descriptor}.{ext}
 ```
 
-- **FEATURE:** `AITA` (AI Trading Assistant) · `KYS` · `COURSE` · `FUND` · `IND` · `STRAT` ·
-  `DAILY` · `SIGNALS` · `IND` · `CLASSES` · `EBOOK`
+- **FEATURE:** `AITA` (AI Trading Assistant) · `KYS` · `COURSE` · `FUND` · `DAILY` ·
+  `IND` · `STRAT` · `SIGNALS` · `CLASSES` · `EBOOK` · `BOTS`
 - **TYPE:** `I` = static image · `V` = video
 - **n:** sequence number · **descriptor:** the hook in one word
 
