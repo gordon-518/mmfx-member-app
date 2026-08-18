@@ -51,6 +51,30 @@ radar, "Don's read" (the AI coach), and the by-symbol/session/weekday breakdowns
 > performance claim, a typical result, or an implied return. If a figure would read
 > as "this is what you'll make", crop or reframe it. See `05-COMPLIANCE.md` §2.
 
+
+### `assets/higgsfield/` — 31 AI-generated product assets ⭐ NEW
+Produced in Higgsfield Marketing Studio: **21 videos + 10 stills** of MM products
+(indicators on-device, the MM System kit, TradingView strategies, the mentorship
+kit). Mostly 3:4 and 9:16, 6–11s, 720p. Use as **hero product motion and B-roll**
+— they are brand-built product renders, not screen recordings.
+
+Named `HF-{PRODUCT}-{V|I}{n}-{ratio}`, e.g. `HF-MM-INDICATORS-LAPTOP-V1-3x4.mp4`.
+
+### The 25 finished ad creatives — in Notion, not in this pack
+`CREATIVE-REGISTER.csv` lists every finished, campaign-ready creative:
+**13 video concepts + 12 statics = 136 files**, each cut to 3 aspect ratios and
+(for video) 3 hook variants — e.g. `CRT-2621-CHARTREAD` ships as
+`CRT-2621-CHARTREAD-A1/B1/C1` × 9:16, 4:5, 1:1.
+
+They live in the **Notion Creative Library**, which is the single source of truth:
+it carries the aspect ratios, the offer mapping, the linked brief and a
+**Ready for Campaign** flag per asset, and it stays current as new cuts land.
+
+> **Ask Don for access to the Notion Creative Library** rather than working from a
+> copied folder — the `Ready · by Offer` board view is the fastest way to see
+> what's cleared to run. The `CRT-…` names map directly to the `cid` scheme in
+> `03-LANDING-PAGES-AND-TRACKING.md`.
+
 ---
 
 ## 2. Naming convention — please continue it
