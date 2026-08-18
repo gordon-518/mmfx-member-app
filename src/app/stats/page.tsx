@@ -279,6 +279,8 @@ export default async function GrowthPage({
   // Paged fetch — a plain .select() caps at 1000 rows and would undercount.
   const profiles = await fetchAllGrowthProfiles(supabase);
   const live: GrowthMetrics = computeMetrics(profiles);
+  // Every profile row is one signup (created by the handle_new_user trigger).
+  const totalSignups = profiles.length;
 
   // Flow metrics — re-derived live from raw profiles for the full history.
   const flow = bucketFlowMetrics(profiles, period);
@@ -386,6 +388,26 @@ export default async function GrowthPage({
             No narrative yet — the 09:00 SGT cron writes it each morning.
           </section>
         )}
+
+        {/* All-time signups — the top of the funnel */}
+        <div
+          className="rise mt-6 rounded-2xl border border-orange/30 bg-accent-soft/30 p-5 shadow-soft"
+          style={{ animationDelay: "0ms" }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-accent-ink">
+              Total signups · all-time
+            </p>
+            <LiveTag />
+          </div>
+          <p className="mt-2 font-display text-[40px] font-bold leading-none tracking-tight text-ink">
+            {totalSignups.toLocaleString()}
+          </p>
+          <p className="mt-1.5 text-[12px] text-subtle">
+            {live.members_active.toLocaleString()} members ·{" "}
+            {live.trials_active.toLocaleString()} active trials
+          </p>
+        </div>
 
         {/* Flow metrics — period-scoped, derived live from profiles */}
         <h2 className="mt-8 font-display text-lg font-bold tracking-tight text-ink">

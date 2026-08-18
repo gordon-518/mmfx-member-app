@@ -78,6 +78,18 @@ describe("computeMetrics", () => {
     expect(computeMetrics(rows, NOW).trials_active).toBe(2);
   });
 
+  it("excludes lapsed trials whose status was never flipped from the active count", () => {
+    const rows = [
+      // active status, still within window — counts
+      row({ account_status: "trial_active", trial_ends_at: "2026-07-01T00:00:00Z" }),
+      // active status but the clock has passed (stale label) — must NOT count
+      row({ account_status: "trial_active", trial_ends_at: "2026-06-20T00:00:00Z" }),
+      // active status with no clock — must NOT count
+      row({ account_status: "re_trial_active", trial_ends_at: null }),
+    ];
+    expect(computeMetrics(rows, NOW).trials_active).toBe(1);
+  });
+
   it("counts trials expiring within the next 48h, excluding already-expired", () => {
     const rows = [
       // expires in 24h — counts

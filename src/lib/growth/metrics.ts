@@ -140,11 +140,14 @@ export function computeMetrics(
     }
 
     if (ACTIVE_TRIAL.has(r.account_status)) {
-      trials_active++;
       const end = ms(r.trial_ends_at);
-      // Still active (not yet past) and falling due within the next 48h.
-      if (!Number.isNaN(end) && end >= nowMs && end <= in48h) {
-        trials_expiring_48h++;
+      // "Active" = active status AND still within the window. The stored status
+      // isn't flipped the instant a trial lapses (access is time-checked at read
+      // — see accessTier), so counting by status alone over-counts expired trials.
+      if (!Number.isNaN(end) && end >= nowMs) {
+        trials_active++;
+        // Falling due within the next 48h.
+        if (end <= in48h) trials_expiring_48h++;
       }
     }
 
