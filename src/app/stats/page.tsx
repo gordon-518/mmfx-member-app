@@ -3,13 +3,23 @@ import { createClient } from "@/lib/supabase/server";
 import { Wordmark } from "@/components/AppShell";
 import {
   computeMetrics,
+  bucketFlowMetrics,
+  bucketSnapshotSeries,
+  parsePeriod,
+  GROWTH_PERIODS,
   type GrowthProfileRow,
   type GrowthMetrics,
+  type GrowthPeriod,
 } from "@/lib/growth/metrics";
 
-// Admin-gated growth dashboard. Reads growth_daily snapshots (for trends +
-// day-over-day / week-over-week deltas) and live-computes "current" totals from
-// profiles, so the page is never stale between the 09:00-SGT snapshots.
+// Admin-gated growth dashboard with a Daily/Weekly/Monthly/Yearly toggle
+// (?period=). Two metric families are handled differently:
+//   * Flow metrics (signups, conversions, churn) are re-derived LIVE from raw
+//     profiles across the full history — no snapshots, no backfill — so their
+//     cards + sparklines re-scope with the period.
+//   * Point-in-time metrics (active trials/members, expiring, TV %, broker)
+//     can't be reconstructed historically, so their cards stay "live as of now"
+//     and their sparklines come from the forward-only growth_daily snapshots.
 // Aggregate counts only — no member PII.
 
 export const dynamic = "force-dynamic";
@@ -30,6 +40,38 @@ interface SnapshotRow {
   tv_engagement_pct: number;
   narrative: string | null;
 }
+
+// Per-period copy + how far back to pull snapshots for the point-in-time trends.
+const PERIOD_LABEL: Record<GrowthPeriod, string> = {
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+};
+const PERIOD_NOUN: Record<GrowthPeriod, string> = {
+  daily: "today",
+  weekly: "this week",
+  monthly: "this month",
+  yearly: "this year",
+};
+const PERIOD_PRIOR: Record<GrowthPeriod, string> = {
+  daily: "vs yesterday",
+  weekly: "vs last week",
+  monthly: "vs last month",
+  yearly: "vs last year",
+};
+const PERIOD_WINDOW: Record<GrowthPeriod, string> = {
+  daily: "last 30 days",
+  weekly: "last 12 weeks",
+  monthly: "last 12 months",
+  yearly: "all years",
+};
+const SNAP_LIMIT: Record<GrowthPeriod, number> = {
+  daily: 30,
+  weekly: 100,
+  monthly: 400,
+  yearly: 1200,
+};
 
 function shiftDate(isoDate: string, deltaDays: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
@@ -61,6 +103,16 @@ function DeltaChip({ current, prior }: { current: number; prior?: number | null 
       }`}
     >
       {up ? "▲" : "▼"} {Math.abs(diff)}
+    </span>
+  );
+}
+
+// Small pill marking a card as live "as of now" rather than period-scoped.
+function LiveTag() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft/70 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-ink">
+      <span className="h-1.5 w-1.5 rounded-full bg-orange" aria-hidden />
+      Live
     </span>
   );
 }
@@ -111,6 +163,8 @@ function Card({
   current,
   prior,
   weekPrior,
+  deltaLabel,
+  live,
   delay,
 }: {
   label: string;
@@ -121,6 +175,10 @@ function Card({
   weekPrior?: number | null;
   delta?: boolean;
   weekDelta?: boolean;
+  // When set (with `current`), render a single period delta row (e.g. "vs last month").
+  deltaLabel?: string;
+  // Marks the card as a live "as of now" value rather than period-scoped.
+  live?: boolean;
   delay: number;
 }) {
   return (
@@ -128,26 +186,37 @@ function Card({
       className="rise rounded-2xl border border-line bg-card p-5 shadow-soft"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">{label}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">{label}</p>
+        {live && <LiveTag />}
+      </div>
       <p className="mt-2 font-display text-[34px] font-bold leading-none tracking-tight text-ink">
         {value}
       </p>
       {sub && <p className="mt-1.5 text-[12px] text-subtle">{sub}</p>}
-      {(delta || weekDelta) && current != null && (
-        <div className="mt-3 flex items-center gap-3 border-t border-line pt-2.5">
-          {delta && (
-            <span className="flex items-center gap-1 text-[11px] text-subtle">
-              <span className="text-faint">DoD</span>
-              <DeltaChip current={current} prior={prior} />
-            </span>
-          )}
-          {weekDelta && (
-            <span className="flex items-center gap-1 text-[11px] text-subtle">
-              <span className="text-faint">WoW</span>
-              <DeltaChip current={current} prior={weekPrior} />
-            </span>
-          )}
+      {deltaLabel && current != null ? (
+        <div className="mt-3 flex items-center gap-2 border-t border-line pt-2.5">
+          <span className="text-[11px] text-faint">{deltaLabel}</span>
+          <DeltaChip current={current} prior={prior} />
         </div>
+      ) : (
+        (delta || weekDelta) &&
+        current != null && (
+          <div className="mt-3 flex items-center gap-3 border-t border-line pt-2.5">
+            {delta && (
+              <span className="flex items-center gap-1 text-[11px] text-subtle">
+                <span className="text-faint">DoD</span>
+                <DeltaChip current={current} prior={prior} />
+              </span>
+            )}
+            {weekDelta && (
+              <span className="flex items-center gap-1 text-[11px] text-subtle">
+                <span className="text-faint">WoW</span>
+                <DeltaChip current={current} prior={weekPrior} />
+              </span>
+            )}
+          </div>
+        )
       )}
     </div>
   );
@@ -157,11 +226,13 @@ function TrendCard({
   title,
   values,
   latest,
+  note,
   delay,
 }: {
   title: string;
   values: number[];
   latest: string;
+  note?: string;
   delay: number;
 }) {
   return (
@@ -176,11 +247,16 @@ function TrendCard({
       <div className="mt-3">
         <Sparkline values={values} />
       </div>
+      {note && <p className="mt-2 text-[10px] text-faint">{note}</p>}
     </div>
   );
 }
 
-export default async function GrowthPage() {
+export default async function GrowthPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -199,18 +275,30 @@ export default async function GrowthPage() {
     );
   }
 
-  // Live "current" totals (admin RLS lets an admin read every profile row).
-  const { data: profiles } = await supabase.from("profiles").select(PROFILE_COLUMNS);
-  const live: GrowthMetrics = computeMetrics((profiles ?? []) as GrowthProfileRow[]);
+  const { period: periodParam } = await searchParams;
+  const period = parsePeriod(periodParam);
 
-  // Snapshot history for trends + deltas (most recent 30 days).
+  // Live "current" totals (admin RLS lets an admin read every profile row).
+  const profileRows = (await supabase.from("profiles").select(PROFILE_COLUMNS)).data;
+  const profiles = (profileRows ?? []) as GrowthProfileRow[];
+  const live: GrowthMetrics = computeMetrics(profiles);
+
+  // Flow metrics — re-derived live from raw profiles for the full history.
+  const flow = bucketFlowMetrics(profiles, period);
+  const cur = flow[flow.length - 1] ?? { signups: 0, conversions: 0, churn: 0 };
+  const prev = flow.length >= 2 ? flow[flow.length - 2] : null;
+  const signupSeries = flow.map((f) => f.signups);
+  const conversionSeries = flow.map((f) => f.conversions);
+  const churnSeries = flow.map((f) => f.churn);
+
+  // Snapshot history for point-in-time trends + deltas + narrative.
   const { data: snapData } = await supabase
     .from("growth_daily")
     .select(
       "date, signups_today, signups_7d, signups_30d, trials_active, trials_expiring_48h, conversions_today, members_active, churn_today, tv_engagement_pct, narrative"
     )
     .order("date", { ascending: false })
-    .limit(30);
+    .limit(SNAP_LIMIT[period]);
   const snaps = (snapData ?? []) as SnapshotRow[];
 
   const byDate = new Map(snaps.map((s) => [s.date, s]));
@@ -220,13 +308,23 @@ export default async function GrowthPage() {
   // Latest stored narrative (today's if present, else most recent snapshot).
   const narrative = byDate.get(live.date)?.narrative ?? snaps.find((s) => s.narrative)?.narrative ?? null;
 
-  // Trend series in chronological order.
-  const asc = [...snaps].reverse();
-  const signupSeries = asc.map((s) => s.signups_today);
-  const trialSeries = asc.map((s) => s.trials_active);
-  const memberSeries = asc.map((s) => s.members_active);
+  // Point-in-time trend series — bucketed from the forward-only snapshots.
+  const trialSeries = bucketSnapshotSeries(
+    snaps.map((s) => ({ date: s.date, value: s.trials_active })),
+    period
+  );
+  const memberSeries = bucketSnapshotSeries(
+    snaps.map((s) => ({ date: s.date, value: s.members_active })),
+    period
+  );
+  const snapNote = "from 09:00 SGT snapshots";
 
   const b = live.broker_split;
+
+  const segActive =
+    "rounded-lg bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent-ink shadow-soft";
+  const segIdle =
+    "rounded-lg px-3 py-1.5 text-[13px] font-medium text-subtle transition-colors hover:text-accent-ink";
 
   return (
     <main className="min-h-screen bg-paper text-ink">
@@ -246,7 +344,7 @@ export default async function GrowthPage() {
             <p className="mt-1 text-[13px] text-subtle">
               Live as of now · snapshots at 09:00 SGT ·{" "}
               {snaps.length > 0
-                ? `${snaps.length} day${snaps.length === 1 ? "" : "s"} of history`
+                ? `${snaps.length} snapshot${snaps.length === 1 ? "" : "s"} on file`
                 : "no snapshots yet"}
             </p>
           </div>
@@ -256,6 +354,20 @@ export default async function GrowthPage() {
           >
             ← Members
           </Link>
+        </div>
+
+        {/* Period toggle — Link-driven so the page re-renders server-side. */}
+        <div className="rise mt-5 inline-flex flex-wrap gap-1 rounded-xl border border-line bg-card p-1 shadow-soft">
+          {GROWTH_PERIODS.map((p) => (
+            <Link
+              key={p}
+              href={`/stats?period=${p}`}
+              aria-current={p === period ? "page" : undefined}
+              className={p === period ? segActive : segIdle}
+            >
+              {PERIOD_LABEL[p]}
+            </Link>
+          ))}
         </div>
 
         {/* AI narrative banner */}
@@ -278,74 +390,101 @@ export default async function GrowthPage() {
           </section>
         )}
 
-        {/* Headline cards */}
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
+        {/* Flow metrics — period-scoped, derived live from profiles */}
+        <h2 className="mt-8 font-display text-lg font-bold tracking-tight text-ink">
+          Flow <span className="text-orange">·</span> {PERIOD_LABEL[period]}
+        </h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card
-            label="New signups"
-            value={live.signups_today}
-            sub={`${live.signups_7d} · 7d   ${live.signups_30d} · 30d`}
-            current={live.signups_today}
-            prior={yesterday?.signups_today}
-            delta
+            label={`Signups ${PERIOD_NOUN[period]}`}
+            value={cur.signups}
+            sub={`${PERIOD_WINDOW[period]} in the trend below`}
+            current={cur.signups}
+            prior={prev ? prev.signups : null}
+            deltaLabel={PERIOD_PRIOR[period]}
             delay={40}
           />
           <Card
+            label={`Conversions ${PERIOD_NOUN[period]}`}
+            value={cur.conversions}
+            sub="deposits verified"
+            current={cur.conversions}
+            prior={prev ? prev.conversions : null}
+            deltaLabel={PERIOD_PRIOR[period]}
+            delay={80}
+          />
+          <Card
+            label={`Churn ${PERIOD_NOUN[period]}`}
+            value={cur.churn}
+            sub="members downgraded"
+            current={cur.churn}
+            prior={prev ? prev.churn : null}
+            deltaLabel={PERIOD_PRIOR[period]}
+            delay={120}
+          />
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <TrendCard title="Signups" values={signupSeries} latest={String(cur.signups)} delay={160} />
+          <TrendCard title="Conversions" values={conversionSeries} latest={String(cur.conversions)} delay={200} />
+          <TrendCard title="Churn" values={churnSeries} latest={String(cur.churn)} delay={240} />
+        </div>
+
+        {/* Point-in-time metrics — live "as of now", not period-scoped */}
+        <h2 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+          Right now <span className="text-orange">·</span> live
+        </h2>
+        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-3">
+          <Card
             label="Active trials"
             value={live.trials_active}
+            live
             current={live.trials_active}
             prior={yesterday?.trials_active}
             weekPrior={lastWeek?.trials_active}
             delta
             weekDelta
-            delay={80}
+            delay={280}
           />
           <Card
             label="Expiring ≤48h"
             value={live.trials_expiring_48h}
             sub="active trials falling due"
-            delay={120}
-          />
-          <Card
-            label="Conversions today"
-            value={live.conversions_today}
-            current={live.conversions_today}
-            prior={yesterday?.conversions_today}
-            delta
-            delay={160}
+            live
+            delay={320}
           />
           <Card
             label="Active members"
             value={live.members_active}
+            live
             current={live.members_active}
             prior={yesterday?.members_active}
             weekPrior={lastWeek?.members_active}
             delta
             weekDelta
-            delay={200}
-          />
-          <Card
-            label="Churn today"
-            value={live.churn_today}
-            sub="downgraded today"
-            delay={240}
+            delay={360}
           />
         </div>
 
-        {/* Secondary metrics */}
+        {/* Secondary live metrics */}
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Card
             label="TV engagement"
             value={`${live.tv_engagement_pct}%`}
             sub="of members with a TradingView handle"
-            delay={280}
+            live
+            delay={400}
           />
           <div
             className="rise rounded-2xl border border-line bg-card p-5 shadow-soft"
-            style={{ animationDelay: "320ms" }}
+            style={{ animationDelay: "440ms" }}
           >
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">
-              Broker split (members)
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+                Broker split (members)
+              </p>
+              <LiveTag />
+            </div>
             <div className="mt-3 flex items-end gap-5">
               {[
                 { name: "Octa", n: b.octa },
@@ -361,19 +500,31 @@ export default async function GrowthPage() {
           </div>
         </div>
 
-        {/* Trend charts */}
+        {/* Point-in-time trends from snapshots */}
         <h2 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
-          Trends <span className="text-orange">·</span> last {snaps.length || 0} days
+          Trends <span className="text-orange">·</span> {PERIOD_WINDOW[period]}
         </h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <TrendCard title="Daily signups" values={signupSeries} latest={String(live.signups_today)} delay={360} />
-          <TrendCard title="Active trials" values={trialSeries} latest={String(live.trials_active)} delay={400} />
-          <TrendCard title="Active members" values={memberSeries} latest={String(live.members_active)} delay={440} />
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <TrendCard
+            title="Active trials"
+            values={trialSeries}
+            latest={String(live.trials_active)}
+            note={snapNote}
+            delay={480}
+          />
+          <TrendCard
+            title="Active members"
+            values={memberSeries}
+            latest={String(live.members_active)}
+            note={snapNote}
+            delay={520}
+          />
         </div>
 
         <p className="mt-8 pb-8 text-[12px] text-faint">
-          Snapshot date {fmtDay(live.date)} (SGT). Headline numbers are live; deltas compare against stored
-          daily snapshots.
+          Snapshot date {fmtDay(live.date)} (SGT). Flow numbers are derived live from member
+          records across the {PERIOD_WINDOW[period]}; the &ldquo;right now&rdquo; cards are live totals,
+          and their trends come from the forward-only 09:00-SGT snapshots.
         </p>
       </div>
     </main>
