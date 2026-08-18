@@ -26,12 +26,13 @@ for new production.
 > The `-V*-cover` files are **cover frames for video concepts**. Ask Don for the
 > video files themselves if you want to run them as-is.
 
-### `assets/screens/` — 17 in-app screenshots
+### `assets/screens/` — 22 in-app screenshots
 Real product UI, ready to drop into creative. Two sets: tall app views
 (820×1618, ideal for 9:16 / 4:5 device mock-ups) and 558×1000 crops.
 
 | Product area | Files |
 |---|---|
+| **AI Trading Assistant** ⭐ | `ai-trading-assistant.png` (full desk), `aita-performance.png`, `aita-radar.png`, `aita-coach.png`, `aita-breakdowns.png` |
 | Daily Analysis | `daily-analysis.jpg`, `analysis.jpg` |
 | Indicators / Strategies | `indicators.jpg`, `strategies.jpg`, `chart.jpg` |
 | Signals | `signals.jpg` |
@@ -41,9 +42,14 @@ Real product UI, ready to drop into creative. Two sets: tall app views
 | AI bots | `analysis-bots.jpg`, `analysis-bots-2.jpg`, `bots.jpg` |
 | News / Calendar | `news.jpg`, `economic-calendar.jpg` |
 
-⚠️ **No screenshot of the AI Trading Assistant is in this set** — it launched
-after these were captured. It's our lead product, so **request fresh captures
-from Don** before building Assistant-led creative.
+**The five `ai-trading-assistant` / `aita-*` captures are the lead product** and the
+priority for new creative: the full desk, the performance KPI grid, the trader
+radar, "Don's read" (the AI coach), and the by-symbol/session/weekday breakdowns.
+
+> ⚠️ **These are a real member account, so they show real P&L figures.** They may be
+> used to show *what the product looks like* — they must **not** be presented as a
+> performance claim, a typical result, or an implied return. If a figure would read
+> as "this is what you'll make", crop or reframe it. See `05-COMPLIANCE.md` §2.
 
 ---
 
@@ -132,7 +138,7 @@ that register.
 ## 6. What we'd like produced
 
 1. **AI Trading Assistant creative** — the priority. Static 4:5 + 9:16 video.
-   Request fresh product screenshots from Don first.
+   Product screenshots are in `assets/screens/` (`ai-trading-assistant.png`, `aita-*`).
 2. **Know Your Style** — quiz-led, high-intent. Strong for cold traffic.
 3. **Hook-testing batch** — several variants against the same LP so we can read
    hook performance cleanly via `cid`.
