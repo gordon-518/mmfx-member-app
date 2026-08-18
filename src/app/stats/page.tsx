@@ -7,10 +7,10 @@ import {
   bucketSnapshotSeries,
   parsePeriod,
   GROWTH_PERIODS,
-  type GrowthProfileRow,
   type GrowthMetrics,
   type GrowthPeriod,
 } from "@/lib/growth/metrics";
+import { fetchAllGrowthProfiles } from "@/lib/growth/profiles";
 
 // Admin-gated growth dashboard with a Daily/Weekly/Monthly/Yearly toggle
 // (?period=). Two metric families are handled differently:
@@ -23,9 +23,6 @@ import {
 // Aggregate counts only — no member PII.
 
 export const dynamic = "force-dynamic";
-
-const PROFILE_COLUMNS =
-  "signup_at, account_status, trial_ends_at, deposit_verified_at, downgraded_at, broker, tradingview_username";
 
 interface SnapshotRow {
   date: string;
@@ -279,8 +276,8 @@ export default async function GrowthPage({
   const period = parsePeriod(periodParam);
 
   // Live "current" totals (admin RLS lets an admin read every profile row).
-  const profileRows = (await supabase.from("profiles").select(PROFILE_COLUMNS)).data;
-  const profiles = (profileRows ?? []) as GrowthProfileRow[];
+  // Paged fetch — a plain .select() caps at 1000 rows and would undercount.
+  const profiles = await fetchAllGrowthProfiles(supabase);
   const live: GrowthMetrics = computeMetrics(profiles);
 
   // Flow metrics — re-derived live from raw profiles for the full history.

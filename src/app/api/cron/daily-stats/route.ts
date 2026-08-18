@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { computeMetrics, type GrowthProfileRow, type GrowthMetrics } from "@/lib/growth/metrics";
+import { computeMetrics, type GrowthMetrics } from "@/lib/growth/metrics";
+import { fetchAllGrowthProfiles } from "@/lib/growth/profiles";
 import { buildNarrative, type PriorSnapshot } from "@/lib/growth/narrative";
 import { sendTelegram, escapeHtml } from "@/lib/telegram";
 
@@ -13,9 +14,6 @@ import { sendTelegram, escapeHtml } from "@/lib/telegram";
 // aggregate counts, upserts today's growth_daily row, generates a short AI
 // narrative, and DMs the founder. Idempotent on the SGT date. Degrades
 // gracefully: a failed narrative or push never fails the snapshot.
-
-const PROFILE_COLUMNS =
-  "signup_at, account_status, trial_ends_at, deposit_verified_at, downgraded_at, broker, tradingview_username";
 
 function admin() {
   return createClient(
@@ -67,12 +65,18 @@ async function handle(req: NextRequest) {
 
   const db = admin();
 
-  const { data: profiles, error } = await db.from("profiles").select(PROFILE_COLUMNS);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  // Paged fetch — a plain .select() caps at 1000 rows and would undercount.
+  let profiles;
+  try {
+    profiles = await fetchAllGrowthProfiles(db);
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "profile fetch failed" },
+      { status: 500 }
+    );
   }
 
-  const metrics = computeMetrics((profiles ?? []) as GrowthProfileRow[]);
+  const metrics = computeMetrics(profiles);
 
   // Pull yesterday + last-week snapshots for deltas / narrative context.
   const { data: priorRows } = await db
