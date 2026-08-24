@@ -3,6 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { sendSignupConversions, fbcFromFbclid, splitName } from "@/lib/meta-capi";
+import { recordSignupIp } from "@/lib/signupIp";
 
 // Fires the signup conversions for the in-page email-OTP flow (SignupForm's
 // client-side verifyOtp never hits /auth/confirm, so the events have to be sent
@@ -36,6 +37,11 @@ export async function recordSignupConversion(): Promise<void> {
       (user.user_metadata?.full_name as string | undefined) ?? null,
     );
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+
+    // The in-page email-OTP flow never hits /auth/confirm (that route only
+    // records signup_ip for OAuth), so this is the only place email/password
+    // signups get their IP captured for /admin/abuse.
+    await recordSignupIp(user.id, ip);
 
     await sendSignupConversions(
       {
