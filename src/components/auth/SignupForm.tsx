@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { isDisposableEmail } from "@/lib/disposableEmails";
 import { computeFingerprint } from "@/lib/fingerprint";
 import { validatePassword } from "@/lib/auth/password";
 import { friendlyAuthError } from "@/lib/auth/authErrors";
 import { GoogleButton } from "./GoogleButton";
+import { Captcha, type CaptchaHandle } from "./Captcha";
 import { OtpCodeInput } from "./OtpCodeInput";
 import { recordSignupConversion } from "@/app/signup/actions";
 import { COUNTRIES, isKnownCountry } from "@/lib/countries";
@@ -26,6 +27,7 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [resent, setResent] = useState(false);
+  const captchaRef = useRef<CaptchaHandle>(null);
 
   function fail(msg: string) {
     setErrorMsg(msg);
@@ -52,13 +54,18 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
 
     setStatus("sending");
     setErrorMsg("");
+    const captchaToken = await captchaRef.current?.getToken();
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name.trim(), country, fingerprint: computeFingerprint() } },
+      options: {
+        data: { full_name: name.trim(), country, fingerprint: computeFingerprint() },
+        captchaToken,
+      },
     });
     if (error) {
+      captchaRef.current?.reset();
       fail(friendlyAuthError(error.message));
       return;
     }
@@ -245,6 +252,10 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
               </svg>
             )}
           </button>
+
+          {/* Invisible hCaptcha — no checkbox for real users, challenges only
+              when hCaptcha's risk score is suspicious. */}
+          <Captcha ref={captchaRef} />
         </form>
       </div>
 
