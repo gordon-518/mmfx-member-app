@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { validatePassword } from "@/lib/auth/password";
 import { friendlyAuthError } from "@/lib/auth/authErrors";
 import { OtpCodeInput } from "./OtpCodeInput";
+import { Captcha, type CaptchaHandle } from "./Captcha";
 
 type Stage = "request" | "code" | "reset";
 type Status = "idle" | "sending" | "error";
@@ -19,6 +20,7 @@ export function ForgotPasswordForm() {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [resent, setResent] = useState(false);
+  const captchaRef = useRef<CaptchaHandle>(null);
 
   function fail(msg: string) {
     setErrorMsg(msg);
@@ -33,10 +35,12 @@ export function ForgotPasswordForm() {
     if (!email || status === "sending") return;
     setStatus("sending");
     setErrorMsg("");
+    const captchaToken = await captchaRef.current?.getToken();
     const supabase = createClient();
     // Fire the reset; always advance regardless of outcome so we never reveal
     // whether an email is registered (enumeration-safe).
-    await supabase.auth.resetPasswordForEmail(email);
+    await supabase.auth.resetPasswordForEmail(email, { captchaToken });
+    captchaRef.current?.reset();
     setStatus("idle");
     setStage("code");
   }
@@ -76,8 +80,10 @@ export function ForgotPasswordForm() {
   }
 
   async function resend() {
+    const captchaToken = await captchaRef.current?.getToken();
     const supabase = createClient();
-    await supabase.auth.resetPasswordForEmail(email);
+    await supabase.auth.resetPasswordForEmail(email, { captchaToken });
+    captchaRef.current?.reset();
     setResent(true);
     setTimeout(() => setResent(false), 4000);
   }
@@ -114,6 +120,8 @@ export function ForgotPasswordForm() {
           >
             {status === "sending" ? "Sending…" : "Send reset code"}
           </button>
+
+          <Captcha ref={captchaRef} />
         </form>
 
         <p className="rise mt-6 text-center text-[13px] text-subtle" style={{ animationDelay: "0.18s" }}>

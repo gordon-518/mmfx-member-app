@@ -1,7 +1,7 @@
 "use client";
 
 import Script from "next/script";
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 // hCaptcha, invisible mode — no checkbox shown to real users; it only
 // challenges when hCaptcha's own risk score is suspicious. Vanilla script
@@ -9,10 +9,23 @@ import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 // minimal-dependency convention (see the hand-rolled journal SVG charts).
 //
 // If NEXT_PUBLIC_HCAPTCHA_SITE_KEY isn't set (local dev, or before the key is
-// provisioned), execute() resolves with an empty token and signup proceeds
-// without captcha enforcement — Supabase only requires a token once
-// security_captcha_enabled is turned on server-side, so this stays safe to
-// ship ahead of that flip.
+// provisioned), getToken() resolves with "" and the caller sends an empty
+// captchaToken — safe as long as Supabase's security_captcha_enabled is also
+// off; the two must be flipped together, never enabled server-side ahead of
+// every form actually sending a token (see git history: enabling captcha
+// project-wide broke login for ~15s before LoginForm/ForgotPasswordForm were
+// wired up — Supabase enforces it on signup AND signin AND recover, not just
+// whichever form you tested).
+//
+// Load sequencing: hCaptcha's own docs warn against calling render() as soon
+// as the <script> tag's load event fires — its internal API isn't necessarily
+// ready yet ("should not render before js api is fully loaded" console
+// warning). The documented fix is `?onload=<globalFnName>&render=explicit` on
+// the script URL, so hCaptcha itself tells us when it's truly ready. The
+// global callback is registered at module scope (runs the instant this file
+// is evaluated, before the <Script> tag can even be requested) and dispatches
+// a DOM event so any mounted Captcha instance can pick it up regardless of
+// exactly when its own effect runs relative to the script load.
 
 declare global {
   interface Window {
@@ -24,11 +37,18 @@ declare global {
       execute: (widgetId: string) => void;
       reset: (widgetId: string) => void;
     };
+    __hcaptchaOnLoad?: () => void;
   }
 }
 
+const READY_EVENT = "hcaptcha-ready";
+
+if (typeof window !== "undefined" && !window.__hcaptchaOnLoad) {
+  window.__hcaptchaOnLoad = () => window.dispatchEvent(new Event(READY_EVENT));
+}
+
 export interface CaptchaHandle {
-  /** Runs the challenge and resolves with a fresh token (or "" if unconfigured). */
+  /** Runs the challenge and resolves with a fresh token (or "" if unconfigured/not-yet-ready). */
   getToken: () => Promise<string>;
   /** Call after a failed submit — hCaptcha tokens are single-use. */
   reset: () => void;
@@ -37,10 +57,37 @@ export interface CaptchaHandle {
 const SITE_KEY = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? "";
 
 export const Captcha = forwardRef<CaptchaHandle>(function Captcha(_props, ref) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetId = useRef<string | null>(null);
   const pending = useRef<((token: string) => void) | null>(null);
-  const [ready, setReady] = useState(false);
+  const [apiReady, setApiReady] = useState(false);
+
+  useEffect(() => {
+    if (!SITE_KEY) return;
+    if (window.hcaptcha) {
+      setApiReady(true); // already loaded by an earlier page in this session
+      return;
+    }
+    const onReady = () => setApiReady(true);
+    window.addEventListener(READY_EVENT, onReady);
+    return () => window.removeEventListener(READY_EVENT, onReady);
+  }, []);
+
+  // Render the widget exactly once, once hCaptcha itself confirms it's ready
+  // AND the container div exists.
+  useEffect(() => {
+    if (!apiReady || !window.hcaptcha || !containerRef.current || widgetId.current != null) {
+      return;
+    }
+    widgetId.current = window.hcaptcha.render(containerRef.current, {
+      sitekey: SITE_KEY,
+      size: "invisible",
+      callback: (token) => {
+        pending.current?.(token);
+        pending.current = null;
+      },
+    });
+  }, [apiReady]);
 
   useImperativeHandle(ref, () => ({
     getToken: () =>
@@ -64,25 +111,10 @@ export const Captcha = forwardRef<CaptchaHandle>(function Captcha(_props, ref) {
   return (
     <>
       <Script
-        src="https://js.hcaptcha.com/1/api.js"
+        src="https://js.hcaptcha.com/1/api.js?onload=__hcaptchaOnLoad&render=explicit"
         strategy="afterInteractive"
-        onLoad={() => setReady(true)}
       />
-      <div
-        ref={(el) => {
-          containerRef.current = el;
-          if (el && ready && window.hcaptcha && widgetId.current == null) {
-            widgetId.current = window.hcaptcha.render(el, {
-              sitekey: SITE_KEY,
-              size: "invisible",
-              callback: (token) => {
-                pending.current?.(token);
-                pending.current = null;
-              },
-            });
-          }
-        }}
-      />
+      <div ref={containerRef} />
     </>
   );
 });

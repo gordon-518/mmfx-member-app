@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { friendlyAuthError } from "@/lib/auth/authErrors";
 import { GoogleButton } from "./GoogleButton";
+import { Captcha, type CaptchaHandle } from "./Captcha";
 
 type Status = "idle" | "sending" | "error";
 
@@ -14,6 +15,7 @@ export function LoginForm() {
   const [showPw, setShowPw] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const captchaRef = useRef<CaptchaHandle>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,9 +23,11 @@ export function LoginForm() {
     setStatus("sending");
     setErrorMsg("");
 
+    const captchaToken = await captchaRef.current?.getToken();
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
     if (error) {
+      captchaRef.current?.reset();
       setErrorMsg(friendlyAuthError(error.message));
       setStatus("error");
       return;
@@ -121,6 +125,8 @@ export function LoginForm() {
               </svg>
             )}
           </button>
+
+          <Captcha ref={captchaRef} />
         </form>
       </div>
 
