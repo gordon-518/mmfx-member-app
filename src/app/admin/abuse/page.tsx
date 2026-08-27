@@ -54,11 +54,21 @@ export default async function AbusePage() {
     );
   }
 
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, email, account_status, created_at, signup_fingerprint, signup_ip, tradingview_username")
-    .order("created_at", { ascending: false });
-  const rows = (data ?? []) as Row[];
+  // Page past PostgREST's default 1000-row cap — clustering over a partial
+  // profile set silently misses abuse rings past the 1000th row.
+  const PAGE = 1000;
+  const rows: Row[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, email, account_status, created_at, signup_fingerprint, signup_ip, tradingview_username")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, from + PAGE - 1);
+    const page = (data ?? []) as Row[];
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
 
   const clusters = [
     ...clustersFor(rows, "device", "signup_fingerprint"),
