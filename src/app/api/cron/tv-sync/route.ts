@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { grantTVAccess, revokeTVAccess } from "@/lib/tv/client";
-import type { AccountStatus } from "@/lib/trial/status";
-
-const ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
+import { resolveTvAccounts, type TvProfileRow } from "@/lib/tv/resolveTvAccounts";
 
 // Give the job room to finish. It reconciles every member with paced TradingView
 // calls; firing all of them at once used to 429-storm TradingView AND blow past
@@ -57,22 +55,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const rows = users ?? [];
-  const results = await inBatches(rows, BATCH_SIZE, async (u) => {
-    const status = u.account_status as AccountStatus;
-    const tv     = u.tradingview_username as string;
+  // Reconcile per TradingView ACCOUNT, not per profile row. Two profiles can
+  // carry the same (case-insensitive) handle when a member re-signs up under a
+  // second email, and acting on both made one run grant and then revoke the
+  // same TV account — see resolveTvAccounts for the full write-up.
+  const rows = (users ?? []) as TvProfileRow[];
+  const targets = resolveTvAccounts(rows);
+  const collapsed = rows.length - targets.length;
 
-    if (ACTIVE.has(status)) {
-      const trialEndsAt = status === "member_active" ? null : u.trial_ends_at;
-      return grantTVAccess(tv, trialEndsAt);
-    } else {
-      return revokeTVAccess(tv);
-    }
-  });
+  const results = await inBatches(targets, BATCH_SIZE, async (t) =>
+    t.action === "grant"
+      ? grantTVAccess(t.tvUsername, t.trialEndsAt)
+      : revokeTVAccess(t.tvUsername)
+  );
 
   const succeeded = results.filter((r) => r.status === "fulfilled").length;
   const failed    = results.filter((r) => r.status === "rejected").length;
 
-  console.log(`[cron/tv-sync] ${rows.length} users — ${succeeded} ok, ${failed} failed`);
-  return NextResponse.json({ total: rows.length, succeeded, failed });
+  console.log(
+    `[cron/tv-sync] ${rows.length} rows → ${targets.length} TV accounts ` +
+      `(${collapsed} duplicate row(s) collapsed) — ${succeeded} ok, ${failed} failed`
+  );
+  return NextResponse.json({
+    total: targets.length,
+    profileRows: rows.length,
+    collapsed,
+    succeeded,
+    failed,
+  });
 }
