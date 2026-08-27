@@ -147,27 +147,44 @@ export default async function AdminPage({
       ? country.toUpperCase()
       : "";
 
-  let query = supabase
-    .from("profiles")
-    .select(
-      "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country, trading_account_number"
-    )
-    .order("created_at", { ascending: true });
+  const ADMIN_PROFILE_COLUMNS =
+    "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country, trading_account_number";
 
-  if (emailQuery) {
-    // Escape the chars PostgREST treats as LIKE wildcards.
-    query = query.ilike(
-      "email",
-      `%${emailQuery.replace(/[%_\\]/g, "\\$&")}%`
-    );
+  function buildQuery() {
+    let q = supabase
+      .from("profiles")
+      .select(ADMIN_PROFILE_COLUMNS)
+      // Secondary tiebreaker on id — created_at alone isn't guaranteed unique,
+      // and range-based pagination needs a stable total order or rows can be
+      // skipped/duplicated across pages.
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
+
+    if (emailQuery) {
+      // Escape the chars PostgREST treats as LIKE wildcards.
+      q = q.ilike("email", `%${emailQuery.replace(/[%_\\]/g, "\\$&")}%`);
+    }
+    if (statusFilter) q = q.eq("account_status", statusFilter);
+    if (brokerFilter) q = q.eq("broker", brokerFilter);
+    if (countryFilter) q = q.eq("country", countryFilter);
+    return q;
   }
-  if (statusFilter) query = query.eq("account_status", statusFilter);
-  if (brokerFilter) query = query.eq("broker", brokerFilter);
-  if (countryFilter) query = query.eq("country", countryFilter);
 
-  const { data: profiles, error: listError } = await query;
-
-  const rows = (profiles ?? []) as AdminProfileRow[];
+  // Page past PostgREST's default 1000-row cap — otherwise the member list
+  // silently truncates once the base grows past 1000 signups.
+  const PAGE = 1000;
+  const rows: AdminProfileRow[] = [];
+  let listError: { message: string } | null = null;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await buildQuery().range(from, from + PAGE - 1);
+    if (error) {
+      listError = error;
+      break;
+    }
+    const page = (data ?? []) as AdminProfileRow[];
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
 
   // Admin-managed content (admin sees all rows via the is_admin policy).
   const { data: analysisData } = await supabase
