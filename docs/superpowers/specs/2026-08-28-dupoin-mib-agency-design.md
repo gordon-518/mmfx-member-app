@@ -1,6 +1,6 @@
 # Dupoin MIB — IB Infrastructure Agency
 
-**Date:** 28 Aug 2026 (rev. 2)
+**Date:** 28 Aug 2026 (rev. 3)
 **Scope:** A — the broker proposal pack. Specs B (platform build) and C (delivery ops) are out of scope and deliberately deferred.
 **Status:** design in review, pack not yet written.
 
@@ -22,8 +22,9 @@ everything below.
 | Decision | Choice | Consequence |
 |---|---|---|
 | Delivery model | **White-label** — each IB gets their own branded desk | Requires multi-tenancy before launch |
-| Content and products | **Shared across all tenants, produced by MMFX, re-branded per desk** | No per-tenant authoring needed; content load sits with MMFX |
-| Video layer | **Faceless** — chart-only screen capture with voiceover | One production run serves every desk |
+| MMFX's content contribution | **Tools + one short course**, neutral-branded and faceless, shared across tenants | Small, one-off production; no ongoing content dependency |
+| The IB's content | **Optional, uploaded by them** into the platform | Revives an upload-and-publish studio; desks may ship tools-only |
+| Video hosting | **Link-only** — the IB brings their own host | Smallest Phase 1 build; no DRM or moderation pipeline |
 | Pilot | **Real white-label from day one**, minimum 3 IBs | Platform is built before the thesis is proven |
 | Three feasibility conditions | **Accepted in full** | See §8 — contractual preconditions, not aspirations |
 
@@ -60,12 +61,11 @@ This figure determines whether Tier 3 (§6) can ever cover its cost base.
 
 ## 3. Product boundary
 
-The single most important table in the pack. Under the shared-content decision, MMFX
-carries the product *and* the content; the IB carries the market.
+The single most important table in the pack. MMFX supplies the machine; the IB supplies
+the market, and optionally the content that runs on it.
 
-**MMFX provides — the entire desk, re-branded per tenant:**
+**MMFX provides — the full tool suite, re-branded per tenant:**
 
-*Automated systems (no human input, live on day one)*
 1. 10 TradingView indicators + 2 strategies, automated invite-only grant/revoke
 2. AI Trading Assistant — read-only MT4/MT5 connect, auto trade import, behavioural leak
    analysis in dollars, discipline score, AI coach
@@ -81,46 +81,47 @@ carries the product *and* the content; the IB carries the market.
 12. Growth stats dashboard + daily snapshot
 13. Admin member management + access grants
 14. Link tracker + UTM / creative-ID convention
+15. **One short course** — neutral-branded, faceless, shared by every tenant
 
-*Produced content (shared catalog, re-branded per tenant)*
-15. MM Mentorship — 19 lessons / 6 modules, slide-based video + gated decks
-16. eBook library — 4 titles
-17. Daily XAU/USD analysis — faceless video + branded PDF
-18. Signals — 3-5 calls/day, 1:2+ R:R, per-tenant Telegram channel
-19. Live classes — 2/week, screen-share format
-20. VIP / Team tier feed
+**The IB optionally uploads:** their own course, eBooks, analysis, signals and class
+schedule. Nothing is required to launch — a desk that uploads nothing ships as tools plus
+the short course, which is still a real product, because the retention engine is the AI
+Trading Assistant rather than a content library.
 
-**The IB provides:** their audience and traffic, their brand identity, their market and
-language, local trader support, and compliance within their jurisdiction. Optionally their
-own content later — supported, but not required to launch.
+**Stays MMFX-exclusive — not part of the white-label offer:** the 19-lesson MM Mentorship,
+the 4 eBooks, daily XAU/USD analysis, the signals desk, live classes, Team MM.
 
-### Risks this creates, accepted
+### Design constraints this creates
 
-- **Content is now a single point of failure across every tenant.** If MMFX stops
-  producing, every desk goes stale simultaneously. Under the previous IB-supplied model
-  the risk was distributed; it is now concentrated. Argues for buffered content and a
-  documented production cadence (Spec C).
-- **Same content across competing IBs.** Two IBs in the same market (MY/ID especially)
-  will serve identical analysis to overlapping audiences. Faceless video reduces the
-  signal but does not remove it. Consider market or channel exclusivity per tenant.
+- **Per-tenant feature toggles are mandatory.** An empty Signals tab reads worse than no
+  Signals tab. Every content surface hides unless the tenant has populated it.
+- **The short course must be foundational, not the edge.** It should teach market basics
+  and platform orientation, not the MM System's actual entry model. Shipping the method
+  into every competing IB's desk would arm them with the one thing that is genuinely
+  MMFX's.
+- **Content moderation is now MMFX's exposure.** IB-uploaded material renders on a
+  platform MMFX operates, on a domain MMFX provisions, to traders funnelled to a broker
+  where MMFX is the MIB. An IB promising guaranteed returns creates liability for MMFX and
+  for Dupoin. Requires a content policy in the IB agreement, a takedown mechanism, and —
+  at three tenants — manual pre-publish review.
 
 ### The white-label wall
 
-Four things do not white-label cleanly. The pack must say so plainly rather than be caught
-out later:
+Three things do not white-label cleanly. The pack must say so plainly rather than be
+caught out later:
 
 1. **TradingView scripts.** The indicators are invite-only scripts published under one
    TradingView account, and the author name renders on the chart. They cannot be per-IB
    branded. Resolution: publish the suite once under a neutral engine brand; each desk
    reads "powered by <engine>".
-2. **Voice.** Faceless removes the face, not the voice. Across tenants the narration is
-   identifiably the same person. Either accept it, or move to per-tenant synthesised
-   narration later (see A3).
-3. **Per-tenant running cost.** MetaApi bills per connected account, plus news API, video
-   hosting, email and database. Fine at 3 tenants; must be modelled at 30. Carried before
-   any lots are traded.
-4. **Support load.** Every IB's traders become MMFX's support queue — TradingView grant
+2. **Per-tenant running cost.** MetaApi bills per connected account, plus news API, email
+   and database. Fine at 3 tenants; must be modelled at 30. Carried before any lots are
+   traded. Link-only video hosting keeps this cost flat.
+3. **Support load.** Every IB's traders become MMFX's support queue — TradingView grant
    failures, MetaApi connection errors, billing.
+
+The short course carries Don's narration across every tenant. One-off and low-signal, but
+noted; per-tenant synthesised narration is a Phase 3 option (A3).
 
 ---
 
@@ -137,8 +138,8 @@ eBooks, front-end course); creative refresh cadence; ad-account resilience.
 convention; pixel + Conversions API; signup-trial-funded funnel; lifecycle email; link
 tracker; anti-abuse; growth dashboard; per-IB attribution.
 
-**Line 3 — Products and content.** Items 1-20 in §3, licensed and re-branded into each
-tenant.
+**Line 3 — Products.** Items 1-15 in §3, licensed and re-branded into each tenant, plus
+the upload-and-publish studio the IB uses for their own content.
 
 **Line 4 — IB enablement and retention.** The desk as the IB's retention layer; IB
 onboarding kit (swipe files, pitch deck, objection handling, compliance rules); sub-IB
@@ -159,15 +160,17 @@ be demonstrated on request.
 revoke; AI Trading Assistant; Fundamental Desk; Know Your Style; calendar; news; daily
 analysis publishing pipeline (MMFX-operated); Telegram channel automation; SendPulse
 lifecycle sync; anti-abuse; growth stats with daily snapshot; link tracker; geo-routed
-upgrade; broker export parser with per-account allowlist and balance matching; 19-lesson
-course; 4 eBooks; landing page library; UTM and creative-ID convention; compliance
-framework; AI creative production line.
+upgrade; broker export parser with per-account allowlist and balance matching; landing
+page library; UTM and creative-ID convention; compliance framework; AI creative production
+line.
 
 **Build required** — multi-tenancy (tenant scoping on member data plus an RLS pass);
-branding layer (theme, domain, email sender, video watermark, PDF and deck templating);
-per-tenant funnel config; tenant-scoped admin and stats; sub-IB attribution and reporting;
+branding layer (theme, domain, email sender, PDF tokens); per-tenant funnel config;
+per-tenant feature toggles; upload-and-publish studio (link-only video, PDF and deck
+upload); tenant-scoped admin and stats; content policy and takedown mechanism; **the short
+course, produced neutral-branded and faceless**; sub-IB attribution and reporting;
 IB-facing portal; Conversions API; TikTok pipeline; ad-account structure for multi-tenant
-media buying; faceless conversion of the daily-analysis recording habit.
+media buying.
 
 **Not built — do not date it in the proposal** — the MT5 XAUUSD EA. Specified only.
 
@@ -175,8 +178,8 @@ media buying; faceless conversion of the daily-analysis recording habit.
 
 ## 6. Tiers
 
-**Tier 1 — Equip.** Free to the IB. Full branded desk: platform, products, content and
-funnel. Zero marginal cost beyond per-tenant infrastructure, funded entirely by the
+**Tier 1 — Equip.** Free to the IB. Full branded desk: the tool suite, the short course,
+the funnel, and the studio for uploading their own content. Zero marginal cost beyond per-tenant infrastructure, funded entirely by the
 override. The default, and near-frictionless to accept.
 
 **Tier 2 — Equip + Capture.** Tier 1 plus their own landing pages, tracking, lifecycle
@@ -190,18 +193,22 @@ where the model either prints or bleeds.
 
 ## 7. Platform shape
 
-Shared content collapses most of what a per-tenant authoring studio would have required.
-Content tables stay **global**; only member-scoped data is tenant-scoped.
+Content tables carry a nullable `tenant_id`: **null means global** (the short course,
+visible to every desk), **set means tenant-owned** (whatever the IB uploaded). One schema,
+no duplication, and the short course ships to new tenants with no work.
 
 | Layer | Today | Needed |
 |---|---|---|
 | Tenancy | Single tenant | `tenants` table; `tenant_id` on profiles, journal, quiz, engagement; RLS pass on member data |
 | Branding | MMFX hard-coded | Per-tenant theme tokens, logo, custom domain (Vercel wildcard), email sender |
-| Content | Global, MMFX-branded | Stays global; brand applied at render — video watermark, PDF tokens, deck re-template from source PPTs |
+| Content | Global, MMFX-branded | Nullable `tenant_id`; global short course + tenant-uploaded rows; brand applied at render (PDF tokens, deck re-template) |
+| Authoring | MMFX scripts + admin | Upload-and-publish studio: link-only video URL + thumbnail, PDF and deck upload, class schedule |
+| Surfaces | All always visible | Per-tenant feature toggles; a surface hides unless populated |
 | Funnel | Single broker routing | Per-tenant broker routing, IB links, trial length, upgrade copy |
 | Telegram | One channel | Per-tenant channel binding |
 | Email | One SendPulse list | Per-tenant list + sender identity |
 | Admin/stats | Global | Tenant-scoped views; MMFX retains a cross-tenant super-admin |
+| Moderation | None | Content policy, pre-publish review queue, takedown |
 | TradingView | MMFX-branded scripts | Neutral engine brand; grant flow works unchanged |
 
 Detailed design belongs to Spec B.
@@ -241,17 +248,16 @@ preconditions carry more weight, not less. Condition 1 in particular gates the b
 
 ## 9. Phasing
 
-**Phase 0 — now.** Deliver the pack. Secure the three preconditions in writing. Confirm
-the course videos are genuinely faceless (slide-based) — this is assumed in §3 and changes
-the content cost materially if wrong.
+**Phase 0 — now.** Deliver the pack. Secure the three preconditions in writing. Scope the
+short course (see Q4).
 
 **Phase 1 — build the pilot platform.** Multi-tenancy on member data, branding layer,
-per-tenant funnel config, tenant-scoped admin and stats, neutral engine brand for the
-TradingView suite, faceless daily-analysis production. Scope is bounded by §7 — no
-per-tenant authoring.
+per-tenant funnel config and feature toggles, upload-and-publish studio, tenant-scoped
+admin and stats, neutral engine brand for the TradingView suite. Produce the short course.
+Scope is bounded by §7.
 
-**Phase 2 — pilot, minimum 3 IBs, 60-90 days.** Three branded desks live, same content
-underneath. Success metrics: funded accounts per IB; lots per funded account per month;
+**Phase 2 — pilot, minimum 3 IBs, 60-90 days.** Three branded desks live on shared
+infrastructure, each with its own content mix. Success metrics: funded accounts per IB; lots per funded account per month;
 90-day account survival versus Dupoin's baseline; trial-to-funded conversion; CAC where
 paid media is used.
 
@@ -291,19 +297,17 @@ US/UK lifetime price, or raw IB links — consistent with the existing complianc
   documents, assuming Dupoin will ask "what will you actually show my IBs?" Drop it if the
   conversation is purely commercial.
 - **A2.** The override figure stays illustrative ($2/lot) until Dupoin names a number.
-- **A3.** Narration stays in Don's voice for the pilot. Per-tenant synthesised narration is
-  a Phase 3 option, not a launch requirement.
-- **A4.** The 19 course lessons are slide-based with voiceover and contain no on-camera
-  presenter, so re-branding is deck re-templating plus a Gumlet watermark rather than
-  re-shooting. **Verify in Phase 0.**
-- **A5.** The neutral engine brand for the TradingView layer is unnamed. Needed before
+- **A3.** Narration on the short course stays in Don's voice for the pilot. Per-tenant
+  synthesised narration is a Phase 3 option, not a launch requirement.
+- **A4.** The neutral engine brand for the TradingView layer is unnamed. Needed before
   Phase 1 ships, not before the pack.
 - **Q1.** Does Dupoin expect exclusivity — and would that conflict with the existing
   Octa/Elev8 routing for MY/ID?
 - **Q2.** Who is the counterparty on the IB agreement — MMFX and the IB directly, or does
   Dupoin contract the IB?
-- **Q3.** Is any per-tenant market or channel exclusivity offered, given shared content
-  across competing IBs (§3)?
+- **Q3.** Is any per-tenant market or channel exclusivity offered?
+- **Q4.** Short course scope — how many lessons, and is it cut down from MM Mentorship or
+  written fresh? §3 constrains it to foundational material only.
 
 ---
 
@@ -311,8 +315,8 @@ US/UK lifetime price, or raw IB links — consistent with the existing complianc
 
 - **Spec B — multi-tenant platform build.** Tenancy, RLS, branding layer, funnel config,
   attribution pipeline, IB portal. Begins only after §8 condition 1 clears.
-- **Spec C — delivery operations.** Ad-account and Business Manager structure, content
-  production cadence and buffering, support model, per-tenant cost model.
+- **Spec C — delivery operations.** Ad-account and Business Manager structure, support
+  model, per-tenant cost model, moderation workflow.
 
 ---
 
