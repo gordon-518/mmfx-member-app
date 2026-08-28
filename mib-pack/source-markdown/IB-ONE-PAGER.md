@@ -16,7 +16,7 @@ nothing that makes them better. Accounts go quiet, and quiet accounts pay nobody
 
 ## What you get
 
-**A complete trading desk under your own brand, on your own domain, at no cost to you.**
+**A complete trading desk under your own brand, on your own domain.**
 
 Your traders sign up on your site, see your logo, and get:
 
@@ -56,15 +56,6 @@ and managed by our team.
 
 ---
 
-## What it costs you
-
-**Nothing.** No setup fee, no monthly fee, no revenue share out of your pocket.
-
-We're paid by the broker on trading volume — the same way you are. We only do well when
-your traders stay active, which means our incentives and yours point the same direction.
-
----
-
 ## What you bring
 
 Your audience. Your brand. Your market and your language. First-line contact with your own
@@ -80,8 +71,10 @@ A trader with a referral link has no reason to log in tomorrow. A trader with a 
 their performance in front of them, their leaks named, their charts equipped, and a coach
 reviewing their decisions — has a reason to log in every day.
 
-Traders who stay engaged stay funded. Traders who stay funded keep trading. That's the
-whole model, and it's why we can afford to give you the platform for free.
+Traders who stay engaged stay funded. Traders who stay funded keep trading.
+
+We're paid on volume, the same way you are — so we only do well when your traders stay
+active. Our incentives and yours point in the same direction.
 
 ---
 

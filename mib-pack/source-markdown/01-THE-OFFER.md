@@ -65,15 +65,16 @@ operating cost per IB.
 
 ### Tier 1 — Equip
 
-**Free to the IB. The default.**
+**No fee, no subscription. The default.**
 
 The complete white-labelled desk: the full tool suite, the short foundation course, the
 signup-to-funded funnel, lifecycle email, analytics, and the studio for uploading their own
 content. Their brand, their domain, their traders.
 
-Costs the IB nothing and costs MMFX only per-tenant infrastructure. Funded entirely by the
-override. This should be close to frictionless for an IB to accept — there is no downside
-for them and no cash outlay.
+The IB writes no cheque — no setup fee, no monthly fee. MMFX is compensated out of the
+per-lot pool, so the arrangement is funded by volume rather than by the IB. This should be
+close to frictionless to accept: an IB with an audience and no product gets one without a
+cash outlay, and MMFX only earns if their traders actually trade.
 
 ### Tier 2 — Equip + Capture
 

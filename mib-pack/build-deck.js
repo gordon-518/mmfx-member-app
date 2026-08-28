@@ -116,7 +116,7 @@ s.addText("Their brand. Their domain.\nOur machine underneath.",{ x:1.1,y:2.55,w
   charSpacing:-0.7, lineSpacing:34 });
 s.addText("The trader signs up on the IB's site, sees the IB's logo, and gets a professional trading desk: indicators on their charts, an AI assistant reading their live account, a research bot, a calendar, filtered news and a foundation course — plus a free trial and a funded-account funnel behind it.",
   { x:1.1,y:4.0,w:6.4,h:2.0, isTextBox:true, margin:0, fontFace:BF, fontSize:14.5, color:MUT });
-const kp=[["Cost to the IB","Zero"],["Cost to Dupoin","Zero"],["MMFX is paid","Per lot, on volume"]];
+const kp=[["The IB pays","No fee"],["Funded from","The per-lot pool"],["MMFX earns","On volume"]];
 kp.forEach((k,i)=>{
   card(s,8.3,2.15+i*1.42,4.3,1.24,PANEL2);
   s.addText(k[0].toUpperCase(),{ x:8.6,y:2.35+i*1.42,w:3.7,h:0.26, isTextBox:true, margin:0,
@@ -244,7 +244,7 @@ s.addNotes("Offer a live demo on the spot. The credibility gap in these meetings
 s = slide();
 title(s,"Three tiers","Tier 1 is the default and should be near-frictionless for an IB to accept.");
 const tiers=[
-  ["TIER 1","Equip","Free to the IB",["The full white-label desk","Foundation course","Funnel, email, analytics","Upload studio for their content"],true],
+  ["TIER 1","Equip","No fee, no subscription",["The full white-label desk","Foundation course","Funnel, email, analytics","Upload studio for their content"],true],
   ["TIER 2","Equip + Capture","Small per-IB build",["Everything in Tier 1","Their own landing pages","Conversion tracking","Lead dashboard"],false],
   ["TIER 3","Full agency","Spend funded by IB or broker",["Everything in Tier 2","Meta campaign build & management","Full creative production","Geo tiering and refresh cadence"],false],
 ];
