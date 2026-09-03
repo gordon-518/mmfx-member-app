@@ -36,4 +36,9 @@ as $$
   group by attr_cid
 $$;
 
-revoke all on function public.organic_signups_by_cid(timestamptz) from anon, authenticated;
+-- Postgres grants EXECUTE on new functions to PUBLIC by default, and anon/authenticated
+-- INHERIT that grant — so revoking from those two roles alone leaves the function callable
+-- with the public anon key. Since it is security definer over profiles, that would be an RLS
+-- bypass. Revoke from PUBLIC first, then grant explicitly to the one role that needs it.
+revoke all on function public.organic_signups_by_cid(timestamptz) from public, anon, authenticated;
+grant execute on function public.organic_signups_by_cid(timestamptz) to service_role;
