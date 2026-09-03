@@ -43,6 +43,21 @@ export async function recordSignupConversion(): Promise<void> {
     // signups get their IP captured for /admin/abuse.
     await recordSignupIp(user.id, ip);
 
+    // Persist attribution BEFORE the CAPI call — CAPI is best-effort and can throw,
+    // and losing the cid means the signup can never be attributed to its post/ad.
+    if (attr.cid || attr.geo || attr.feature) {
+      const { error: attrError } = await supabase
+        .from("profiles")
+        .update({
+          attr_cid: attr.cid ?? null,
+          attr_geo: attr.geo ?? null,
+          attr_feature: attr.feature ?? null,
+        })
+        .eq("id", user.id)
+        .is("attr_cid", null); // first touch wins — never overwrite on a re-trial
+      if (attrError) console.error("[attribution] persist failed:", attrError);
+    }
+
     await sendSignupConversions(
       {
         email: user.email ?? null,
