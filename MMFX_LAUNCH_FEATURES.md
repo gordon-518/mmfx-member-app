@@ -2,7 +2,11 @@
 
 *One source of truth for a launch/creative project chat. Covers (1) how the business works, (2) every app feature, (3) where to find the creative assets — app screenshots, in-app imagery, and the Higgsfield product library — to make more creatives.*
 
-App: `app.marketmakersfx.net` · Marketing site: `marketmakersfx.net` · Members sign in with a magic link (no password).
+App: `app.marketmakersfx.net` · Marketing site: `marketmakersfx.net` · Members sign in with **email + password** (with a 6-digit email verification code at signup) or **one-tap Google sign-in**.
+
+> ⚠️ **For feature facts, `MMFeatures.md` (repo root) is canonical.** It's kept
+> current and includes the AI Trading Assistant. This brief is retained for
+> **PART 3 (creative-asset locations)** and **PART 5 (launch directions)**.
 
 ---
 
@@ -28,12 +32,12 @@ Access isn't sold like a course. To keep access after the free trial, a user **f
 ### The customer journey (the funnel)
 ```
  Paid ad / social  →  Marketing site (marketmakersfx.net)  →  Sign up (email + name)
-        →  14-day FREE full-access trial of the whole desk
+        →  7-day FREE full-access trial of the whole desk
         →  Trial ends → /upgrade (geo-routed)
         →  Fund $500 broker account via MMFX  →  Admin verifies  →  Member (full access kept)
 ```
 - **Top of funnel:** paid ads → the marketing site's feature pages.
-- **Activation:** magic-link signup → instant 14-day full access (no card, no friction).
+- **Activation:** email/Google signup → instant 7-day full access (no card, no friction).
 - **Conversion:** the value is already experienced during the trial; the upgrade is "keep what you already use" by funding a broker account.
 - **Retention/revenue:** ongoing trading volume → IB rebates.
 
@@ -41,7 +45,7 @@ Access isn't sold like a course. To keep access after the free trial, a user **f
 - **Member app** (`app.marketmakersfx.net`) — the product, all features below.
 - **Marketing site** (`marketmakersfx.net`) — public feature pages, live on Vercel.
 - **Telegram** — the signals delivery channel + the human contact/IB-switch handoff.
-- **Two AI tools** (Fundamental Desk, Know Your Style) — differentiators.
+- **Three AI tools** (AI Trading Assistant, Fundamental Desk, Know Your Style) — differentiators.
 - **TradingView** — where indicators/strategies actually run.
 
 ---
@@ -97,6 +101,11 @@ All features are **Full-access** (free trial or member). Each lists the in-app c
 
 ### 🤖 AI Tools
 
+**AI Trading Assistant** — `/journal` · **members only** · *full reference: `docs/features/AI-TRADING-ASSISTANT.md`*
+- Connects **read-only** to the member's live MT4/MT5 account, imports every trade automatically (no manual logging), and shows their real performance, the behaviours leaking money (in dollars), a discipline score, and "Don's read" — an AI coach that reviews their trades against their own goals.
+- *Hook:* "You don't have a strategy problem. You have a 'nobody's keeping score' problem."
+- ⚠️ Read-only — it can never trade or withdraw, and the password is never stored. Lead with that.
+
 **Fundamental Analysis Desk** — `/bots/fundamental` · *screenshots: `analysis-bots.jpg`, `analysis-bots-2.jpg`, `bots.jpg`*
 - Interactive bot giving the live macro picture driving XAU/USD; emails a PDF thesis.
 - *Hook:* "Ask the desk why Gold is moving. Get the macro answer — and a PDF."
@@ -112,7 +121,7 @@ All features are **Full-access** (free trial or member). Each lists the in-app c
 ### The numbers, at a glance (for headlines)
 | Course | Indicators | Strategies | eBooks | Signals/day | Live classes | News filters | AI tools | Trial |
 |---|---|---|---|---|---|---|---|---|
-| **19** lessons | **10** | **2** live | **4** | **3–5** @1:2+ | **2/wk** | **19** | **2** | **14 days** |
+| **19** lessons | **10** | **2** live | **4** | **3–5** @1:2+ | **2/wk** | **19** | **3** | **7 days** |
 
 ---
 
@@ -166,7 +175,7 @@ MMFX is a forex/gold **IB business**. Creative must:
 1. **"The whole desk" hero** — one visual, all 9 features as a single login. (Use `device.png` / phone mockups + a screenshot collage.)
 2. **Per-feature carousel** — one card per feature using Part 2 hooks + the matching `screens/` screenshot.
 3. **The $500 reframe** — "It's not a fee, it's your float." The differentiator vs every subscription competitor.
-4. **14-day trial CTA** — "Try the entire desk free for 14 days."
+4. **7-day trial CTA** — "Try the entire desk free for 7 days."
 5. **Proof-of-depth** — the numbers table as a single graphic.
 
 *The `paid-ads-creative` skill can generate a full MMFX ad package (briefs + 4 finished images) from any direction above — it already bakes in the compliance + geo-tier logic.*

@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "marketing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "/Users/gordon/Documents/Claude/mmfx-marketing-site", "run", "dev", "--", "--port", "3100"],
+      "port": 3100
     }
   ]
 }

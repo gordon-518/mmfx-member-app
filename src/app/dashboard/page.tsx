@@ -184,7 +184,7 @@ export default async function DashboardPage() {
         key: "live",
         eyebrow: `Live · ${fmtDay(nextClass.starts_at)}`,
         title: nextClass.title,
-        body: "Twice a week, live on the charts. Join the next session and trade it with us.",
+        body: "Live on the charts with the desk. Join the next session and trade it with us.",
         cta: { label: "Join the class", href: "/live-classes" },
         image: { src: "/dashboard/spotlight-course-alt.jpg", alt: "Live trading class" },
       });
