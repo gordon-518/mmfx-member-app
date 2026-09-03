@@ -53,7 +53,7 @@ export default async function LiveClassesPage() {
             Live Classes
           </h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">
-            Twice a week, live on the charts. Times are shown in UTC.
+            Live on the charts with the desk. Times are shown in UTC.
           </p>
         </div>
 

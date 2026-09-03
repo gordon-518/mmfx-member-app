@@ -79,8 +79,10 @@ function Footer({ text }: { text: string }) {
 }
 
 export async function POST(req: NextRequest) {
+  // Dedicated brain credential; CRON_SECRET kept as a fallback. See /api/organic/feed.
   const auth = req.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const expected = process.env.ORGANIC_CRON_SECRET || process.env.CRON_SECRET;
+  if (!expected || auth !== `Bearer ${expected}`) {
     return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
   }
 

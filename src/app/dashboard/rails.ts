@@ -49,7 +49,7 @@ export const STAGES: RailStage[] = [
     label: "Trade Management",
     tagline: "Manage the position",
     cards: [
-      { key: "live-classes", title: "Live Classes", blurb: "Twice-weekly, on the charts", href: "/live-classes", icon: LiveIcon },
+      { key: "live-classes", title: "Live Classes", blurb: "Live on the charts, with the desk", href: "/live-classes", icon: LiveIcon },
       { key: "know-your-style", title: "Know Your Style", blurb: "Find your trader archetype", href: "/bots/know-your-style", icon: StyleIcon },
     ],
   },

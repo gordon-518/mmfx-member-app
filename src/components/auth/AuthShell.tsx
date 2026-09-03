@@ -62,7 +62,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
               {[
                 "7 days of full access, free",
                 "Daily analysis + a few high-conviction signals a day",
-                "Indicators, the video course & twice-weekly live classes",
+                "Indicators, the video course & live classes with the desk",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3 text-[15px] text-ink">
                   <Check />

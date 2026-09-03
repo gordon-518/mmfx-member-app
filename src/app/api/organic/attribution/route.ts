@@ -7,8 +7,14 @@ import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  // ORGANIC_CRON_SECRET is a dedicated credential for the marketing brain, which only
+  // needs these two organic routes. Reusing CRON_SECRET would hand the brain the key to
+  // every cron route we own (journal, growth, channel, sendpulse) — far more blast radius
+  // than the job requires. CRON_SECRET stays accepted as a fallback so nothing breaks
+  // between this deploy and the new secret being set.
   const auth = req.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const expected = process.env.ORGANIC_CRON_SECRET || process.env.CRON_SECRET;
+  if (!expected || auth !== `Bearer ${expected}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
