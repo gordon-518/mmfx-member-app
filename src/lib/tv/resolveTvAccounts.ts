@@ -33,7 +33,19 @@ export type TvAccountAction = {
   trialEndsAt: string | null;
 };
 
-const ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
+/**
+ * Statuses entitled to the TradingView scripts: a live trial or any member.
+ * It matches the tier ladder (indicators and strategies open at Foundation,
+ * trials are Desk-equivalent, and every member_active user is Foundation or
+ * above). tvTier.test.ts pins that, so the two can't drift apart
+ * (conversion-fix 3.4).
+ */
+export const TV_ENTITLED_STATUSES: ReadonlySet<AccountStatus> = new Set<AccountStatus>([
+  "trial_active",
+  "re_trial_active",
+  "member_active",
+]);
+const ACTIVE = TV_ENTITLED_STATUSES;
 
 // Higher wins. A permanent member outranks a trial, which outranks anything
 // lapsed — so the strongest entitlement on a handle is the one we act on.

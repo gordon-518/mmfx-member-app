@@ -8,10 +8,12 @@ import { syncSendpulseAudiences } from "@/lib/sendpulseSync";
 import { sendCapiEvent } from "@/lib/meta-capi";
 import { banUserById, deleteUserById } from "@/lib/adminUsers";
 import type { AccountStatus } from "@/lib/trial/status";
+import { TV_ENTITLED_STATUSES } from "@/lib/tv/resolveTvAccounts";
 
 import { logEventAfter } from "@/lib/events";
 import { tierFor, tierLabel, type TierSnapshot } from "@/lib/tiers";
-const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
+// One entitlement rule shared with the nightly cron (conversion-fix 3.4).
+const TV_ACTIVE = TV_ENTITLED_STATUSES;
 
 // Fire-and-forget TV sync after any admin status change. Failures are logged
 // but never block the admin action — the daily cron is the safety net.

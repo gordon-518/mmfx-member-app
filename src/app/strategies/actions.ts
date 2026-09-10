@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { grantTVAccess } from "@/lib/tv/client";
+import { TV_ENTITLED_STATUSES } from "@/lib/tv/resolveTvAccounts";
 import { validateTradingViewUsername } from "@/lib/tvUsername";
 import type { AccountStatus } from "@/lib/trial/status";
 
-const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
+// One entitlement rule shared with the cron and admin sync (conversion-fix 3.4).
+const TV_ACTIVE = TV_ENTITLED_STATUSES;
 
 export async function setTradingViewUsernameFromStrategies(formData: FormData) {
   const username = String(formData.get("tradingview_username") ?? "");
