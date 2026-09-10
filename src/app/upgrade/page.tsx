@@ -48,10 +48,10 @@ const LOCKED_ITEMS: { label: string; icon: Icon }[] = [
   { label: "TradingView indicators", icon: IndicatorsIcon },
   { label: "Backtestable strategies", icon: StrategiesIcon },
   { label: "The MM System & playbooks", icon: LibraryIcon },
-  { label: "Full video curriculum", icon: CourseIcon },
+  { label: "The full course (Module 1 stays free)", icon: CourseIcon },
   { label: "Live classes with the desk", icon: LiveIcon },
   { label: "Daily signals", icon: SignalsIcon },
-  { label: "Know Your Style & the Macro desk", icon: DeskIcon },
+  { label: "The Fundamental Desk", icon: DeskIcon },
 ];
 
 // Broker regions: the deposit-you-own model (no fee). US/UK: a paid one-time
@@ -78,6 +78,9 @@ export default async function UpgradePage({
   const headerCountry = ((await headers()).get("x-vercel-ip-country") ?? "").toUpperCase();
   const region = regionFor(override ?? headerCountry);
   const isContact = region === "contact";
+  // conversion-fix 2.5 — an expired trial is on Free (the reverse trial), so it
+  // is never told its access "ended". A live trial gets forward-looking copy.
+  const onFree = access.tier !== "Full";
 
   // conversion-fix 1.3 — the top of the upgrade funnel. Admin ?geo= previews
   // aren't real visits, so they aren't counted.
@@ -112,16 +115,17 @@ export default async function UpgradePage({
           Market Makers FX
         </p>
         <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
-          Your 14 days are up. Your desk is still set.
+          {onFree ? "You're on Free. Your desk is still set." : "Keep your whole desk after the trial."}
         </h1>
         <p className="mt-5 text-[16px] leading-relaxed text-subtle">
-          For two weeks you traded the MM System with everything unlocked. As of
-          today the tools are locked — not gone.
+          {onFree
+            ? "Your trial has ended, so you're on the Free plan. Daily Analysis, the calendar, news, Know Your Style and Module 1 of the course stay open. The rest is locked, not gone."
+            : "Right now everything is unlocked. Fund your account and it stays that way when your trial ends."}
         </p>
 
         {/* What's locked — visual manifest */}
         <p className="mt-10 text-[11px] font-semibold uppercase tracking-wider text-faint">
-          What just went quiet
+          {onFree ? "What's locked on Free" : "What locks when the trial ends"}
         </p>
         <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {LOCKED_ITEMS.map((item) => (
@@ -189,7 +193,7 @@ export default async function UpgradePage({
         {/* How to reopen — the geo-routed pathway */}
         <div className="mt-14">
           <h2 className="font-display text-2xl font-bold tracking-tight text-ink">
-            Reopen your desk
+            {onFree ? "Reopen your desk" : "Keep your desk"}
           </h2>
           <p className="mt-2 text-[15px] leading-relaxed text-subtle">
             A few steps and your access switches back on. Follow the path that fits you.

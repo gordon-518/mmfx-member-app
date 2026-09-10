@@ -1,5 +1,5 @@
 // Server-side gating primitives ONLY. This barrel is server-only by
-// transitivity (getAccess/requireFull import "server-only").
+// transitivity (getAccess/requireFeature import "server-only").
 //
 // The LockedOverlay UI component deliberately lives OUTSIDE this barrel —
 // import it directly so client components can use it without dragging the
@@ -8,4 +8,4 @@
 //   import { LockedOverlay } from "@/lib/access/LockedOverlay";
 
 export { getAccess, isMemberActive, type Access, type AccessProfile } from "./getAccess";
-export { requireFull } from "./requireFull";
+export { requireFeature, type FeatureGate } from "./requireFeature";

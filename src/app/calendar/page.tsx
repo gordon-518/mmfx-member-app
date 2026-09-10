@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
+import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import {
   getEconomicCalendar,
@@ -31,8 +32,10 @@ export default async function CalendarPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull({ feature: "calendar" });
+  // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.
+  const gate = await requireFeature("calendar");
+  if (gate.locked) return <LockedFeature feature="calendar" gate={gate} />;
+  const profile = gate.profile;
 
   const { week } = await searchParams;
   const offset = clampWeek(typeof week === "string" ? parseInt(week, 10) : 0);
@@ -49,7 +52,7 @@ export default async function CalendarPage({
     "rounded-xl border border-line bg-paper px-3.5 py-2 text-[13px] font-semibold text-faint cursor-not-allowed";
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier={gate.tier} isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">

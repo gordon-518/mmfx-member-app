@@ -1,12 +1,15 @@
 import { type NextRequest } from "next/server";
-import { requireFull } from "@/lib/access";
+import { redirect } from "next/navigation";
+import { requireFeature } from "@/lib/access";
+import { canWatchLesson } from "@/lib/access/course";
 import { createClient } from "@/lib/supabase/server";
 import { isDemoUser } from "@/lib/showcase";
-import { SLIDES_BUCKET, lessonBySlug } from "@/app/course/courseData";
+import { MODULES, SLIDES_BUCKET, lessonBySlug } from "@/app/course/courseData";
 
 // Gated PPT delivery — same proven pattern as /api/ebooks/[slug] (Day 7).
-//   1. requireFull() — Limited users redirect to /upgrade before any storage
-//      call (signed-out -> /login).
+//   1. requireFeature() + canWatchLesson() — Free users get Module 1's decks
+//      only; anything else redirects to /upgrade before any storage call
+//      (signed-out -> /login). conversion-fix 2.3.
 //   2. Download via the USER's authenticated server client, so the `slides`
 //      storage RLS policy (is_full_access) double-enforces tier. No
 //      service_role, no getPublicUrl; the bucket is never public.
@@ -18,8 +21,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  // Gate 1: tier. Redirects (throws) for anyone not Full.
-  const profile = await requireFull();
+  // Gate 1: signed in. The course is a free feature; lessons are gated below.
+  const gate = await requireFeature("course", { onLocked: "redirect", log: false });
+  const profile = gate.profile;
 
   // Showcase demo account may view the UI but never pull the paid file bytes.
   if (isDemoUser(profile.email)) {
@@ -32,6 +36,11 @@ export async function GET(
   const lesson = lessonBySlug(slug);
   if (!lesson) {
     return new Response("Not found", { status: 404 });
+  }
+
+  // Gate 1b: the lesson itself. Free users get Module 1 only.
+  if (!canWatchLesson(lesson.number, MODULES, gate.viewer)) {
+    redirect("/upgrade");
   }
 
   // Gate 2: authenticated user client -> storage RLS applies.

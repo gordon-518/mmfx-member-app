@@ -1,10 +1,10 @@
 import { type NextRequest } from "next/server";
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { isDemoUser } from "@/lib/showcase";
 
 // Gated daily-analysis PDF report. Same pattern as the ebook/slide routes:
-//   1. requireFull() — Limited users redirect to /upgrade before any storage.
+//   1. requireFeature() — locked users redirect to /upgrade before any storage.
 //   2. Resolve the report_path from the row (RLS lets Full users read it),
 //      then download from the PRIVATE analysis-reports bucket via the user's
 //      authenticated client — storage RLS double-enforces tier.
@@ -16,7 +16,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const profile = await requireFull();
+  const { profile } = await requireFeature("daily-analysis", { onLocked: "redirect", log: false });
 
   // Showcase demo account may view the UI but never pull the paid file bytes.
   if (isDemoUser(profile.email)) {

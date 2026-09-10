@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
+import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon } from "@/components/icons";
 import { MM_INDICATORS_DISCLAIMER } from "@/lib/content/disclaimer";
@@ -12,15 +13,17 @@ export default async function IndicatorsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull({ feature: "indicators" });
+  // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.
+  const gate = await requireFeature("indicators");
+  if (gate.locked) return <LockedFeature feature="indicators" gate={gate} />;
+  const profile = gate.profile;
 
   const { tv_error } = await searchParams;
   const tvError = typeof tv_error === "string" ? tv_error : null;
   const hasUsername = Boolean(profile.tradingview_username);
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier={gate.tier} isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">

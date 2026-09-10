@@ -45,6 +45,7 @@ export async function syncSendpulseAudiences(): Promise<SendpulseSyncResult> {
     const audience = audienceFor(status, trialEndsAt, now);
     counts[audience] = (counts[audience] ?? 0) + 1;
 
+    // audience "expired" = the Free tier (see src/lib/audience.ts).
     const variables: Record<string, string> = { audience, account_status: status };
     if (u.full_name) variables.Name = u.full_name as string;
     if (trialEndsAt) variables.trial_ends_at = trialEndsAt.slice(0, 10);

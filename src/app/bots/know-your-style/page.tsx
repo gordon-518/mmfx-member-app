@@ -1,4 +1,5 @@
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
+import { LockedFeature } from "@/components/LockedFeature";
 import { BotPage } from "../BotPage";
 import { KysCopyBridge } from "./KysCopyBridge";
 
@@ -12,14 +13,18 @@ const BOT_URL = "https://mmfx-know-your-style.vercel.app/";
 const EMBED_URL = "https://mmfx-know-your-style.vercel.app/?app=1";
 
 export default async function KnowYourStylePage() {
-  // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull({ feature: "know-your-style" });
+  // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.
+  const gate = await requireFeature("know-your-style");
+  if (gate.locked) return <LockedFeature feature="know-your-style" gate={gate} />;
+  const profile = gate.profile;
 
   return (
     <>
       <BotPage
         email={profile.email}
         accountStatus={profile.account_status}
+        tier={gate.tier}
+        isAdmin={profile.is_admin}
         eyebrow="Bots · Profile"
         title="Know Your Style"
         description="Discover your trader archetype — answer a few questions and get a personalized profile."

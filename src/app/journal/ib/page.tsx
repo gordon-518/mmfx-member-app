@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
 import { AppShell } from "@/components/AppShell";
 import { serviceClient } from "@/lib/journal/api";
 import { loadBrokers } from "@/lib/journal/ibBrokers";
@@ -7,7 +7,8 @@ import { loadMemberAudit, LOW_BALANCE_THRESHOLD } from "@/lib/journal/ibMemberAu
 import { IbAdmin } from "./IbAdmin";
 
 export default async function JournalIbPage() {
-  const profile = await requireFull();
+  const gate = await requireFeature("ai-trading-assistant", { onLocked: "redirect", log: false });
+  const profile = gate.profile;
   if (!profile.is_admin) redirect("/dashboard");
 
   const svc = serviceClient();
@@ -25,7 +26,7 @@ export default async function JournalIbPage() {
     <AppShell
       email={profile.email}
       accountStatus={profile.account_status}
-      tier="Full"
+      tier={gate.tier}
       isAdmin
     >
       <IbAdmin
