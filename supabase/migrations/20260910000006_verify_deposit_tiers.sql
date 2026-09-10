@@ -12,6 +12,8 @@
 --     conversion timestamp the growth metrics count; a top-up must not move it
 --   * the partnered-broker and IB-confirmed checks are unchanged
 --   * the first deposit flips trial_* -> member_active exactly as before
+--   * the same amount + broker for the same user within 2 minutes is refused
+--     as a double submit
 --
 -- Body: the LIVE definition (pg_get_functiondef, 10 Sep 2026) with the marked
 -- changes. Signature and return type unchanged, so existing grants persist.
@@ -63,6 +65,22 @@ begin
 
   -- changed (3.2): an existing member is no longer rejected. Verifying them
   -- again records a top-up.
+
+  -- added (3.2 review): double-submit guard. Dropping the "already a member"
+  -- rejection removed the only thing stopping a double-clicked Verify from
+  -- recording the same deposit twice and inflating the tier. The FOR UPDATE
+  -- above serialises concurrent verifies for this user, so a second submit
+  -- waits, then sees the first one's ledger row here.
+  if exists (
+    select 1
+    from public.deposit_events e
+    where e.user_id = target_user_id
+      and e.amount = p_amount
+      and e.broker = p_broker
+      and e.verified_at > now() - interval '2 minutes'
+  ) then
+    raise exception 'Looks like a duplicate: a $% % deposit for this user was verified in the last 2 minutes', p_amount, p_broker;
+  end if;
 
   -- added (3.2): the ledger row. The running total below is derived from it.
   insert into public.deposit_events (user_id, amount, broker, ib_confirmed, verified_by, verified_at)

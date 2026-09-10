@@ -99,11 +99,16 @@ export async function verifyDeposit(formData: FormData) {
   // conversion-fix 3.2 — the member's state BEFORE this verification decides
   // whether it's a first deposit (the only kind that fires CAPI Purchase) or a
   // top-up, and which tier they move from.
-  const { data: before } = await supabase
+  const { data: before, error: beforeError } = await supabase
     .from("profiles")
     .select("account_status, trial_ends_at, deposit_amount, grandfathered, deposit_verified_at")
     .eq("id", targetUserId)
     .single();
+  if (beforeError || !before) {
+    // Without the pre-image this verify can't tell a first deposit from a top-up,
+    // so CAPI Purchase is suppressed below. Make that visible.
+    console.error("[verify-deposit] pre-read failed; Purchase will be skipped:", beforeError?.message);
+  }
 
   const { data: after, error } = await supabase.rpc("fn_verify_deposit", {
     target_user_id: targetUserId,

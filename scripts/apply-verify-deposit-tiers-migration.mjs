@@ -75,6 +75,12 @@ try {
     ok("top-up keeps the first verification time",
       new Date(top.deposit_verified_at).getTime() === new Date(firstAt).getTime());
 
+    await client.query("savepoint d");
+    let dupRefused = false;
+    try { await verify(150); } catch (e) { dupRefused = /duplicate/i.test(e.message); }
+    await client.query("rollback to savepoint d");
+    ok("the same $150 again within 2 minutes is refused as a double submit", dupRefused);
+
     const led = (await client.query("select count(*)::int n, sum(amount)::numeric s, bool_and(verified_by = $2) by_admin from public.deposit_events where user_id = $1", [trial, admin])).rows[0];
     ok("two ledger rows summing to $200, verified_by = the admin",
       led.n === 2 && Number(led.s) === 200 && led.by_admin === true, `(${led.n} rows, $${led.s})`);
