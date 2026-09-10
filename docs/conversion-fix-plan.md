@@ -253,10 +253,11 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 
 *2–3 weeks. Split into PRs by task.*
 
-- [ ] **3.1 Keep a deposit ledger and a cumulative total.**
+- [x] **3.1 Keep a deposit ledger and a cumulative total.**
   New table `deposit_events` (`id`, `user_id`, `amount`, `broker`, `ib_confirmed`, `verified_by`, `verified_at`, `note`), select for admins only. `profiles.deposit_amount` becomes **the cumulative sum of verified deposits**, maintained by the RPC, never computed on the fly. Backfill one `deposit_events` row per existing verified member from their current `deposit_amount` and `deposit_verified_at`.
   Add `profiles.grandfathered boolean default false` and set it `true` for the 112 `member_active` rows with `deposit_verified_at is null`. That makes the legacy rule explicit instead of relying on null semantics.
   **Done when:** the backfill row count equals the verified member count, `grandfathered` count = 112, and SCHEMA.md is updated.
+  **Landed (10 Sept, `20260910000005_deposit_ledger.sql`, applied to prod):** 38 ledger rows for 38 verified members, with `sum(amount) = deposit_amount` for each, and 112 grandfathered, none of them verified. Applied twice to prove it's idempotent. Non-admins can't read or write the ledger. `verified_by` is an admin uuid and is null on backfilled rows. Growth metrics still define "legacy" as no deposit record, which is the same set today. Tier logic (3.3) keys off `grandfathered`, so a grandfathered member who later deposits stays Team MM.
 
 - [ ] **3.2 Let `fn_verify_deposit` handle tiers and top-ups.**
   Today it rejects `p_amount < 500`, **rejects anyone already `member_active`** (so a top-up can't be recorded at all), and **overwrites** `deposit_amount`. Change it to:
