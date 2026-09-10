@@ -6,8 +6,8 @@ import { useEffect, useState, type ComponentType, type ReactNode, type SVGProps 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { signOut } from "@/app/dashboard/actions";
 import type { AccountStatus } from "@/lib/trial/status";
-import { tierLabel, type MemberTier } from "@/lib/tiers";
-import { canAccess, featureForHref, type Viewer } from "@/lib/access/features";
+import { tierLabel, tierUnlockLabel, type MemberTier } from "@/lib/tiers";
+import { canAccess, featureForHref, FEATURE_MIN_TIER, type Viewer } from "@/lib/access/features";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
   AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon, TelegramIcon,
@@ -95,13 +95,16 @@ function NavLinks({
     const active = isActive(pathname, n.href);
     const feature = featureForHref(n.href);
     const locked = feature != null && !canAccess(feature, viewer);
+    // conversion-fix 3.7 — a locked item says which tier opens it.
+    const min = feature != null ? FEATURE_MIN_TIER[feature] : "free";
+    const unlockHint = locked && min !== "free" ? `Unlocks at ${tierUnlockLabel(min)}` : undefined;
     return (
       <Link
         key={n.href}
         href={n.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
-        title={locked ? "Locked on your plan" : undefined}
+        title={unlockHint}
         className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
           active
             ? "bg-accent-soft text-accent-ink"
@@ -113,7 +116,7 @@ function NavLinks({
         {locked && (
           <>
             <LockIcon aria-hidden className="ml-auto h-3.5 w-3.5 shrink-0 text-faint/70" />
-            <span className="sr-only">(locked)</span>
+            <span className="sr-only">({unlockHint ?? "locked"})</span>
           </>
         )}
       </Link>

@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { addContactsToBook, type BookContact } from "@/lib/sendpulse";
 import { audienceFor } from "@/lib/audience";
+import { tierFor } from "@/lib/tiers";
 import type { AccountStatus } from "@/lib/trial/status";
 
 export interface SendpulseSyncResult {
@@ -30,7 +31,7 @@ export async function syncSendpulseAudiences(): Promise<SendpulseSyncResult> {
 
   const { data: users, error } = await admin
     .from("profiles")
-    .select("email, full_name, account_status, trial_ends_at");
+    .select("email, full_name, account_status, trial_ends_at, deposit_amount, grandfathered");
   if (error) return { ...empty, error: error.message };
 
   const now = Date.now();
@@ -47,6 +48,17 @@ export async function syncSendpulseAudiences(): Promise<SendpulseSyncResult> {
 
     // audience "expired" = the Free tier (see src/lib/audience.ts).
     const variables: Record<string, string> = { audience, account_status: status };
+    // conversion-fix 3.7 — the tier ladder, for tier-specific email flows:
+    // free | trial | foundation | desk | team.
+    variables.tier = tierFor(
+      {
+        account_status: status,
+        trial_ends_at: trialEndsAt,
+        deposit_amount: (u.deposit_amount as number | string | null) ?? null,
+        grandfathered: (u.grandfathered as boolean | null) ?? false,
+      },
+      new Date(now)
+    );
     if (u.full_name) variables.Name = u.full_name as string;
     if (trialEndsAt) variables.trial_ends_at = trialEndsAt.slice(0, 10);
     contacts.push({ email, variables });
