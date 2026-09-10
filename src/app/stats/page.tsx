@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Wordmark } from "@/components/AppShell";
 import {
   computeMetrics,
+  computeConversion,
   bucketFlowMetrics,
   bucketSnapshotSeries,
   parsePeriod,
@@ -33,6 +34,9 @@ interface SnapshotRow {
   trials_expiring_48h: number;
   conversions_today: number;
   members_active: number;
+  // Null before 2026-09-10: the verified/legacy split wasn't measured then.
+  members_verified: number | null;
+  members_legacy: number | null;
   churn_today: number;
   tv_engagement_pct: number;
   narrative: string | null;
@@ -281,6 +285,9 @@ export default async function GrowthPage({
   const live: GrowthMetrics = computeMetrics(profiles);
   // Every profile row is one signup (created by the handle_new_user trigger).
   const totalSignups = profiles.length;
+  // Signup -> verified deposit, legacy excluded from both sides. Cumulative, so
+  // it's derived live from profiles rather than read from a snapshot.
+  const conv = computeConversion(profiles);
 
   // Flow metrics — re-derived live from raw profiles for the full history.
   const flow = bucketFlowMetrics(profiles, period);
@@ -294,7 +301,7 @@ export default async function GrowthPage({
   const { data: snapData } = await supabase
     .from("growth_daily")
     .select(
-      "date, signups_today, signups_7d, signups_30d, trials_active, trials_expiring_48h, conversions_today, members_active, churn_today, tv_engagement_pct, narrative"
+      "date, signups_today, signups_7d, signups_30d, trials_active, trials_expiring_48h, conversions_today, members_active, members_verified, members_legacy, churn_today, tv_engagement_pct, narrative"
     )
     .order("date", { ascending: false })
     .limit(SNAP_LIMIT[period]);
@@ -314,6 +321,13 @@ export default async function GrowthPage({
   );
   const memberSeries = bucketSnapshotSeries(
     snaps.map((s) => ({ date: s.date, value: s.members_active })),
+    period
+  );
+  // Forward-only: snapshots before 2026-09-10 didn't measure the split (null).
+  const verifiedSeries = bucketSnapshotSeries(
+    snaps
+      .filter((s) => s.members_verified != null)
+      .map((s) => ({ date: s.date, value: s.members_verified as number })),
     period
   );
   const snapNote = "from 09:00 SGT snapshots";
@@ -404,7 +418,8 @@ export default async function GrowthPage({
             {totalSignups.toLocaleString()}
           </p>
           <p className="mt-1.5 text-[12px] text-subtle">
-            {live.members_active.toLocaleString()} members ·{" "}
+            {live.members_verified.toLocaleString()} verified members ·{" "}
+            {live.members_legacy.toLocaleString()} legacy ·{" "}
             {live.trials_active.toLocaleString()} active trials
           </p>
         </div>
@@ -473,12 +488,13 @@ export default async function GrowthPage({
             delay={320}
           />
           <Card
-            label="Active members"
-            value={live.members_active}
+            label="Verified members"
+            value={live.members_verified}
+            sub={`+ ${live.members_legacy} legacy (no deposit record)`}
             live
-            current={live.members_active}
-            prior={yesterday?.members_active}
-            weekPrior={lastWeek?.members_active}
+            current={live.members_verified}
+            prior={yesterday?.members_verified}
+            weekPrior={lastWeek?.members_verified}
             delta
             weekDelta
             delay={360}
@@ -486,11 +502,18 @@ export default async function GrowthPage({
         </div>
 
         {/* Secondary live metrics */}
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Card
+            label="Signup → deposit"
+            value={`${conv.ratePct}%`}
+            sub={`${conv.verified} of ${conv.realSignups.toLocaleString()} real signups · all-time`}
+            live
+            delay={380}
+          />
           <Card
             label="TV engagement"
             value={`${live.tv_engagement_pct}%`}
-            sub="of members with a TradingView handle"
+            sub="of all members (legacy included) with a TradingView handle"
             live
             delay={400}
           />
@@ -523,7 +546,7 @@ export default async function GrowthPage({
         <h2 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
           Trends <span className="text-orange">·</span> {PERIOD_WINDOW[period]}
         </h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
           <TrendCard
             title="Active trials"
             values={trialSeries}
@@ -532,18 +555,27 @@ export default async function GrowthPage({
             delay={480}
           />
           <TrendCard
-            title="Active members"
+            title="Verified members"
+            values={verifiedSeries}
+            latest={String(live.members_verified)}
+            note="from snapshots · tracked from 10 Sep 2026"
+            delay={520}
+          />
+          <TrendCard
+            title="All members (incl. legacy)"
             values={memberSeries}
             latest={String(live.members_active)}
             note={snapNote}
-            delay={520}
+            delay={560}
           />
         </div>
 
         <p className="mt-8 pb-8 text-[12px] text-faint">
           Snapshot date {fmtDay(live.date)} (SGT). Flow numbers are derived live from member
           records across the {PERIOD_WINDOW[period]}; the &ldquo;right now&rdquo; cards are live totals,
-          and their trends come from the forward-only 09:00-SGT snapshots.
+          and their trends come from the forward-only 09:00-SGT snapshots. Conversion counts
+          verified deposits only: the {live.members_legacy} grandfathered legacy members have no
+          deposit record, so they sit outside both sides of the rate.
         </p>
       </div>
     </main>

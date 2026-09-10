@@ -6,6 +6,8 @@ import {
   parsePeriod,
   bucketFlowMetrics,
   bucketSnapshotSeries,
+  isLegacyMember,
+  computeConversion,
   type GrowthProfileRow,
   type SnapshotDatum,
 } from "./metrics";
@@ -270,5 +272,71 @@ describe("bucketSnapshotSeries", () => {
 
   it("returns an empty series when no snapshots fall in the window", () => {
     expect(bucketSnapshotSeries([], "daily", NOW)).toEqual([]);
+  });
+});
+
+describe("isLegacyMember", () => {
+  it("is a member_active profile with no deposit record", () => {
+    expect(isLegacyMember(row({ account_status: "member_active" }))).toBe(true);
+  });
+  it("is not a member with a verified deposit", () => {
+    expect(
+      isLegacyMember(
+        row({ account_status: "member_active", deposit_verified_at: "2026-06-20T00:00:00Z" })
+      )
+    ).toBe(false);
+  });
+  it("is never a non-member, deposit or not", () => {
+    expect(isLegacyMember(row({ account_status: "trial_active" }))).toBe(false);
+    expect(isLegacyMember(row({ account_status: "trial_expired" }))).toBe(false);
+  });
+});
+
+describe("computeMetrics — verified vs legacy members", () => {
+  it("splits members_active into verified and legacy, keeping the total", () => {
+    const rows = [
+      row({ account_status: "member_active", deposit_verified_at: "2026-06-20T00:00:00Z" }),
+      row({ account_status: "member_active", deposit_verified_at: "2026-06-21T00:00:00Z" }),
+      row({ account_status: "member_active" }), // legacy
+      row({ account_status: "member_active" }), // legacy
+      row({ account_status: "member_active" }), // legacy
+      row({ account_status: "trial_active", trial_ends_at: "2026-07-01T00:00:00Z" }),
+    ];
+    const m = computeMetrics(rows, NOW);
+    expect(m.members_verified).toBe(2);
+    expect(m.members_legacy).toBe(3);
+    expect(m.members_active).toBe(5);
+  });
+});
+
+describe("computeConversion", () => {
+  it("excludes legacy members from both numerator and denominator", () => {
+    const rows = [
+      row({ account_status: "member_active", deposit_verified_at: "2026-06-20T00:00:00Z" }),
+      row({ account_status: "member_active" }), // legacy — excluded entirely
+      row({ account_status: "member_active" }), // legacy — excluded entirely
+      row({ account_status: "trial_expired" }),
+      row({ account_status: "trial_expired" }),
+      row({ account_status: "trial_active", trial_ends_at: "2026-07-01T00:00:00Z" }),
+      row({ account_status: "trial_expired" }),
+    ];
+    const c = computeConversion(rows);
+    expect(c.verified).toBe(1);
+    expect(c.realSignups).toBe(5); // 7 rows minus 2 legacy
+    expect(c.ratePct).toBe(20);
+  });
+
+  it("rounds to 2 d.p. — reproduces the plan baseline of 36 / 3,763 = 0.96%", () => {
+    const rows = [
+      ...Array.from({ length: 36 }, () =>
+        row({ account_status: "member_active", deposit_verified_at: "2026-08-01T00:00:00Z" })
+      ),
+      ...Array.from({ length: 3763 - 36 }, () => row({})),
+    ];
+    expect(computeConversion(rows).ratePct).toBe(0.96);
+  });
+
+  it("returns 0% with no signups instead of dividing by zero", () => {
+    expect(computeConversion([])).toEqual({ verified: 0, realSignups: 0, ratePct: 0 });
   });
 });

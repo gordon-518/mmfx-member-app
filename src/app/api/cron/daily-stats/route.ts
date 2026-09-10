@@ -46,7 +46,7 @@ function buildTelegram(m: GrowthMetrics, narrative: string | null, yest?: PriorS
     `<b>Active trials:</b> ${m.trials_active}${fmtDelta(m.trials_active, yest?.trials_active)}`,
     `<b>Expiring ≤48h:</b> ${m.trials_expiring_48h}`,
     `<b>Conversions:</b> ${m.conversions_today} today${fmtDelta(m.conversions_today, yest?.conversions_today)}`,
-    `<b>Members:</b> ${m.members_active}${fmtDelta(m.members_active, yest?.members_active)}`,
+    `<b>Verified members:</b> ${m.members_verified}${fmtDelta(m.members_verified, yest?.members_verified)} · ${m.members_legacy} legacy`,
     `<b>Churn:</b> ${m.churn_today} today`,
     `<b>TV engagement:</b> ${m.tv_engagement_pct}%`,
     `<b>Brokers:</b> Octa ${b.octa} · Dupoin ${b.dupoin} · Elev8 ${b.elev8}`,
@@ -81,7 +81,7 @@ async function handle(req: NextRequest) {
   // Pull yesterday + last-week snapshots for deltas / narrative context.
   const { data: priorRows } = await db
     .from("growth_daily")
-    .select("date, signups_today, trials_active, conversions_today, members_active, churn_today")
+    .select("date, signups_today, trials_active, conversions_today, members_active, members_verified, churn_today")
     .in("date", [shiftDate(metrics.date, -1), shiftDate(metrics.date, -7)]);
 
   const byDate = new Map((priorRows ?? []).map((r) => [r.date as string, r as PriorSnapshot & { date: string }]));
@@ -101,7 +101,7 @@ async function handle(req: NextRequest) {
 
   console.log(
     `[cron/daily-stats] ${metrics.date} — signups ${metrics.signups_today}, ` +
-      `trials ${metrics.trials_active}, members ${metrics.members_active}, ` +
+      `trials ${metrics.trials_active}, members ${metrics.members_verified} verified/${metrics.members_legacy} legacy, ` +
       `narrative ${narrative ? "ok" : "none"}, telegram ${tg.ok ? "ok" : "failed"}`
   );
 

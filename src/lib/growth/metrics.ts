@@ -39,7 +39,12 @@ export interface GrowthMetrics {
   trials_active: number;
   trials_expiring_48h: number;
   conversions_today: number;
+  /** Every member_active profile, INCLUDING legacy. Kept for continuity only. */
   members_active: number;
+  /** member_active with a verified deposit on record — the real conversions. */
+  members_verified: number;
+  /** member_active with NO deposit record — grandfathered Softr members. */
+  members_legacy: number;
   churn_today: number;
   /** % of active members with a tradingview_username set, 1 d.p. */
   tv_engagement_pct: number;
@@ -107,6 +112,48 @@ export function deltaPct(current: number, prior: number): number | null {
   return Math.round(((current - prior) / prior) * 100);
 }
 
+/**
+ * A grandfathered Softr-era member: member_active with no verified deposit on
+ * record. They were migrated in and never came through the signup funnel, so
+ * they must never count as a conversion. Conversion-fix task 3.1 replaces this
+ * null-semantics rule with an explicit `profiles.grandfathered` flag — change
+ * it here, in one place.
+ */
+export function isLegacyMember(
+  r: Pick<GrowthProfileRow, "account_status" | "deposit_verified_at">
+): boolean {
+  return r.account_status === "member_active" && r.deposit_verified_at == null;
+}
+
+export interface Conversion {
+  /** Profiles with a verified deposit on record. */
+  verified: number;
+  /** Signups that came through the funnel: every profile except legacy members. */
+  realSignups: number;
+  /** verified / realSignups as a %, 2 d.p. 0 when there are no signups. */
+  ratePct: number;
+}
+
+/**
+ * All-time signup → verified-deposit conversion. Legacy members are excluded
+ * from the denominator as well as the numerator: they never came through the
+ * funnel, so counting them on either side distorts the rate. This matches the
+ * conversion-fix-plan baseline methodology (36 / 3,763 = 0.96%, 7–10 Sep).
+ * Cumulative, so it is re-derived live rather than snapshotted.
+ */
+export function computeConversion(rows: GrowthProfileRow[]): Conversion {
+  let verified = 0;
+  let realSignups = 0;
+  for (const r of rows) {
+    if (isLegacyMember(r)) continue;
+    realSignups++;
+    if (r.deposit_verified_at != null) verified++;
+  }
+  const ratePct =
+    realSignups === 0 ? 0 : Math.round((verified / realSignups) * 10000) / 100;
+  return { verified, realSignups, ratePct };
+}
+
 export function computeMetrics(
   rows: GrowthProfileRow[],
   now: Date = new Date()
@@ -127,6 +174,8 @@ export function computeMetrics(
   let trials_expiring_48h = 0;
   let conversions_today = 0;
   let members_active = 0;
+  let members_verified = 0;
+  let members_legacy = 0;
   let churn_today = 0;
   let membersWithTv = 0;
   const broker_split: Record<Broker, number> = { octa: 0, dupoin: 0, elev8: 0 };
@@ -159,6 +208,8 @@ export function computeMetrics(
 
     if (r.account_status === "member_active") {
       members_active++;
+      if (isLegacyMember(r)) members_legacy++;
+      else members_verified++;
       if (r.tradingview_username) membersWithTv++;
       const b = r.broker;
       if (b === "octa" || b === "dupoin" || b === "elev8") broker_split[b]++;
@@ -179,6 +230,8 @@ export function computeMetrics(
     trials_expiring_48h,
     conversions_today,
     members_active,
+    members_verified,
+    members_legacy,
     churn_today,
     tv_engagement_pct,
     broker_split,
