@@ -32,6 +32,7 @@ const STEP_ORDER: readonly (readonly [string, string])[] = [
   ["upgrade_viewed", "Viewed the upgrade page"],
   ["upgrade_broker_link_clicked", "Clicked a broker link"],
   ["upgrade_contact_clicked", "Messaged us"],
+  ["deposit_submitted", "Submitted a deposit"],
   ["deposit_verified", "Deposit verified"],
 ];
 

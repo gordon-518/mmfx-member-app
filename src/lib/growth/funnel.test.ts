@@ -8,7 +8,7 @@ describe("summariseFunnel", () => {
       expect(s.cohort).toBe(0);
       expect(s.activationPct).toBe(0);
       expect(s.days).toBe(30);
-      expect(s.steps.map((x) => x.users)).toEqual([0, 0, 0, 0]);
+      expect(s.steps.map((x) => x.users)).toEqual([0, 0, 0, 0, 0]);
       expect(s.steps[0].pctOfPrev).toBeNull();
     }
   });
@@ -26,6 +26,7 @@ describe("summariseFunnel", () => {
         upgrade_viewed: 50,
         upgrade_broker_link_clicked: 20,
         upgrade_contact_clicked: 10,
+        deposit_submitted: 5,
         deposit_verified: 2,
       },
     });
@@ -34,7 +35,8 @@ describe("summariseFunnel", () => {
       [50, null],
       [20, 40],
       [10, 50],
-      [2, 20],
+      [5, 50],
+      [2, 40],
     ]);
     expect(s.activatedConvPct).toBe(10); // 2 of 20
     expect(s.notActivatedConvPct).toBe(0.6); // 1 of 180
@@ -50,6 +52,7 @@ describe("summariseFunnel", () => {
       "upgrade_viewed",
       "upgrade_broker_link_clicked",
       "upgrade_contact_clicked",
+      "deposit_submitted",
       "deposit_verified",
     ]);
     expect(s.steps[1].users).toBe(0);

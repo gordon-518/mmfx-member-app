@@ -72,6 +72,30 @@ The verified-deposit ledger (conversion-fix 3.1): one row per verified deposit, 
 
 ---
 
+## Table: `deposit_submissions`
+
+In-app deposit submissions (conversion-fix 5.1 and 5.4). A user submits from `/upgrade` and an admin reviews (5.2). Verifying goes through `fn_verify_deposit`, so tiers, the ledger and top-ups behave as in Phase 3. Defined in `20260910000008_deposit_submissions.sql`.
+
+| Column | Type | Nullable | Notes |
+|---|---|---|---|
+| `id` | `uuid` | no | PK, `gen_random_uuid()`. |
+| `user_id` | `uuid` | no | FK `profiles(id)`, on delete cascade. |
+| `broker` | `text` | no | `octa`, `dupoin` or `elev8`. |
+| `trading_account_number` | `text` | no | Digits, 4 to 20. |
+| `amount` | `numeric(12,2)` | no | At least 50. |
+| `tradingview_username` | `text` | yes | Optional @handle. |
+| `proof_path` | `text` | no | Object name in `deposit-proofs`: `<user_id>/<file>`. |
+| `status` | `text` | no | `pending` (default), `verified` or `rejected`. At most one `pending` per user (partial unique index). |
+| `reject_reason` | `text` | yes | Shown to the user on `/upgrade`. |
+| `reviewed_by` / `reviewed_at` | `uuid` / `timestamptz` | yes | Set by the review RPC (5.2). |
+| `created_at` | `timestamptz` | no | `now()`. |
+
+**RLS:** users `SELECT` their own rows, and admins `SELECT` all. There's no direct insert or update. **Writer:** `fn_submit_deposit(p_broker, p_trading_account_number, p_amount, p_tradingview_username, p_proof_path)` (`authenticated`). It validates broker, account number, a $50 minimum and the TradingView handle; checks that the proof exists **in the caller's own folder**; allows one pending submission at a time; and logs `deposit_submitted {amount, broker}`.
+
+**Storage bucket `deposit-proofs` (private):** a user may `INSERT` only under `<auth.uid()>/` and has no update or delete, so a proof can't be swapped after submission. Only admins may `SELECT`. Verified as the real roles in a rolled-back transaction.
+
+---
+
 ## Free-tier read access (conversion-fix 2.3)
 
 A Free user is a signed-in user without Full access (an expired trial; the reverse trial). `src/lib/access/features.ts` is the app-side map. These policies, from `20260910000004_free_tier_access.sql`, are the matching database side. They are additive: every `*_full` policy is unchanged, and policies OR together.
@@ -98,7 +122,7 @@ Funnel event log (conversion-fix 1.3). RLS on; admins may SELECT; nobody writes 
 | `props` | `jsonb` | no | A JSON object of at most 1 KB. Default `{}`. |
 | `created_at` | `timestamptz` | no | `now()`. |
 
-**Events:** `feature_view {feature}` (a *granted* view of a gated page; deduped per user + feature per 30 min) · `tv_username_set` (logged inside `fn_set_tradingview_username`) · `upgrade_viewed {region}` · `upgrade_broker_link_clicked {broker, flow}` · `upgrade_contact_clicked {channel}` · `deposit_verified {amount, broker, cumulative, tier, first}` (tier = the new cumulative tier) · `tier_changed {from, to}` (3.2) · `onboarding_step_done {step}` (Phase 4; deduped per user + step). `deposit_submitted` comes with Phase 5. The allowlist lives in the database and is mirrored in `src/lib/eventNames.ts`.
+**Events:** `feature_view {feature}` (a *granted* view of a gated page; deduped per user + feature per 30 min) · `tv_username_set` (logged inside `fn_set_tradingview_username`) · `upgrade_viewed {region}` · `upgrade_broker_link_clicked {broker, flow}` · `upgrade_contact_clicked {channel}` · `deposit_verified {amount, broker, cumulative, tier, first}` (tier = the new cumulative tier) · `tier_changed {from, to}` (3.2) · `onboarding_step_done {step}` (Phase 4; deduped per user + step) · `deposit_submitted {amount, broker}` (5.1, logged inside `fn_submit_deposit`; also a step in the `/stats` funnel). The allowlist lives in the database and is mirrored in `src/lib/eventNames.ts`.
 
 **Writers.** Every insert goes through `fn_app_event_insert` (allowlist, size cap, dedupe), which no client role can call. It's reached two ways:
 - `fn_log_event(p_event, p_props)` — `authenticated`. The user comes from `auth.uid()`, and only the two upgrade click events plus `onboarding_step_done` with `step = 'lesson-1'` are accepted, so a browser can't forge `deposit_verified`, `feature_view` or other checklist steps.

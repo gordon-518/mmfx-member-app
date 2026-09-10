@@ -373,15 +373,22 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 
 *About 2 weeks. Depends on Phase 3.*
 
-- [ ] **5.1 Build a deposit submission form on `/upgrade`.**
+- [x] **5.1 Build a deposit submission form on `/upgrade`.**
   Fields: broker, trading account number, deposit amount, TradingView username, screenshot upload. Uploads go to a new **private** storage bucket `deposit-proofs`: users can write only their own folder; only admins can read. Follow the existing gated-bucket migrations. Each submission creates a `deposit_submissions` row (`status: pending | verified | rejected`, `reject_reason`). The form becomes the **primary** CTA; WhatsApp and Telegram stay as "need help?".
   **Done when:** a test user can submit, and sees the pending status on `/upgrade`.
+  **Landed (10 Sept, `20260910000008_deposit_submissions.sql`, applied to prod):**
+  - The private `deposit-proofs` bucket: users can write only their own `<uid>/` folder, with no update or delete, and only admins can read.
+  - `deposit_submissions` rows are created only by `fn_submit_deposit`, which validates broker, account number, a $50 minimum, the TradingView handle and a proof that exists in the caller's own folder. It allows one pending submission per user (also enforced by a partial unique index) and logs `deposit_submitted`, now a step in the `/stats` funnel.
+  - The form (`DepositSubmitForm`, via the `submitDeposit` server action: PNG, JPG or WebP under 10 MB) sits below the broker steps in broker regions. It becomes the pending notice once submitted, and shows the reason after a rejection. WhatsApp and Telegram remain the "need help?" path; the US/UK path is untouched.
+
+  **Verified:** 18 role checks rolled back on prod. Then a real end-to-end run in the browser as a throwaway user: the form posted the $100 Octa submission with its screenshot, the row, the PNG in the user's own folder and one `deposit_submitted` event were confirmed in prod, and after a reload `/upgrade` showed "Your $100 deposit is waiting for review". The test proof and user were removed afterwards.
 
 - [ ] **5.2 Build an admin review queue.** Pending submissions with the proof image. **Verify** calls the Phase 3 RPC; **Reject** takes a reason that's shown to the user.
 
 - [ ] **5.3 Add notifications.** A Telegram DM to the admin on each new submission (reuse `src/lib/telegram.ts` / `notify.ts`), and an email to the user on verify or reject.
 
-- [ ] **5.4 Top-ups use the same form.** A paid member submitting a top-up moves up the ladder through the same queue.
+- [x] **5.4 Top-ups use the same form.** A paid member submitting a top-up moves up the ladder through the same queue.
+  **Landed with 5.1:** a paid member sees "Submit a top-up". `fn_submit_deposit` accepts any signed-in user, and review verifies through `fn_verify_deposit`, which adds the amount to the cumulative total (3.2). The review queue that actually moves the member up is 5.2.
 
 - [ ] **5.5 Add a hot-leads list to admin.** Users who hit the activation milestone, have had 3+ sessions, and viewed `/upgrade` without submitting. It's a working list for manual WhatsApp follow-up.
 
