@@ -14,6 +14,7 @@ export const APP_EVENTS = [
   "deposit_verified",
   "tier_changed",
   "onboarding_step_done",
+  "deposit_submitted",
 ] as const;
 
 export type AppEvent = (typeof APP_EVENTS)[number];

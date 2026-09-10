@@ -7,6 +7,8 @@ import { logEventAfter } from "@/lib/events";
 import { Wordmark } from "@/components/AppShell";
 import { UpgradeFlow, type Region } from "./UpgradeFlow";
 import { TierCards } from "./TierCards";
+import { DepositSubmitForm } from "./DepositSubmitForm";
+import { createClient } from "@/lib/supabase/server";
 import { nextTierFor, tierLabel } from "@/lib/tiers";
 import {
   IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon, LiveIcon, SignalsIcon, DeskIcon, LockIcon,
@@ -89,6 +91,23 @@ export default async function UpgradePage({
   const cumulative = Number(access.profile?.deposit_amount ?? 0) || 0;
   const isPaid = memberTier === "foundation" || memberTier === "desk" || memberTier === "team";
   const next = isPaid ? nextTierFor(cumulative) : null;
+
+  // conversion-fix 5.1 — the latest deposit submission decides whether the
+  // form or its review status shows (RLS: a user reads only their own).
+  let latestSubmission: {
+    status: "pending" | "verified" | "rejected";
+    amount: number | string;
+    reject_reason: string | null;
+  } | null = null;
+  if (access.profile && !isContact) {
+    const { data } = await (await createClient())
+      .from("deposit_submissions")
+      .select("status, amount, reject_reason")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    latestSubmission = data;
+  }
 
   // conversion-fix 1.3 — the top of the upgrade funnel. Admin ?geo= previews
   // aren't real visits, so they aren't counted.
@@ -232,6 +251,45 @@ export default async function UpgradePage({
             <UpgradeFlow region={region} />
           </div>
         </div>
+
+        {/* conversion-fix 5.1 / 5.4 — submit the deposit here: the primary
+            way to get verified. Broker regions only; US/UK keeps its contact path. */}
+        {!isContact && (
+          <section id="submit-deposit" className="mt-14 rounded-2xl border border-orange/30 bg-card p-6 shadow-soft sm:p-7">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-ink">
+              {isPaid ? "Submit a top-up" : "Deposited? Submit it here"}
+            </h2>
+            <p className="mt-2 text-[14.5px] leading-relaxed text-subtle">
+              Upload a screenshot of the deposit. We check it against your account and switch your
+              access on. Tiers count every deposit you&apos;ve made, so a top-up moves you up.
+            </p>
+            <div className="mt-6">
+              {latestSubmission?.status === "pending" ? (
+                <p className="rounded-xl border border-orange/25 bg-accent-soft/40 px-4 py-3 text-[14px] text-ink">
+                  {`Your $${Number(latestSubmission.amount).toLocaleString("en-US")} deposit is waiting for review. We'll switch your access on as soon as it's verified.`}
+                </p>
+              ) : (
+                <>
+                  {latestSubmission?.status === "rejected" && (
+                    <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-800">
+                      Your last submission wasn&apos;t verified
+                      {latestSubmission.reject_reason ? `: ${latestSubmission.reject_reason}` : "."} You can
+                      submit again below.
+                    </p>
+                  )}
+                  <DepositSubmitForm
+                    defaultBroker={region === "dupoin" ? "dupoin" : "octa"}
+                    tradingview={access.profile?.tradingview_username ?? null}
+                    isTopUp={isPaid}
+                  />
+                </>
+              )}
+            </div>
+            <p className="mt-5 text-[12.5px] text-faint">
+              Need help? Message us on WhatsApp or Telegram using the buttons above.
+            </p>
+          </section>
+        )}
 
         {/* Compliance footer — verbatim, do not remove */}
         <footer className="mt-16 border-t border-line pt-6 text-center">
