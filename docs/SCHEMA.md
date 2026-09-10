@@ -24,10 +24,11 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 | `member_status` | `text` | `'inactive'` | no | `active` or `inactive`. Set to `active` on qualifying deposit. Exists for future activity-gating — not enforced at launch. |
 | `last_known_trading_activity` | `timestamptz` | — | yes | Last known trade date from broker data. For future activity-gating. Null until first data received. |
 | `broker` | `text` | — | yes | `octa`, `dupoin` or `elev8`. Null until deposit is submitted. |
-| `deposit_amount` | `numeric` | — | yes | Dollar amount of verified deposit. Qualifying threshold is $500. |
+| `deposit_amount` | `numeric` | — | yes | **Cumulative** verified deposits: always `sum(deposit_events.amount)` for the user, maintained by `fn_verify_deposit` and never computed on the fly (conversion-fix 3.1). Tiers gate on this high-water mark, never on balance: Foundation ≥ $50, Desk ≥ $200, Team MM ≥ $500. Null = no verified deposit. |
 | `deposit_verified_at` | `timestamptz` | — | yes | When the deposit was verified. Null = no verified deposit. |
 | `deposit_verified_by` | `text` | — | yes | `manual`, `broker_postback`, or `webhook`. Launch uses `manual`. |
 | `ib_link_confirmed` | `boolean` | `false` | no | Whether the deposit is attributed to our IB link. Separate from deposit amount — a $500 deposit without IB attribution does NOT qualify. |
+| `grandfathered` | `boolean` | `false` | no | Softr-era member migrated without a deposit record. **Always Team MM, never downgraded** by tier logic (conversion-fix decision 6). Set once for the 112 `member_active` rows with no `deposit_verified_at` by `20260910000005_deposit_ledger.sql`. Explicit, so the rule no longer rests on null semantics. |
 | `last_activity_at` | `timestamptz` | — | yes | Last app activity. Stamped by `fn_resolve_trial_status` (every gated page, via `getAccess()`), throttled to one write per 15 min (conversion-fix 1.2). Empty before 10 Sep 2026. |
 | `downgraded_at` | `timestamptz` | — | yes | When the user was downgraded. Used in re-trial eligibility computation. Null if never downgraded. Cleared on member upgrade and re-trial grant. |
 | `is_admin` | `boolean` | `false` | no | Admin flag (Day 4). Set manually in SQL only, never from the app. Gates the admin SELECT policy and the admin-only functions via `is_admin()`. |
@@ -46,6 +47,26 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 - `trial_count` checked: `>= 1 AND <= 2`.
 
 All enums use `text` + check constraints rather than Postgres enum types — easier to extend without migrations.
+
+---
+
+## Table: `deposit_events`
+
+The verified-deposit ledger (conversion-fix 3.1): one row per verified deposit, first deposits and top-ups alike. `profiles.deposit_amount` is the per-user sum. RLS is on, admins may `SELECT`, and nobody writes directly: rows come only from `fn_verify_deposit` (task 3.2). Defined in `20260910000005_deposit_ledger.sql`.
+
+| Column | Type | Nullable | Notes |
+|---|---|---|---|
+| `id` | `bigint` identity | no | PK. |
+| `user_id` | `uuid` | no | FK `profiles(id)`, on delete cascade. |
+| `amount` | `numeric(12,2)` | no | `> 0`. |
+| `broker` | `text` | no | `octa`, `dupoin` or `elev8`. |
+| `ib_confirmed` | `boolean` | no | IB attribution confirmed at verification. |
+| `verified_by` | `uuid` | yes | The admin who verified it; FK `profiles(id)`, on delete set null. **Null for backfilled rows**, because the old flow only recorded `'manual'`. |
+| `verified_at` | `timestamptz` | no | Default `now()`. |
+| `note` | `text` | yes | Free text. Backfilled rows say so. |
+| `created_at` | `timestamptz` | no | Default `now()`. |
+
+**Backfill (10 Sep 2026):** one row per verified member (38) from their existing `deposit_amount` and `deposit_verified_at`, so `sum(amount) = deposit_amount` holds from day one. Verified after applying, and the migration was re-run to confirm it's idempotent.
 
 ---
 
