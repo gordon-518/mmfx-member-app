@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Wordmark } from "@/components/AppShell";
 import { canGrantRetrial } from "@/lib/trial/admin";
 import type { AccountStatus } from "@/lib/trial/status";
+import { tierFor, tierLabel } from "@/lib/tiers";
 import {
   grantRetrial,
   runSendpulseSync,
@@ -76,7 +77,7 @@ interface AdminProfileRow {
   trial_ends_at: string | null;
   downgraded_at: string | null;
   broker: string | null;
-  deposit_amount: number | null;
+  deposit_amount: number | string | null;
   deposit_verified_at: string | null;
   deposit_verified_by: string | null;
   ib_link_confirmed: boolean;
@@ -84,6 +85,15 @@ interface AdminProfileRow {
   tradingview_username: string | null;
   country: string | null;
   trading_account_number: string | null;
+  grandfathered: boolean;
+}
+
+interface LedgerRow {
+  user_id: string;
+  amount: number | string;
+  broker: string;
+  verified_at: string;
+  note: string | null;
 }
 
 function fmt(ts: string | null): string {
@@ -148,7 +158,7 @@ export default async function AdminPage({
       : "";
 
   const ADMIN_PROFILE_COLUMNS =
-    "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country, trading_account_number";
+    "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country, trading_account_number, grandfathered";
 
   function buildQuery() {
     let q = supabase
@@ -184,6 +194,20 @@ export default async function AdminPage({
     const page = (data ?? []) as AdminProfileRow[];
     rows.push(...page);
     if (page.length < PAGE) break;
+  }
+
+  // conversion-fix 3.7 — every verified deposit, grouped per member for the
+  // ledger under each row (admin SELECT via deposit_events_select_admin).
+  const { data: ledgerData } = await supabase
+    .from("deposit_events")
+    .select("user_id, amount, broker, verified_at, note")
+    .order("verified_at", { ascending: true })
+    .limit(5000);
+  const ledgerByUser = new Map<string, LedgerRow[]>();
+  for (const e of (ledgerData ?? []) as LedgerRow[]) {
+    const list = ledgerByUser.get(e.user_id) ?? [];
+    list.push(e);
+    ledgerByUser.set(e.user_id, list);
   }
 
   // Admin-managed content (admin sees all rows via the is_admin policy).
@@ -425,7 +449,14 @@ export default async function AdminPage({
                         <span className="ml-1 font-semibold text-orange">(admin)</span>
                       )}
                     </td>
-                    <td className="px-3 py-3">{p.account_status}</td>
+                    <td className="px-3 py-3">
+                      {p.account_status}
+                      {/* conversion-fix 3.7 — the tier the ladder gives them. */}
+                      <span className="block text-[11px] font-semibold text-orange">
+                        {tierLabel(tierFor(p))}
+                        {p.grandfathered ? " · grandfathered" : ""}
+                      </span>
+                    </td>
                     <td className="px-3 py-3 whitespace-nowrap">
                       {p.country ? (
                         <span title={p.country}>{countryName(p.country)}</span>
@@ -440,11 +471,35 @@ export default async function AdminPage({
                     <td className="px-3 py-3">{fmt(p.trial_ends_at)}</td>
                     <td className="px-3 py-3">{fmt(p.downgraded_at)}</td>
                     <td className="px-3 py-3">
-                      {p.deposit_verified_at
-                        ? `$${p.deposit_amount} · ${p.broker} · IB ${
-                            p.ib_link_confirmed ? "yes" : "no"
-                          } · ${p.deposit_verified_by}`
-                        : "—"}
+                      {p.deposit_verified_at ? (
+                        <>
+                          <span className="whitespace-nowrap">
+                            ${Number(p.deposit_amount ?? 0).toLocaleString("en-US")} cumulative · {p.broker} · IB{" "}
+                            {p.ib_link_confirmed ? "yes" : "no"}
+                          </span>
+                          {/* conversion-fix 3.7 — the ledger behind the total. */}
+                          {(ledgerByUser.get(p.id)?.length ?? 0) > 0 && (
+                            <details className="mt-1">
+                              <summary className="cursor-pointer text-[11px] text-faint">
+                                {ledgerByUser.get(p.id)!.length} deposit
+                                {ledgerByUser.get(p.id)!.length === 1 ? "" : "s"}
+                              </summary>
+                              <ul className="mt-1 space-y-0.5 text-[11px] text-subtle">
+                                {ledgerByUser.get(p.id)!.map((e) => (
+                                  <li key={`${e.verified_at}-${e.amount}`} className="whitespace-nowrap">
+                                    {fmt(e.verified_at)} · ${Number(e.amount).toLocaleString("en-US")} · {e.broker}
+                                    {e.note ? ` · ${e.note}` : ""}
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+                          )}
+                        </>
+                      ) : p.grandfathered ? (
+                        <span className="text-faint">grandfathered · no deposit record</span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="px-3 py-3">
                       {p.tradingview_username ? (

@@ -316,11 +316,16 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 
   Known and left alone, since Phase 6 is on hold: the contact path still labels its manifest "What locks when the trial ends", even for a paying member.
 
-- [ ] **3.7 Update admin, nav and email sync.**
+- [x] **3.7 Update admin, nav and email sync.**
   - **Admin:** show the tier, the cumulative deposit and the ledger per user; add a "record top-up" form.
   - **AppShell:** show the tier name; locked items say which tier unlocks them.
   - **SendPulse sync:** add a `tier` variable.
   **Done when:** all three show the correct tier for a test member at each level.
+  **Landed:**
+  - **Admin:** each row shows the member's tier under their status, marking grandfathered members. The deposit cell shows the cumulative total and an expandable ledger (date · amount · broker · note) from `deposit_events`. Grandfathered members with no record say so. The "record top-up" form is the verify form, which accepts members since 3.2.
+  - **AppShell:** the tier name has been in the account card since 3.3 (Free / Trial · full desk / Foundation / Desk / Team MM). Locked nav items now say which tier opens them ("Unlocks at Desk · $200"), both on hover and for screen readers.
+  - **SendPulse sync:** each contact gets a `tier` variable (`free | trial | foundation | desk | team`) from `tierFor`, alongside the unchanged `audience`.
+  **Verified (10 Sept)** in the browser with a throwaway admin at $250, against prod data. Its row shows "Desk", "$250 cumulative · octa · IB yes" and a "Top up" button. With the view filtered to members: 38 rows show Team MM and 112 show Team MM · grandfathered with "no deposit record", and verified members' ledgers expand. The SendPulse `tier` variable is covered by `tierFor`'s unit tests; the sync wasn't run by hand, because it writes to the live SendPulse book.
 
 ---
 
