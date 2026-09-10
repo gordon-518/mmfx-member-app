@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAccess } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
+import { parseOnboarding, type OnboardingState } from "@/lib/onboarding";
 import { DashboardClient } from "./DashboardClient";
 import { TradingAccountGate } from "./TradingAccountGate";
 import type { SpotlightSlide } from "./Spotlight";
@@ -233,6 +234,14 @@ export default async function DashboardPage() {
     news = (await getNews()).slice(0, 6);
   }
 
+  // conversion-fix 4.2 — the onboarding card, for trial and Free users until
+  // all five steps are done. Paid members are past onboarding; skip the read.
+  let onboarding: OnboardingState | null = null;
+  if (access.memberTier === "trial" || access.memberTier === "free") {
+    const { data: onboardingRaw } = await (await createClient()).rpc("fn_my_onboarding");
+    onboarding = parseOnboarding(onboardingRaw);
+  }
+
   return (
     <DashboardClient
       email={access.profile.email}
@@ -247,6 +256,8 @@ export default async function DashboardPage() {
       showKysOnboarding={showKysOnboarding}
       isAdmin={access.profile.is_admin}
       tradingAccount={access.profile.trading_account_number}
+      onboarding={onboarding}
+      kysArchetype={access.profile.kys_archetype}
     />
   );
 }

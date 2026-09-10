@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getAccess } from "@/lib/access";
+import { createClient } from "@/lib/supabase/server";
+import { parseOnboarding } from "@/lib/onboarding";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { AppShell } from "@/components/AppShell";
 import { TradingAccountGate } from "../dashboard/TradingAccountGate";
 import { RoadmapJourney } from "./RoadmapJourney";
@@ -27,6 +30,11 @@ export default async function WelcomePage() {
     return <TradingAccountGate />;
   }
 
+  // conversion-fix 4.1 — the five-step checklist, read for this user only.
+  const supabase = await createClient();
+  const { data: onboardingRaw } = await supabase.rpc("fn_my_onboarding");
+  const onboarding = parseOnboarding(onboardingRaw);
+
   return (
     <AppShell
       email={access.profile?.email ?? ""}
@@ -35,7 +43,10 @@ export default async function WelcomePage() {
       isAdmin={access.profile?.is_admin ?? false}
     >
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
-        <RoadmapJourney />
+        <OnboardingChecklist state={onboarding} archetype={access.profile?.kys_archetype} />
+        <div className="mt-14 border-t border-line pt-10">
+          <RoadmapJourney />
+        </div>
         <div className="mt-10 flex justify-center border-t border-line pt-8">
           <EnterDeskButton />
         </div>
