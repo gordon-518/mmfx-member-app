@@ -301,9 +301,18 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   Check how `/signals` hands out the Telegram signals channel, and how `/team-mm` hands out the VIP channel. Only render invite links for the correct tier. **Known limitation:** a Telegram invite link, once shared, can't be revoked per user. If per-user control matters, that needs a bot-issued single-use link, which is a separate task.
   **Done when:** Free and Foundation users can't see the signals invite link, and non-Team users can't see the Team MM link.
 
-- [ ] **3.6 Redesign the upgrade page as three tiers.**
+- [x] **3.6 Redesign the upgrade page as three tiers.**
   Keep the geo routing as it is (`regionFor()` and `DUPOIN_COUNTRIES` in `src/app/upgrade/page.tsx`; US/UK keeps its current contact path, since Phase 6 is on hold). Show three tier cards with their thresholds and contents. For an existing paid member, show the current cumulative deposit and **"top up $X to unlock <next tier>"**. Add this copy line near Signals: *"We don't send calls to an account that can't survive them."*
   **Done when:** it renders correctly for a free user, each paid tier, and an admin `?geo=` preview.
+  **Landed:** in broker regions the "what's locked" manifest becomes `src/app/upgrade/TierCards.tsx`: Foundation $50+, Desk $200+ and Team MM $500+, each with its pitch and contents from the tier matrix. Desk carries the line *"We don't send calls to an account that can't survive them."* A paid member's own tier is highlighted, lower tiers show "Included", and higher tiers show "Top up $X to unlock", using the pure, tested `nextTierFor()`. The headline and subline change with the tier. The reframe reads "None of it is a purchase. Start at $50, and it stays yours." Geo routing and the US/UK contact path are untouched.
+  **Verified in the browser (10 Sept)** with a throwaway user, reading page text:
+  - Free: "You're on Free…" with 3 cards.
+  - $60: "You're on Foundation. Top up $140 to unlock Desk." Foundation is highlighted; the other cards say "Top up $140" and "Top up $440".
+  - $250: "…Desk. Top up $250 to unlock Team MM." Foundation shows "Included".
+  - $600: "You have the whole desk."
+  - Admin `?geo=US`: no tier cards, and the lifetime-membership copy and assurances are unchanged.
+
+  Known and left alone, since Phase 6 is on hold: the contact path still labels its manifest "What locks when the trial ends", even for a paying member.
 
 - [ ] **3.7 Update admin, nav and email sync.**
   - **Admin:** show the tier, the cumulative deposit and the ledger per user; add a "record top-up" form.

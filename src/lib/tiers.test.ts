@@ -4,6 +4,7 @@ import {
   tierFor,
   tierLabel,
   tierUnlockLabel,
+  nextTierFor,
   TIER_THRESHOLDS,
   TIER_RANK,
   type TierSnapshot,
@@ -94,5 +95,29 @@ describe("rank and labels", () => {
   it("names tiers and their unlock thresholds", () => {
     expect(tierLabel("team")).toBe("Team MM");
     expect(tierUnlockLabel("desk")).toBe("Desk · $200");
+  });
+});
+
+describe("nextTierFor — the top-up to the next tier", () => {
+  it.each([
+    [0, "foundation", 50],
+    [49.5, "foundation", 0.5],
+    [50, "desk", 150],
+    [120, "desk", 80],
+    [199.99, "desk", 0.01],
+    [200, "team", 300],
+    [499, "team", 1],
+  ] as const)("$%s -> %s, top up $%s", (have, next, topUp) => {
+    expect(nextTierFor(have)).toEqual({ next, topUp });
+  });
+
+  it("is null at Team MM", () => {
+    expect(nextTierFor(500)).toBeNull();
+    expect(nextTierFor(7810)).toBeNull();
+  });
+
+  it("treats a bad total as nothing deposited", () => {
+    expect(nextTierFor(Number.NaN)).toEqual({ next: "foundation", topUp: 50 });
+    expect(nextTierFor(-20)).toEqual({ next: "foundation", topUp: 50 });
   });
 });
