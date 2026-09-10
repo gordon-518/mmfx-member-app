@@ -1,16 +1,18 @@
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon } from "@/components/icons";
-import type { AccountStatus } from "@/lib/trial/status";
+import type { AccessTier, AccountStatus } from "@/lib/trial/status";
 import { BotNav } from "./BotNav";
 
 // Shared shell for the two gated bot pages: header + embedded bot iframe + an
 // always-visible "Open in new tab" launcher. The launcher is the reliable
 // path — if a bot app blocks framing (CSP frame-ancestors), the iframe renders
-// blank but the button still works. Gating is the caller's requireFull().
+// blank but the button still works. Gating is the caller's requireFeature().
 
 export function BotPage({
   email,
   accountStatus,
+  tier,
+  isAdmin = false,
   eyebrow,
   title,
   description,
@@ -20,6 +22,8 @@ export function BotPage({
 }: {
   email: string;
   accountStatus: AccountStatus;
+  tier: AccessTier;
+  isAdmin?: boolean;
   eyebrow: string;
   title: string;
   description: string;
@@ -43,7 +47,7 @@ export function BotPage({
   }
 
   return (
-    <AppShell email={email} accountStatus={accountStatus} tier="Full">
+    <AppShell email={email} accountStatus={accountStatus} tier={tier} isAdmin={isAdmin}>
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 py-8 sm:px-8 lg:py-10">
         {/* Header + launcher */}
         <div className="rise mb-6 flex flex-wrap items-end justify-between gap-4">

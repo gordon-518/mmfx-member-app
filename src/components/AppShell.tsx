@@ -6,15 +6,16 @@ import { useEffect, useState, type ComponentType, type ReactNode, type SVGProps 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { signOut } from "@/app/dashboard/actions";
 import type { AccountStatus, AccessTier } from "@/lib/trial/status";
+import { canAccess, featureForHref, type Viewer } from "@/lib/access/features";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
   AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon, TelegramIcon,
-  MenuIcon, CloseIcon, SparkIcon, JournalIcon, UserPlusIcon,
+  MenuIcon, CloseIcon, SparkIcon, JournalIcon, UserPlusIcon, LockIcon,
 } from "./icons";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-type NavItem = { label: string; href: string; icon: Icon; memberOnly?: boolean };
+type NavItem = { label: string; href: string; icon: Icon };
 
 const NAV: NavItem[] = [
   // "Start here" roadmap first, then the home hub, then ordered by moat (top =
@@ -26,7 +27,8 @@ const NAV: NavItem[] = [
   { label: "Signals", href: "/signals", icon: SignalsIcon },
   { label: "Team MM", href: "/team-mm", icon: TelegramIcon },
   // Members-only proprietary habit-driver — highest moat, so it sits high.
-  { label: "AI Trading Assistant", href: "/journal", icon: JournalIcon, memberOnly: true },
+  // Everyone sees it (locked unless they're a member): conversion-fix 2.4.
+  { label: "AI Trading Assistant", href: "/journal", icon: JournalIcon },
   { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
   { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
   { label: "Strategies", href: "/strategies", icon: StrategiesIcon },
@@ -76,26 +78,29 @@ export function Wordmark({ iconOnly = false }: { iconOnly?: boolean }) {
   );
 }
 
-/** Nav link list — shared by the desktop sidebar and the mobile drawer. */
+/** Nav link list — shared by the desktop sidebar and the mobile drawer. Every
+ *  feature is listed for everyone (conversion-fix 2.4); the ones outside the
+ *  viewer's plan carry a lock and open their locked preview. */
 function NavLinks({
   pathname,
   onNavigate,
-  isAdmin,
-  isMember,
+  viewer,
 }: {
   pathname: string;
   onNavigate?: () => void;
-  isAdmin: boolean;
-  isMember: boolean;
+  viewer: Viewer;
 }) {
   const renderItem = (n: NavItem) => {
     const active = isActive(pathname, n.href);
+    const feature = featureForHref(n.href);
+    const locked = feature != null && !canAccess(feature, viewer);
     return (
       <Link
         key={n.href}
         href={n.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
+        title={locked ? "Locked on your plan" : undefined}
         className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
           active
             ? "bg-accent-soft text-accent-ink"
@@ -104,13 +109,19 @@ function NavLinks({
       >
         <n.icon className={active ? "text-orange" : "text-faint group-hover:text-subtle"} />
         {n.label}
+        {locked && (
+          <>
+            <LockIcon aria-hidden className="ml-auto h-3.5 w-3.5 shrink-0 text-faint/70" />
+            <span className="sr-only">(locked)</span>
+          </>
+        )}
       </Link>
     );
   };
   return (
     <>
-      {NAV.filter((n) => !n.memberOnly || isMember || isAdmin).map(renderItem)}
-      {isAdmin && (
+      {NAV.map(renderItem)}
+      {viewer.isAdmin && (
         <>
           <p className="mt-4 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
             Admin
@@ -142,7 +153,7 @@ function UserCard({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-medium text-ink">{email}</span>
         <span className="block text-[11px] text-faint">
-          {isMember ? "Member" : tier === "Full" ? "Trial · Full access" : "Limited access"}
+          {isMember ? "Member" : tier === "Full" ? "Trial · Full access" : "Free"}
         </span>
       </span>
       <form action={signOut}>
@@ -207,6 +218,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const isMember = accountStatus === "member_active";
+  const viewer: Viewer = { tier, isMember, isAdmin };
   const firstName = email.split("@")[0];
   const reduceMotion = useReducedMotion();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -240,7 +252,7 @@ export function AppShell({
         </Link>
 
         <nav className="mt-8 flex-1 space-y-0.5 overflow-y-auto">
-          <NavLinks pathname={pathname} isAdmin={isAdmin} isMember={isMember} />
+          <NavLinks pathname={pathname} viewer={viewer} />
         </nav>
 
         {!isMember && (
@@ -329,7 +341,7 @@ export function AppShell({
               </div>
 
               <nav className="mt-6 flex-1 space-y-0.5 overflow-y-auto">
-                <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} isAdmin={isAdmin} isMember={isMember} />
+                <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} viewer={viewer} />
               </nav>
 
               {!isMember && (

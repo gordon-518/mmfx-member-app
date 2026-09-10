@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 /**
  * Locked-state wrapper for member-surface cards. Renders the card content
  * dimmed and inert under a lock veil with the upgrade CTA. Pure presentation
- * — pair it with the server-side gate (getAccess / requireFull); it is never
+ * — pair it with the server-side gate (getAccess / requireFeature); it is never
  * the gate itself.
  *
  *   <LockedOverlay>...card content...</LockedOverlay>

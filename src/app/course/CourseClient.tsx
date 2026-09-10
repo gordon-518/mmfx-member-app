@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LockIcon } from "@/components/icons";
 import type { CourseLevel, CourseModule } from "./courseData";
 
 // Only the fields the client needs — pptFile stays server-side (the download
@@ -12,6 +14,9 @@ export interface ClientLesson {
   level: CourseLevel;
   description: string;
   gumletId: string;
+  /** Outside the viewer's plan (Free: everything past Module 1). gumletId is
+   *  empty for these, and they can't be played or downloaded. */
+  locked: boolean;
 }
 
 const LS_KEY = "mmfx_course_watched_v1";
@@ -46,12 +51,13 @@ export function CourseClient({
   lessons: ClientLesson[];
   modules: CourseModule[];
 }) {
-  const [activeSlug, setActiveSlug] = useState<string>(lessons[0]?.slug ?? "");
+  const firstOpen = lessons.find((l) => !l.locked);
+  const [activeSlug, setActiveSlug] = useState<string>(firstOpen?.slug ?? "");
   const [watched, setWatched] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<Set<number>>(new Set([modules[0]?.id]));
   const playerRef = useRef<HTMLDivElement>(null);
 
-  const active = lessons.find((l) => l.slug === activeSlug) ?? lessons[0];
+  const active = lessons.find((l) => l.slug === activeSlug) ?? firstOpen;
   const lessonsOf = useCallback(
     (m: CourseModule) => lessons.filter((l) => l.number >= m.from && l.number <= m.to),
     [lessons]
@@ -70,7 +76,7 @@ export function CourseClient({
     }
     const seen = new Set(saved.filter((s) => lessons.some((l) => l.slug === s)));
     setWatched(seen);
-    const resume = lessons.find((l) => !seen.has(l.slug)) ?? lessons[0];
+    const resume = lessons.find((l) => !l.locked && !seen.has(l.slug)) ?? firstOpen;
     if (resume) {
       setActiveSlug(resume.slug);
       const mod = moduleOf(resume);
@@ -79,7 +85,9 @@ export function CourseClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const markWatched = useCallback((slug: string) => {
+  // Plain handlers, not useCallback: they only feed onClick, and manual
+  // memoization here trips the React Compiler ("could not be preserved").
+  const markWatched = (slug: string) => {
     setWatched((prev) => {
       if (prev.has(slug)) return prev;
       const next = new Set(prev).add(slug);
@@ -90,20 +98,17 @@ export function CourseClient({
       }
       return next;
     });
-  }, []);
+  };
 
-  const watch = useCallback(
-    (slug: string) => {
-      setActiveSlug(slug);
-      markWatched(slug);
-      const lesson = lessons.find((l) => l.slug === slug);
-      const mod = lesson ? moduleOf(lesson) : undefined;
-      if (mod) setOpen((o) => new Set(o).add(mod.id));
-      playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [lessons, markWatched]
-  );
+  const watch = (slug: string) => {
+    const lesson = lessons.find((l) => l.slug === slug);
+    if (!lesson || lesson.locked) return;
+    setActiveSlug(slug);
+    markWatched(slug);
+    const mod = moduleOf(lesson);
+    if (mod) setOpen((o) => new Set(o).add(mod.id));
+    playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const toggle = (id: number) =>
     setOpen((o) => {
@@ -116,12 +121,12 @@ export function CourseClient({
   const doneCount = watched.size;
   const total = lessons.length;
   const pct = total ? Math.round((doneCount / total) * 100) : 0;
-  const resume = lessons.find((l) => !watched.has(l.slug)) ?? lessons[0];
+  const resume = lessons.find((l) => !l.locked && !watched.has(l.slug)) ?? firstOpen;
 
   return (
     <div className="mx-auto max-w-5xl px-5 pb-10 pt-6 sm:px-8">
       {/* Player — only the selected lesson's iframe is mounted. */}
-      {active && (
+      {active && !active.locked && (
         <div ref={playerRef} className="scroll-mt-6">
           <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-line bg-ink shadow-soft">
             <iframe
@@ -214,37 +219,60 @@ export function CourseClient({
                           isActive ? "bg-accent-soft/40" : ""
                         }`}
                       >
-                        <button
-                          type="button"
-                          onClick={() => watch(l.slug)}
-                          className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
-                          aria-label={`Watch ${l.title}`}
-                        >
-                          <span
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
-                              isActive
-                                ? "bg-orange text-white"
-                                : isWatched
-                                  ? "bg-accent-soft text-accent-ink"
-                                  : "border border-line-strong text-faint"
-                            }`}
+                        {l.locked ? (
+                          <>
+                          <span className="flex min-w-0 flex-1 items-center gap-3">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-line text-faint">
+                              <LockIcon className="h-3 w-3" />
+                            </span>
+                            <span className="truncate text-[14px] text-faint">{l.title}</span>
+                            <span className="sr-only">(locked)</span>
+                          </span>
+                          <span className="hidden shrink-0 rounded-full bg-paper px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-faint sm:inline">
+                            {l.level}
+                          </span>
+                          <Link
+                            href="/upgrade"
+                            className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold text-orange transition-colors hover:text-accent-ink"
                           >
-                            {isActive ? <PlayIcon /> : isWatched ? <CheckIcon /> : pad(l.number)}
+                            Unlock
+                          </Link>
+                          </>
+                        ) : (
+                          <>
+                          <button
+                            type="button"
+                            onClick={() => watch(l.slug)}
+                            className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
+                            aria-label={`Watch ${l.title}`}
+                          >
+                            <span
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                                isActive
+                                  ? "bg-orange text-white"
+                                  : isWatched
+                                    ? "bg-accent-soft text-accent-ink"
+                                    : "border border-line-strong text-faint"
+                              }`}
+                            >
+                              {isActive ? <PlayIcon /> : isWatched ? <CheckIcon /> : pad(l.number)}
+                            </span>
+                            <span className={`truncate text-[14px] ${isActive ? "font-semibold text-ink" : "text-ink"}`}>
+                              {l.title}
+                            </span>
+                          </button>
+                          <span className="hidden shrink-0 rounded-full bg-paper px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-subtle sm:inline">
+                            {l.level}
                           </span>
-                          <span className={`truncate text-[14px] ${isActive ? "font-semibold text-ink" : "text-ink"}`}>
-                            {l.title}
-                          </span>
-                        </button>
-                        <span className="hidden shrink-0 rounded-full bg-paper px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-subtle sm:inline">
-                          {l.level}
-                        </span>
-                        <a
-                          href={`/api/slides/${l.slug}`}
-                          className="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-subtle transition-colors hover:text-accent-ink"
-                          title="Download slides (PPT)"
-                        >
-                          <SlidesIcon /> <span className="hidden sm:inline">Slides</span>
-                        </a>
+                          <a
+                            href={`/api/slides/${l.slug}`}
+                            className="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-subtle transition-colors hover:text-accent-ink"
+                            title="Download slides (PPT)"
+                          >
+                            <SlidesIcon /> <span className="hidden sm:inline">Slides</span>
+                          </a>
+                          </>
+                        )}
                       </li>
                     );
                   })}

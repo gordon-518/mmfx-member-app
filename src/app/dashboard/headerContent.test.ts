@@ -35,7 +35,7 @@ describe("headerContent", () => {
 
   it("trial_expired: upgrade push", () => {
     const c = headerContent("trial_expired", 0);
-    expect(c.title).toBe("Your trial's ended");
+    expect(c.title).toBe("You're on Free");
     expect(c.cta?.kind).toBe("push");
     expect(c.cta?.href).toBe("/upgrade");
   });
@@ -53,7 +53,7 @@ describe("headerContent", () => {
 
   it("re_trial_expired: deposit-to-continue push, no re-trial framing", () => {
     const c = headerContent("re_trial_expired", 0);
-    expect(c.title).toBe("Your access has ended — deposit to continue");
+    expect(c.title).toBe("You're on Free — deposit to unlock the rest");
     expect(c.body).toMatch(/no further trials/i);
     expect(c.cta?.kind).toBe("push");
   });

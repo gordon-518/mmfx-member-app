@@ -65,19 +65,21 @@ export function headerContent(
         body: "Your desk stays open. Trade the session.",
         cta: null,
       };
+    // conversion-fix 2.5 — an expired trial is on Free (the reverse trial), not
+    // locked out: say what's still open, then what funding unlocks.
     case "trial_expired":
       return {
-        eyebrow: "Trial ended",
-        title: "Your trial's ended",
-        body: "The tools are locked — not gone.",
-        cta: { href: "/upgrade", label: "Restore full access", kind: "push" },
+        eyebrow: "Free plan",
+        title: "You're on Free",
+        body: "Daily Analysis, the calendar, news, Know Your Style and Module 1 stay open. Fund your account to unlock the rest.",
+        cta: { href: "/upgrade", label: "See what unlocks", kind: "push" },
       };
     case "re_trial_expired":
       return {
-        eyebrow: "Access ended",
-        title: "Your access has ended — deposit to continue",
-        body: "No further trials are available on this account.",
-        cta: { href: "/upgrade", label: "Restore full access", kind: "push" },
+        eyebrow: "Free plan",
+        title: "You're on Free — deposit to unlock the rest",
+        body: "No further trials are available on this account. The free tools stay open.",
+        cta: { href: "/upgrade", label: "See what unlocks", kind: "push" },
       };
     case "member_expired":
       return {

@@ -1,11 +1,11 @@
 import { type NextRequest } from "next/server";
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { isDemoUser } from "@/lib/showcase";
 import { EBOOKS_BUCKET, ebookBySlug } from "@/app/library/ebooks";
 
 // Gated ebook delivery. Two independent gates:
-//   1. requireFull() — Limited users redirect to /upgrade before any storage
+//   1. requireFeature() — locked users redirect to /upgrade before any storage
 //      call (signed-out -> /login).
 //   2. The download uses the USER's authenticated server client, so the
 //      `ebooks` storage RLS policy (is_full_access) double-enforces tier at
@@ -16,7 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   // Gate 1: tier. Redirects (throws) for anyone not Full.
-  const profile = await requireFull();
+  const { profile } = await requireFeature("library", { onLocked: "redirect", log: false });
 
   // Showcase demo account may view the UI but never pull the paid file bytes.
   if (isDemoUser(profile.email)) {

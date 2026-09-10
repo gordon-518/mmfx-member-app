@@ -1,4 +1,5 @@
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
+import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon, SignalsIcon, AnalysisIcon } from "@/components/icons";
 
@@ -49,11 +50,13 @@ const CHANNELS = [
 ];
 
 export default async function SignalsPage() {
-  // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull({ feature: "signals" });
+  // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.
+  const gate = await requireFeature("signals");
+  if (gate.locked) return <LockedFeature feature="signals" gate={gate} />;
+  const profile = gate.profile;
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier={gate.tier} isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">

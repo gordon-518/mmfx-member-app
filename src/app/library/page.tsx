@@ -1,4 +1,5 @@
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
+import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon } from "@/components/icons";
 import { EBOOKS, type Ebook, type EbookTone } from "./ebooks";
@@ -76,14 +77,16 @@ function ReadDownload({ slug, compact }: { slug: string; compact?: boolean }) {
 }
 
 export default async function LibraryPage() {
-  // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull({ feature: "library" });
+  // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.
+  const gate = await requireFeature("library");
+  if (gate.locked) return <LockedFeature feature="library" gate={gate} />;
+  const profile = gate.profile;
 
   const featured = EBOOKS.find((b) => b.featured);
   const rest = EBOOKS.filter((b) => !b.featured);
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier={gate.tier} isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">

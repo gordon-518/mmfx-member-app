@@ -200,7 +200,7 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   **Done when:** a new test signup gets `trial_ends_at = signup_at + 14 days`; an existing 7-day trial's `trial_ends_at` is unchanged; `signup_fingerprint` is still captured on the test signup; and no user-facing app copy or email says 7 days.
   **Landed (10 Sept, `20260910000003_trial_14_days.sql`, applied to prod):** generated from the three live bodies, with only the interval changed; the live body now equals the committed file. A test signup inside a rolled-back transaction got exactly 14 days and kept its fingerprint, and the 98 running trials were unchanged. App copy changed in 7 files; only the calendar-window and week-over-week mentions still say 7 days. **Still open, outside the repo: SendPulse trial automations and templates (Gordon, in the SendPulse dashboard).**
 
-- [ ] **2.1b Trial back to 14 days: marketing site.** *Separate repo at `~/Documents/Claude/mmfx-marketing-site`. It has no GitHub remote: deploy with `npx vercel --prod --yes` from that folder after every change.*
+- [x] **2.1b Trial back to 14 days: marketing site.** *Separate repo at `~/Documents/Claude/mmfx-marketing-site`. It has no GitHub remote: deploy with `npx vercel --prod --yes` from that folder after every change.*
   72 trial-length mentions across 21 files:
 
   | File | Mentions |
@@ -221,26 +221,31 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   **Do NOT change `src/lib/tracking.ts:103`.** The `// 7 days` there is the lifetime of the `mmfx_attr` attribution cookie, not the trial. Changing it alters how long an ad or post click stays attributed.
   **Ship order:** deploy the app migration (2.1a) first, then the marketing site **the same day**. The site must never promise 14 days while the app still grants 7.
   **Done when:** `grep -rniE "7[- ]day|7 days|seven[- ]day" src` in the marketing site returns only `src/lib/tracking.ts`; the production pages (home, FAQ, how it works, every feature page, landing pages, Terms) say 14 days; and the deploy is live.
+  **Landed (10 Sept, same day as 2.1a):** 73 mentions changed across 21 files, and the Terms' "last updated" is now September 2026. The grep returns only `tracking.ts:103`. Deployed, and the live check shows `marketmakersfx.net` and `www` with 16 "14-day" mentions and no "7-day". The app's `/signup` also shows 14.
 
-- [ ] **2.2 Replace blanket `requireFull()` with a feature-level access map.**
+- [x] **2.2 Replace blanket `requireFull()` with a feature-level access map.**
   Today 18 routes call `requireFull()`, which bounces every expired user to `/upgrade`. Add one source of truth, `src/lib/access/features.ts`, mapping each feature key to the minimum access it needs, plus a guard `requireFeature(key)` that returns the profile or renders or redirects to a locked preview.
   In this phase the map has two levels: **free** (Limited) and **full** (trial or member). Phase 3 expands it to the tier ladder without touching every page again.
   Keep the existing rule that sends a `member_active` user with no `trading_account_number` to `/dashboard`.
   **Routes currently on `requireFull`:** `api/ebooks/[slug]`, `api/reports/[id]`, `api/slides/[slug]`, `bots/BotPage.tsx`, `bots/fundamental`, `bots/know-your-style`, `calendar`, `course`, `daily-analysis`, `indicators`, `journal/connect`, `journal/ib`, `journal`, `library`, `live-classes`, `news`, `signals`, `strategies`.
   **Done when:** every route above goes through `requireFeature`, and the map has unit tests.
+  **Landed:** `src/lib/access/features.ts` is pure and client-safe; the nav reads it too. It has three levels: free, full, and member (the journal pages' existing member-or-admin rule). `requireFeature(key)` returns `{ profile, tier, viewer, locked }`. Download routes use `onLocked: "redirect"` and `log: false`. `requireFull.ts` is deleted. **Correction to the matrix above:** `/api/reports/[id]` serves the **Daily Analysis PDF**, not the AI Trading Assistant, so it's mapped to `daily-analysis` (free). The journal's JSON API keeps its own guard (`src/lib/journal/api.ts`).
 
-- [ ] **2.3 Open the Free surfaces.**
+- [x] **2.3 Open the Free surfaces.**
   Free (Limited) users can reach `/calendar`, `/news`, `/bots/know-your-style`, `/daily-analysis` (including the PDF download) and **Module 1 of the course**. Module 1 needs per-lesson gating: `src/app/course/page.tsx` builds from `LESSONS`/`MODULES`, and `/api/slides/[slug]` must allow Module 1 slugs only for Free users.
   **Done when:** an expired test user can use all five surfaces, and gets refused on lessons outside Module 1 and on their slides, both in the page and through the API.
+  **Landed:** these were also blocked in the database, because storage and table RLS were a second Full-only gate. `20260910000004_free_tier_access.sql` (applied to prod) adds signed-in reads of published analyses, published report PDFs, and Module 1's three decks. Verified as the real `authenticated` role in a rolled-back transaction, and in the browser as an expired test user: the Module 1 deck gives 200, the Module 2 deck redirects to `/upgrade`, locked lessons ship no video id, and the eBook download redirects. A vitest keeps the policy's deck list in sync with `courseData.ts`.
 
-- [ ] **2.4 Show locked features instead of redirecting.**
+- [x] **2.4 Show locked features instead of redirecting.**
   Free users see every nav item. A locked route renders a preview of the page under `LockedOverlay` (`src/lib/access/LockedOverlay.tsx`) with a tier-specific CTA, rather than a redirect to `/upgrade`. The dashboard already computes `locked`; reuse that.
   **Where:** `src/components/AppShell.tsx` (nav), the `requireFeature` locked branch.
   **Done when:** every locked route shows a preview and a CTA, with no redirect loops. Test a member with no trading account number too.
+  **Landed:** `src/components/LockedFeature.tsx` renders static art and copy under `LockedOverlay`, plus the list of what's open on Free. Nothing gated is fetched to render it. The nav shows every feature, with a lock on the ones outside the viewer's plan. No-profile and no-trading-account-number cases both go to `/dashboard`, which renders them without redirecting, so there's no loop.
 
-- [ ] **2.5 Update labels and lifecycle messaging.**
+- [x] **2.5 Update labels and lifecycle messaging.**
   AppShell's `"Limited access"` label becomes **"Free"**. Rewrite the trial-expiry copy from "your access ended" to "you're on Free; here's what's locked". Update the SendPulse `audience` semantics (`src/lib/audience.ts`, `src/lib/sendpulseSync.ts`) so `expired` is understood as a Free-tier user.
   **Done when:** no user-facing copy calls a Free user "expired" or "locked out".
+  **Landed:** the nav label reads "Free". The dashboard hero changes from "Your trial's ended / tools are locked" to "You're on Free". `/upgrade` has Free and trial versions of its copy and no longer claims KYS is locked. The dashboard slide says "Free plan". `audience.ts` documents that `expired` means Free; the value is unchanged so SendPulse segments keep working. **Still open, outside the repo:** reword the SendPulse emails for the `expired` audience in the dashboard (Gordon).
 
 ---
 

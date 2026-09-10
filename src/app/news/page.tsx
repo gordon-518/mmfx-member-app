@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
+import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { getNews, NEWS_PAIRS } from "@/lib/forexNews";
 import { NewsFeed } from "./NewsFeed";
@@ -9,8 +10,10 @@ export default async function NewsPage({
 }: {
   searchParams: Promise<{ pair?: string }>;
 }) {
-  // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull({ feature: "news" });
+  // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.
+  const gate = await requireFeature("news");
+  if (gate.locked) return <LockedFeature feature="news" gate={gate} />;
+  const profile = gate.profile;
 
   const { pair: rawPair } = await searchParams;
   // Only honour an allowlisted pair (getNews validates again before the fetch).
@@ -18,7 +21,7 @@ export default async function NewsPage({
   const items = await getNews(pair);
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier={gate.tier} isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">

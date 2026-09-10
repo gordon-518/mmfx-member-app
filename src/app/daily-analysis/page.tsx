@@ -1,4 +1,5 @@
-import { requireFull } from "@/lib/access";
+import { requireFeature } from "@/lib/access";
+import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -7,8 +8,10 @@ import {
 } from "./DailyAnalysisClient";
 
 export default async function DailyAnalysisPage() {
-  // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull({ feature: "daily-analysis" });
+  // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.
+  const gate = await requireFeature("daily-analysis");
+  if (gate.locked) return <LockedFeature feature="daily-analysis" gate={gate} />;
+  const profile = gate.profile;
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -36,7 +39,7 @@ export default async function DailyAnalysisPage() {
   }));
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
+    <AppShell email={profile.email} accountStatus={profile.account_status} tier={gate.tier} isAdmin={profile.is_admin}>
       {/* Header */}
       <div className="mx-auto max-w-5xl px-5 pt-8 sm:px-8 lg:pt-10">
         <div className="rise">

@@ -49,6 +49,20 @@ All enums use `text` + check constraints rather than Postgres enum types — eas
 
 ---
 
+## Free-tier read access (conversion-fix 2.3)
+
+A Free user is a signed-in user without Full access (an expired trial; the reverse trial). `src/lib/access/features.ts` is the app-side map. These policies, from `20260910000004_free_tier_access.sql`, are the matching database side. They are additive: every `*_full` policy is unchanged, and policies OR together.
+
+| Policy | On | Grants signed-in users |
+|---|---|---|
+| `daily_analysis_select_signed_in` | `public.daily_analysis` | `SELECT` on **published** rows. Drafts remain Full-only through `daily_analysis_select_full`. |
+| `analysis_reports_signed_in_read` | `storage.objects`, bucket `analysis-reports` | `SELECT` on objects that are the `report_path` of a **published** entry, so a draft's PDF can't be fetched by guessing its path. |
+| `slides_module1_signed_in_read` | `storage.objects`, bucket `slides` | `SELECT` on Module 1's three decks, listed by file name. `src/lib/access/course.test.ts` fails if the list drifts from `courseData.ts`. |
+
+Still Full-only: `live_classes`, the `eBooks` bucket, and `slides` outside Module 1.
+
+---
+
 ## Table: `app_events`
 
 Funnel event log (conversion-fix 1.3). RLS on; admins may SELECT; nobody writes directly. Defined in `20260910000002_funnel_instrumentation.sql`.

@@ -2,6 +2,12 @@ import type { AccountStatus } from "@/lib/trial/status";
 
 // The email-segmentation bucket each member falls into. Mirrors the access
 // model but collapsed to the four groups marketing cares about.
+//
+// "expired" is the Free tier (conversion-fix 2.5, the reverse trial). An
+// expired trial keeps Daily Analysis, the calendar, news, Know Your Style and
+// Module 1 of the course, so an email to this bucket must speak to a Free user,
+// not a locked-out one. The value stays "expired" because the SendPulse
+// segments and automations key off it.
 export type Audience = "member" | "trial" | "expired" | "removed";
 
 /**

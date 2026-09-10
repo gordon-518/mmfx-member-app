@@ -129,16 +129,44 @@ export default async function DashboardPage() {
   let brief: DashboardBrief | null = null;
   let news: NewsItem[] = [];
   if (locked) {
-    slides = [
-      {
-        key: "upgrade",
-        eyebrow: "Full access",
-        title: "Unlock your full desk",
-        body: "Analysis, signals, the indicator suite and the course all open when you fund your account.",
-        cta: { label: "Restore full access", href: "/upgrade" },
-        image: { src: "/dashboard/spotlight-course.jpg", alt: "" },
-      },
-    ];
+    // Free plan (conversion-fix 2.3): Daily Analysis is open to every signed-in
+    // user, so lead with today's read, then what funding unlocks.
+    const supabase = await createClient();
+    const { data: latest } = await supabase
+      .from("daily_analysis")
+      .select("title, description, published_on, cover_path")
+      .eq("is_published", true)
+      .order("published_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    slides = [];
+    if (latest) {
+      const coverUrl = latest.cover_path
+        ? supabase.storage.from("analysis-covers").getPublicUrl(latest.cover_path).data.publicUrl
+        : null;
+      slides.push({
+        key: "analysis",
+        eyebrow: `Desk · XAU/USD · ${fmtDay(latest.published_on)}`,
+        title: latest.title,
+        body:
+          latest.description ??
+          "The read on gold, session by session — bias, levels and the thesis behind them.",
+        cta: { label: "Watch the read", href: "/daily-analysis" },
+        image: coverUrl
+          ? { src: coverUrl, alt: latest.title, fit: "contain", dark: true }
+          : { src: "/dashboard/spotlight-live.jpg", alt: latest.title },
+      });
+    }
+    slides.push({
+      key: "upgrade",
+      eyebrow: "Free plan",
+      title: "Unlock the rest of your desk",
+      body: "Signals, the indicator suite, the full course and the library open when you fund your account.",
+      cta: { label: "See what unlocks", href: "/upgrade" },
+      image: { src: "/dashboard/spotlight-course.jpg", alt: "" },
+    });
   } else {
     const supabase = await createClient();
 
