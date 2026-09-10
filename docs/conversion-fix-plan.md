@@ -176,7 +176,7 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 
 *1–2 weeks. Ships the reverse trial.*
 
-- [ ] **2.1a Trial back to 14 days: database and app.** *New signups only (decided 10 Sept). Trials already running keep their 7-day clocks, so no backfill.*
+- [x] **2.1a Trial back to 14 days: database and app.** *New signups only (decided 10 Sept). Trials already running keep their 7-day clocks, so no backfill.*
   Write one new migration re-creating the three clock-minting functions, changing **only** `interval '7 days'` → `interval '14 days'` and the "7-day clock" comment text. **Copy each body from its latest definition, not from the 7-day migration:**
 
   | Function | Latest body |
@@ -198,6 +198,7 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 
   **Outside the repo:** check the SendPulse trial automations and email templates for "7 days" / "7-day" and update them in the SendPulse dashboard.
   **Done when:** a new test signup gets `trial_ends_at = signup_at + 14 days`; an existing 7-day trial's `trial_ends_at` is unchanged; `signup_fingerprint` is still captured on the test signup; and no user-facing app copy or email says 7 days.
+  **Landed (10 Sept, `20260910000003_trial_14_days.sql`, applied to prod):** generated from the three live bodies, with only the interval changed; the live body now equals the committed file. A test signup inside a rolled-back transaction got exactly 14 days and kept its fingerprint, and the 98 running trials were unchanged. App copy changed in 7 files; only the calendar-window and week-over-week mentions still say 7 days. **Still open, outside the repo: SendPulse trial automations and templates (Gordon, in the SendPulse dashboard).**
 
 - [ ] **2.1b Trial back to 14 days: marketing site.** *Separate repo at `~/Documents/Claude/mmfx-marketing-site`. It has no GitHub remote: deploy with `npx vercel --prod --yes` from that folder after every change.*
   72 trial-length mentions across 21 files:
@@ -261,6 +262,9 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   - the first deposit flips `trial_*` → `member_active` exactly as today
   Update the admin action (`src/app/admin/actions.ts` → `verifyDeposit`) and emit `deposit_verified` / `tier_changed` events. The CAPI `Purchase` event fires on the **first deposit only** (decided 10 Sept). **Guard this explicitly:** today `verifyDeposit` fires `Purchase` on every call, which was only safe because `fn_verify_deposit` rejected anyone already a member. Once top-ups are allowed, every top-up would fire a second `Purchase`. Send it only when the verification flips the user to `member_active`.
   **Done when:** a $50 deposit creates a Foundation member, a later $150 top-up takes them to Desk, both show in the ledger, and the top-up sends no CAPI `Purchase`.
+  **Carried over from the Phase 1 review:**
+  - `verifyDeposit` tags `deposit_verified` with `tier: paidTierFor(amount)`, the tier for **that one deposit**. That's correct today only because every verification is a first deposit of at least $500. When top-ups land, switch it to the tier for the **new cumulative total** (`deposit_amount` after the insert), or every top-up will misreport its tier.
+  - `fn_set_signup_attribution` treats first touch as all-or-nothing on `(cid, geo, feature)`. That's fine while both callers pass the whole cookie. If a caller ever passes a partial tuple, switch to per-field `coalesce`.
 
 - [ ] **3.3 Build the tier model.**
   Replace `AccessTier = "Full" | "Limited"` (`src/lib/trial/status.ts`) with a tier derived by a pure function, `tierFor(profile, now)`:
