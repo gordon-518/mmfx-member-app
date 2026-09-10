@@ -17,6 +17,8 @@ export interface PriorSnapshot {
   trials_active: number;
   conversions_today: number;
   members_active: number;
+  /** Null for snapshots taken before 2026-09-10, when the split wasn't measured. */
+  members_verified?: number | null;
   churn_today: number;
 }
 
@@ -44,26 +46,29 @@ export function buildPrompt(ctx: NarrativeContext): string {
     "Write a SHORT daily growth read (3–5 sentences, plain text, no markdown headings) for the founder.",
     "Lead with the most important movement, call out anything actionable (e.g. trials expiring soon → nudge them),",
     "and be specific with the numbers. Do not invent data beyond what is given. No preamble.",
+    "Verified members are the real conversions. Legacy members are a fixed cohort migrated from the old",
+    "platform with no deposit record: never describe them as growth, members gained, or conversions.",
     "",
     "Today's snapshot (" + today.date + ", Singapore time):",
     `- New signups: ${today.signups_today} today, ${today.signups_7d} last 7d, ${today.signups_30d} last 30d`,
     `- Active trials: ${today.trials_active}`,
     `- Trials expiring within 48h: ${today.trials_expiring_48h}`,
     `- Trial→member conversions today: ${today.conversions_today}`,
-    `- Active members: ${today.members_active}`,
+    `- Members with a verified deposit (real conversions): ${today.members_verified}`,
+    `- Legacy members (migrated, no deposit record, not growth): ${today.members_legacy}`,
     `- Churn today: ${today.churn_today}`,
-    `- TV engagement: ${today.tv_engagement_pct}% of members`,
+    `- TV engagement: ${today.tv_engagement_pct}% of all members, legacy included`,
     `- Broker split (members): Octa ${brokers.octa}, Dupoin ${brokers.dupoin}, Elev8 ${brokers.elev8}`,
     "",
     "Day-over-day (vs yesterday):",
     deltaLine("Signups", today.signups_today, yesterday?.signups_today),
     deltaLine("Active trials", today.trials_active, yesterday?.trials_active),
     deltaLine("Conversions", today.conversions_today, yesterday?.conversions_today),
-    deltaLine("Members", today.members_active, yesterday?.members_active),
+    deltaLine("Verified members", today.members_verified, yesterday?.members_verified),
     "",
     "Week-over-week (vs 7 days ago):",
     deltaLine("Active trials", today.trials_active, lastWeek?.trials_active),
-    deltaLine("Members", today.members_active, lastWeek?.members_active),
+    deltaLine("Verified members", today.members_verified, lastWeek?.members_verified),
   ].join("\n");
 }
 

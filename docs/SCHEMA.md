@@ -47,6 +47,32 @@ All enums use `text` + check constraints rather than Postgres enum types — eas
 
 ---
 
+## Table: `growth_daily`
+
+One row per Singapore-time calendar day, written by the daily-stats cron (`/api/cron/daily-stats`, service role) at 09:00 SGT. Aggregate counts only, no member PII. Admins may SELECT; nobody else has access. Defined in `20260625000001_growth_daily.sql`.
+
+| Column | Type | Nullable | Notes |
+|---|---|---|---|
+| `date` | `date` | no | PK. SGT calendar date of the snapshot. |
+| `signups_today` / `signups_7d` / `signups_30d` | `integer` | no | Profile rows created in each window. |
+| `trials_active` | `integer` | no | Active-status trials still inside their clock. |
+| `trials_expiring_48h` | `integer` | no | Active trials falling due within 48h. |
+| `conversions_today` | `integer` | no | Deposits verified during the SGT day. |
+| `members_active` | `integer` | no | Every `member_active` profile, **legacy included**. Kept for continuity; not a conversion figure. |
+| `members_verified` | `integer` | yes | `member_active` with `deposit_verified_at` set: the real conversions. **Null before 2026-09-10** (not measured). Added in `20260910000001_growth_daily_verified_members.sql`. |
+| `members_legacy` | `integer` | yes | `member_active` with no deposit record: grandfathered Softr members. **Null before 2026-09-10.** Same migration. |
+| `churn_today` | `integer` | no | Profiles downgraded during the SGT day. |
+| `tv_engagement_pct` | `numeric` | no | % of all `member_active` profiles (legacy included) with a TradingView username. |
+| `broker_split` | `jsonb` | no | Member counts by broker. |
+| `narrative` | `text` | yes | The AI growth read for the day. |
+| `created_at` | `timestamptz` | no | Row creation time. |
+
+**Rule for new metric columns:** add them nullable. The original columns are `NOT NULL`, so a new `NOT NULL` column would force a fabricated value into every historical snapshot.
+
+**Legacy members.** A *legacy* member is `account_status = 'member_active'` with `deposit_verified_at is null`: one of the 112 grandfathered Softr members migrated in June 2026. They never came through the signup funnel, so conversion metrics exclude them from both the numerator and the denominator (`isLegacyMember()` and `computeConversion()` in `src/lib/growth/metrics.ts`). Conversion-fix task 3.1 replaces this null-semantics rule with an explicit `profiles.grandfathered` flag.
+
+---
+
 ## State Machine
 
 ```
