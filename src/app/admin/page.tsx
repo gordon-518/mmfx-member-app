@@ -454,9 +454,8 @@ export default async function AdminPage({
                       )}
                     </td>
                     <td className="px-3 py-3">
-                      {p.account_status === "member_active" ? (
-                        <span className="text-faint">member</span>
-                      ) : (
+                      {/* conversion-fix 3.2: members can be verified again — that's a
+                          top-up, added to their cumulative total. */}
                         <form action={verifyDeposit} className="flex flex-wrap items-center gap-1.5">
                           <input type="hidden" name="target_user_id" value={p.id} />
                           <input type="hidden" name="target_email" value={p.email} />
@@ -475,20 +474,18 @@ export default async function AdminPage({
                             name="amount"
                             type="number"
                             step="0.01"
-                            min="500"
-                            defaultValue="500"
+                            min="50"
                             required
-                            placeholder="min 500"
+                            placeholder="min 50"
                             className={`w-20 ${INPUT}`}
                           />
                           <label className="flex items-center gap-1 text-subtle">
                             <input name="ib_confirmed" type="checkbox" className="accent-orange" /> IB
                           </label>
                           <button type="submit" className={BTN_PRIMARY}>
-                            Verify
+                            {p.account_status === "member_active" ? "Top up" : "Verify"}
                           </button>
                         </form>
-                      )}
                     </td>
                     <td className="px-3 py-3">
                       {retrialOk ? (
