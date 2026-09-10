@@ -24,6 +24,6 @@ export function canWatchLesson(
   modules: readonly ModuleRange[],
   viewer: Viewer
 ): boolean {
-  // "library" stands in for the Full level: the full course is a Full feature.
+  // "library" stands in for Foundation: the full course opens at Foundation.
   return canAccess("library", viewer) || isLessonFree(lessonNumber, modules);
 }

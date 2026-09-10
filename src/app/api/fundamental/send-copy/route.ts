@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAccess } from "@/lib/access";
+import { canAccess } from "@/lib/access/features";
 import { sendEmail, addContactToBook } from "@/lib/sendpulse";
 import { fundamentalEmailHtml } from "@/lib/fundamentalEmail";
 
@@ -26,12 +27,14 @@ const INSTRUMENTS: Record<string, string> = {
 };
 
 export async function POST(req: Request) {
-  // Authorize: must be able to view the desk (Full) OR be the admin account.
+  // Authorize: must be able to open the desk (the feature map) OR be the admin.
   const access = await getAccess();
   if (!access.signedIn || !access.profile) {
     return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
   }
-  const authorized = access.tier === "Full" || access.profile.is_admin;
+  const authorized =
+    canAccess("fundamental-desk", { tier: access.memberTier, isAdmin: access.profile.is_admin }) ||
+    access.profile.is_admin;
   if (!authorized) {
     return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
   }

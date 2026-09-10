@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getAccess, isMemberActive } from "@/lib/access";
+import { getAccess } from "@/lib/access";
+import { canAccess } from "@/lib/access/features";
 import { AppShell } from "@/components/AppShell";
 import { MembersOnly } from "@/components/MembersOnly";
 import { TeamMMMember } from "./TeamMMMember";
@@ -18,19 +19,25 @@ export default async function TeamMMPage() {
     ? access.profile.full_name.trim().split(/\s+/)[0]
     : "";
 
+  // Team MM tier only (conversion-fix 3.3); the map admins pass as before.
+  const isTeam = canAccess("team-mm", {
+    tier: access.memberTier,
+    isAdmin: access.profile?.is_admin ?? false,
+  });
+
   return (
     <AppShell
       email={access.profile?.email ?? ""}
       accountStatus={access.profile?.account_status ?? "trial_active"}
-      tier={access.tier}
+      memberTier={access.memberTier}
       isAdmin={access.profile?.is_admin ?? false}
     >
-      {isMemberActive(access) ? (
+      {isTeam ? (
         <TeamMMMember firstName={firstName} />
       ) : (
         <MembersOnly
           feature="Team MM"
-          blurb="Team MM is our private desk — a VIP channel where Don sends extra, higher-conviction signals and member-only calls. It unlocks the moment you become a funded member."
+          blurb="Team MM is our private desk — a VIP channel where Don sends extra, higher-conviction signals and member-only calls. It unlocks at Team MM: $500 in cumulative deposits to your own trading account."
         />
       )}
     </AppShell>

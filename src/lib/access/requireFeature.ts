@@ -54,7 +54,7 @@ export async function requireFeature(
     redirect("/dashboard");
   }
 
-  const viewer: Viewer = { tier: access.tier, isMember, isAdmin: profile.is_admin };
+  const viewer: Viewer = { tier: access.memberTier, isAdmin: profile.is_admin };
   const locked = !canAccess(feature, viewer);
 
   if (locked && onLocked === "redirect") {

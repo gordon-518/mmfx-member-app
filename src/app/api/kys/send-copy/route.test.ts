@@ -30,6 +30,7 @@ const fullMember = {
   signedIn: true,
   profile: { email: "me@example.com", full_name: "Me", is_admin: false },
   tier: "Full",
+  memberTier: "trial",
   daysLeft: 5,
 };
 
@@ -55,15 +56,18 @@ describe("POST /api/kys/send-copy", () => {
     expect(await res.json()).toEqual({ ok: false, reason: "unauthorized" });
   });
 
-  it("signed in but not Full and not admin → 401", async () => {
+  it("a Free user is authorized: Know Your Style is a free feature", async () => {
     getAccessMock.mockResolvedValue({
       signedIn: true,
       profile: { email: "x@example.com", full_name: null, is_admin: false },
       tier: "Limited",
+      memberTier: "free",
       daysLeft: 0,
     });
+    sendEmailMock.mockResolvedValue({ ok: true, detail: {} });
     const res = await POST(req(validBody));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(sendEmailMock.mock.calls[0][0].to.email).toBe("x@example.com");
   });
 
   it("admin (non-Full tier) is authorized", async () => {
@@ -71,6 +75,7 @@ describe("POST /api/kys/send-copy", () => {
       signedIn: true,
       profile: { email: "admin@example.com", full_name: "Admin", is_admin: true },
       tier: "Limited",
+      memberTier: "free",
       daysLeft: 0,
     });
     sendEmailMock.mockResolvedValue({ ok: true, detail: {} });

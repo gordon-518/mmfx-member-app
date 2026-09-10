@@ -7,5 +7,5 @@
 //
 //   import { LockedOverlay } from "@/lib/access/LockedOverlay";
 
-export { getAccess, isMemberActive, type Access, type AccessProfile } from "./getAccess";
+export { getAccess, type Access, type AccessProfile } from "./getAccess";
 export { requireFeature, type FeatureGate } from "./requireFeature";

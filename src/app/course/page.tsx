@@ -30,7 +30,7 @@ export default async function CoursePage() {
   const lockedCount = lessons.filter((l) => l.locked).length;
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier={gate.tier} isAdmin={profile.is_admin}>
+    <AppShell email={profile.email} accountStatus={profile.account_status} memberTier={gate.viewer.tier} isAdmin={profile.is_admin}>
       {/* Header */}
       <div className="mx-auto max-w-5xl px-5 pt-8 sm:px-8 lg:pt-10">
         <div className="rise">

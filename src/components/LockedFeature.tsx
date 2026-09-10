@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { LockedOverlay } from "@/lib/access/LockedOverlay";
-import { FEATURE_HREF, FEATURE_LEVEL } from "@/lib/access/features";
+import { FEATURE_HREF, FEATURE_MIN_TIER } from "@/lib/access/features";
+import { tierUnlockLabel } from "@/lib/tiers";
 import type { FeatureKey } from "@/lib/access/featureKeys";
 import type { FeatureGate } from "@/lib/access/requireFeature";
 
@@ -64,16 +65,16 @@ const COPY: Partial<Record<FeatureKey, LockedCopy>> = {
     image: { src: "/dashboard/spotlight-fundamental.jpg", width: 1200, height: 675 },
   },
   "ai-trading-assistant": {
-    eyebrow: "Members · AI",
+    eyebrow: "Team MM · AI",
     title: "AI Trading Assistant",
     pitch: "Connect your trading account and get a coach that reviews every trade you take against the MM System.",
     points: ["Every trade reviewed automatically", "Patterns in your own trading, spotted for you", "Built around the MM System"],
   },
   "team-mm": {
-    eyebrow: "Members · Community",
+    eyebrow: "Team MM · Community",
     title: "Team MM",
-    pitch: "The private channel for funded members, with the desk.",
-    points: ["Straight from the desk", "Funded members only", "On Telegram"],
+    pitch: "The private Team MM channel, with the desk.",
+    points: ["Straight from the desk", "Team MM members only", "On Telegram"],
   },
 };
 
@@ -92,11 +93,12 @@ export function LockedFeature({ feature, gate }: { feature: FeatureKey; gate: Fe
     pitch: "It opens when you fund your account.",
     points: [],
   };
-  const memberOnly = FEATURE_LEVEL[feature] === "member";
-  const { profile, tier } = gate;
+  // Tier-specific CTA (conversion-fix 2.4 / 3.3): say which tier opens it.
+  const min = FEATURE_MIN_TIER[feature];
+  const { profile, viewer } = gate;
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier={tier} isAdmin={profile.is_admin}>
+    <AppShell email={profile.email} accountStatus={profile.account_status} memberTier={viewer.tier} isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-5xl px-5 pb-12 pt-8 sm:px-8 lg:pt-10">
         <div className="rise">
           <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{copy.eyebrow}</p>
@@ -107,7 +109,7 @@ export function LockedFeature({ feature, gate }: { feature: FeatureKey; gate: Fe
         <div className="rise mt-7" style={{ animationDelay: "80ms" }}>
           <LockedOverlay
             ctaHref="/upgrade"
-            ctaLabel={memberOnly ? "For funded members · see how" : "Unlock with a funded account"}
+            ctaLabel={min === "free" ? "Open on every plan" : `Unlocks at ${tierUnlockLabel(min)}`}
           >
             <div className="rounded-2xl border border-line bg-card p-5 shadow-soft">
               {copy.image && (

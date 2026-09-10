@@ -1,33 +1,32 @@
-// The feature access map (conversion-fix 2.2): one source of truth for what
-// each feature needs. Pure and client-safe — the server guard
-// (requireFeature) and the nav's lock badges (AppShell) both read it, so the
-// sidebar can never disagree with the page.
+// The feature access map: one source of truth for what each feature needs.
+// Pure and client-safe — the server guard (requireFeature) and the nav's lock
+// badges (AppShell) both read it, so the sidebar can never disagree with the
+// page.
 //
-// Phase 2 has three levels: free (every signed-in user), full (a live trial or
-// a member) and member (funded members only, as the AI Trading Assistant and
-// Team MM already were). Phase 3 swaps full/member for the tier ladder here,
-// without touching the pages again.
+// Each feature names the lowest tier that opens it, straight from the plan's
+// tier feature matrix (conversion-fix 3.3; the free/full/member shape of 2.2
+// became this ladder without touching the pages again).
 
-import type { AccessTier } from "@/lib/trial/status";
+import { TIER_RANK, type MemberTier, type PaidTier } from "@/lib/tiers";
 import type { FeatureKey } from "./featureKeys";
 
-export type FeatureLevel = "free" | "full" | "member";
+export type FeatureMinTier = "free" | PaidTier;
 
-export const FEATURE_LEVEL: Readonly<Record<FeatureKey, FeatureLevel>> = {
+export const FEATURE_MIN_TIER: Readonly<Record<FeatureKey, FeatureMinTier>> = {
   calendar: "free",
   news: "free",
   "know-your-style": "free",
   "daily-analysis": "free",
-  // Free reaches Module 1 only; the per-lesson gate is src/lib/access/course.ts.
+  // Free reaches Module 1 only; the full course is Foundation (course.ts).
   course: "free",
-  library: "full",
-  indicators: "full",
-  strategies: "full",
-  signals: "full",
-  "live-classes": "full",
-  "fundamental-desk": "full",
-  "ai-trading-assistant": "member",
-  "team-mm": "member",
+  library: "foundation",
+  indicators: "foundation",
+  strategies: "foundation",
+  signals: "desk",
+  "live-classes": "desk",
+  "fundamental-desk": "desk",
+  "ai-trading-assistant": "team",
+  "team-mm": "team",
 };
 
 /** The route each feature lives at (its nav link). */
@@ -48,24 +47,21 @@ export const FEATURE_HREF: Readonly<Record<FeatureKey, string>> = {
 };
 
 export interface Viewer {
-  tier: AccessTier;
-  isMember: boolean;
+  tier: MemberTier;
   isAdmin: boolean;
 }
 
 /**
- * Whether this viewer may use the feature. `member` keeps the rule the journal
- * pages enforced before: Full access AND (a funded member OR an admin).
+ * The rank a viewer's access counts at. An admin on any non-free tier reaches
+ * everything (support / QA), the rule the member-only pages had before. An
+ * admin whose own trial has lapsed is Free like anyone else.
  */
+export function viewerRank(viewer: Viewer): number {
+  return viewer.isAdmin && viewer.tier !== "free" ? TIER_RANK.team : TIER_RANK[viewer.tier];
+}
+
 export function canAccess(key: FeatureKey, viewer: Viewer): boolean {
-  switch (FEATURE_LEVEL[key]) {
-    case "free":
-      return true;
-    case "full":
-      return viewer.tier === "Full";
-    case "member":
-      return viewer.tier === "Full" && (viewer.isMember || viewer.isAdmin);
-  }
+  return viewerRank(viewer) >= TIER_RANK[FEATURE_MIN_TIER[key]];
 }
 
 const BY_HREF = new Map(

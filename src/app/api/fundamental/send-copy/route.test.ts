@@ -27,6 +27,7 @@ const fullMember = {
   signedIn: true,
   profile: { email: "me@example.com", full_name: "Me", is_admin: false },
   tier: "Full",
+  memberTier: "trial",
   daysLeft: 5,
 };
 
@@ -53,11 +54,24 @@ describe("POST /api/fundamental/send-copy", () => {
     expect(await res.json()).toEqual({ ok: false, reason: "unauthorized" });
   });
 
-  it("signed in but not Full and not admin → 401", async () => {
+  it("a Free user → 401 (the Fundamental Desk is Desk and up)", async () => {
     getAccessMock.mockResolvedValue({
       signedIn: true,
       profile: { email: "x@example.com", full_name: null, is_admin: false },
       tier: "Limited",
+      memberTier: "free",
+      daysLeft: 0,
+    });
+    const res = await POST(req({ instrument: "XAUUSD" }));
+    expect(res.status).toBe(401);
+  });
+
+  it("a Foundation member → 401 (below Desk)", async () => {
+    getAccessMock.mockResolvedValue({
+      signedIn: true,
+      profile: { email: "f@example.com", full_name: null, is_admin: false },
+      tier: "Full",
+      memberTier: "foundation",
       daysLeft: 0,
     });
     const res = await POST(req({ instrument: "XAUUSD" }));
@@ -69,6 +83,7 @@ describe("POST /api/fundamental/send-copy", () => {
       signedIn: true,
       profile: { email: "admin@example.com", full_name: "Admin", is_admin: true },
       tier: "Limited",
+      memberTier: "free",
       daysLeft: 0,
     });
     stubPdfOk();

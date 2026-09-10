@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { headerContent } from "./headerContent";
 import type { AccountStatus, AccessTier } from "@/lib/trial/status";
+import type { MemberTier } from "@/lib/tiers";
 import { ArrowIcon, LockIcon, LibraryIcon, AnalysisIcon, LiveIcon, SignalsIcon, NewsIcon } from "@/components/icons";
 import { Spotlight, type SpotlightSlide } from "./Spotlight";
 import { MarketBar } from "./MarketBar";
@@ -197,6 +198,7 @@ export function DashboardClient({
   accountStatus,
   daysLeft,
   tier,
+  memberTier,
   slides,
   brief,
   news,
@@ -209,6 +211,7 @@ export function DashboardClient({
   accountStatus: AccountStatus;
   daysLeft: number;
   tier: AccessTier;
+  memberTier: MemberTier;
   slides: SpotlightSlide[];
   brief: DashboardBrief | null;
   news: NewsItem[];
@@ -222,7 +225,7 @@ export function DashboardClient({
   const firstName = fullName?.trim() ? fullName.trim().split(/\s+/)[0] : email.split("@")[0];
 
   return (
-    <AppShell email={email} accountStatus={accountStatus} tier={tier} isAdmin={isAdmin}>
+    <AppShell email={email} accountStatus={accountStatus} memberTier={memberTier} isAdmin={isAdmin}>
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Trading account number — first block. (Members without one never reach
             here; the page shows the gate instead.) */}
