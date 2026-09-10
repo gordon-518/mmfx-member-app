@@ -9,8 +9,8 @@ const MODULES = [
   { id: 2, from: 3, to: 5 },
   { id: 6, from: 15, to: 18 },
 ];
-const FREE: Viewer = { tier: "Limited", isMember: false, isAdmin: false };
-const TRIAL: Viewer = { tier: "Full", isMember: false, isAdmin: false };
+const FREE: Viewer = { tier: "free", isAdmin: false };
+const TRIAL: Viewer = { tier: "trial", isAdmin: false };
 
 describe("course gating", () => {
   it("Module 1 lessons are free, nothing else is", () => {
@@ -18,10 +18,11 @@ describe("course gating", () => {
     expect([3, 5, 15, 18].some((n) => isLessonFree(n, MODULES))).toBe(false);
   });
 
-  it("Free users watch Module 1 only; Full users watch everything", () => {
+  it("Free users watch Module 1 only; trials and paid tiers watch everything", () => {
     expect(canWatchLesson(2, MODULES, FREE)).toBe(true);
     expect(canWatchLesson(3, MODULES, FREE)).toBe(false);
     expect(canWatchLesson(18, MODULES, TRIAL)).toBe(true);
+    expect(canWatchLesson(18, MODULES, { tier: "foundation", isAdmin: false })).toBe(true);
   });
 
   it("nothing is free if the free module is missing (fail closed)", () => {

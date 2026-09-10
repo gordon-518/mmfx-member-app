@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireFeature } from "@/lib/access";
 import { LockedFeature } from "@/components/LockedFeature";
 import { createClient } from "@/lib/supabase/server";
@@ -34,10 +33,6 @@ export default async function JournalPage() {
   const gate = await requireFeature("ai-trading-assistant");
   if (gate.locked) return <LockedFeature feature="ai-trading-assistant" gate={gate} />;
   const profile = gate.profile;
-  // Members-only benefit (admins allowed for support). Trials → upgrade.
-  if (profile.account_status !== "member_active" && !profile.is_admin) {
-    redirect("/upgrade");
-  }
   const supabase = await createClient();
 
   const { data: accounts } = await supabase
@@ -183,7 +178,7 @@ export default async function JournalPage() {
     <AppShell
       email={profile.email}
       accountStatus={profile.account_status}
-      tier={gate.tier}
+      memberTier={gate.viewer.tier}
       isAdmin
     >
       <JournalDashboard

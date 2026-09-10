@@ -240,6 +240,7 @@ export default async function DashboardPage() {
       accountStatus={access.profile.account_status}
       daysLeft={access.daysLeft}
       tier={access.tier}
+      memberTier={access.memberTier}
       slides={slides}
       brief={brief}
       news={news}

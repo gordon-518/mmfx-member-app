@@ -45,7 +45,7 @@ export default async function LiveClassesPage() {
   const { upcoming, past } = splitByTime(all);
 
   return (
-    <AppShell email={profile.email} accountStatus={profile.account_status} tier={gate.tier} isAdmin={profile.is_admin}>
+    <AppShell email={profile.email} accountStatus={profile.account_status} memberTier={gate.viewer.tier} isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">

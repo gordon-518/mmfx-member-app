@@ -23,7 +23,7 @@ export default async function KnowYourStylePage() {
       <BotPage
         email={profile.email}
         accountStatus={profile.account_status}
-        tier={gate.tier}
+        memberTier={gate.viewer.tier}
         isAdmin={profile.is_admin}
         eyebrow="Bots · Profile"
         title="Know Your Style"

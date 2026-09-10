@@ -18,7 +18,7 @@ export default async function FundamentalPage() {
       <BotPage
         email={profile.email}
         accountStatus={profile.account_status}
-        tier={gate.tier}
+        memberTier={gate.viewer.tier}
         isAdmin={profile.is_admin}
         eyebrow="Bots · Macro"
         title="Fundamental Analysis Desk"

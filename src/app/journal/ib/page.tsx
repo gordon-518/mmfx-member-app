@@ -26,7 +26,7 @@ export default async function JournalIbPage() {
     <AppShell
       email={profile.email}
       accountStatus={profile.account_status}
-      tier={gate.tier}
+      memberTier={gate.viewer.tier}
       isAdmin
     >
       <IbAdmin

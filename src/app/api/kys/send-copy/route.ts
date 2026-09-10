@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAccess } from "@/lib/access";
+import { canAccess } from "@/lib/access/features";
 import { sendEmail, addContactToBook } from "@/lib/sendpulse";
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,12 +12,14 @@ import { createClient } from "@/lib/supabase/server";
 const MAX_HTML = 300_000;
 
 export async function POST(req: Request) {
-  // Authorize: must be able to view the bot (Full) OR be the admin account.
+  // Authorize: must be able to open the bot (the feature map) OR be the admin.
   const access = await getAccess();
   if (!access.signedIn || !access.profile) {
     return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
   }
-  const authorized = access.tier === "Full" || access.profile.is_admin;
+  const authorized =
+    canAccess("know-your-style", { tier: access.memberTier, isAdmin: access.profile.is_admin }) ||
+    access.profile.is_admin;
   if (!authorized) {
     return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
   }

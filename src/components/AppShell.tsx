@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { signOut } from "@/app/dashboard/actions";
-import type { AccountStatus, AccessTier } from "@/lib/trial/status";
+import type { AccountStatus } from "@/lib/trial/status";
+import { tierLabel, type MemberTier } from "@/lib/tiers";
 import { canAccess, featureForHref, type Viewer } from "@/lib/access/features";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
@@ -137,13 +138,11 @@ function NavLinks({
 function UserCard({
   email,
   firstName,
-  isMember,
-  tier,
+  memberTier,
 }: {
   email: string;
   firstName: string;
-  isMember: boolean;
-  tier: AccessTier;
+  memberTier: MemberTier;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-xl px-2 py-1.5">
@@ -153,7 +152,7 @@ function UserCard({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-medium text-ink">{email}</span>
         <span className="block text-[11px] text-faint">
-          {isMember ? "Member" : tier === "Full" ? "Trial · Full access" : "Free"}
+          {memberTier === "trial" ? "Trial · full desk" : tierLabel(memberTier)}
         </span>
       </span>
       <form action={signOut}>
@@ -205,20 +204,21 @@ function UpgradeCta({ variant, onNavigate }: { variant: "bar" | "panel"; onNavig
  */
 export function AppShell({
   email,
-  accountStatus,
-  tier,
+  memberTier,
   isAdmin = false,
   children,
 }: {
   email: string;
+  /** Still passed by callers; the tier ladder below is what the shell reads. */
   accountStatus: AccountStatus;
-  tier: AccessTier;
+  memberTier: MemberTier;
   isAdmin?: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const isMember = accountStatus === "member_active";
-  const viewer: Viewer = { tier, isMember, isAdmin };
+  const viewer: Viewer = { tier: memberTier, isAdmin };
+  // Top-ups move a member up the ladder, so everyone below Team MM sees it.
+  const showUpgrade = memberTier !== "team";
   const firstName = email.split("@")[0];
   const reduceMotion = useReducedMotion();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -255,13 +255,13 @@ export function AppShell({
           <NavLinks pathname={pathname} viewer={viewer} />
         </nav>
 
-        {!isMember && (
+        {showUpgrade && (
           <div className="mt-4">
             <UpgradeCta variant="panel" />
           </div>
         )}
         <div className="mt-4 border-t border-line pt-4">
-          <UserCard email={email} firstName={firstName} isMember={isMember} tier={tier} />
+          <UserCard email={email} firstName={firstName} memberTier={memberTier} />
         </div>
       </aside>
 
@@ -284,7 +284,7 @@ export function AppShell({
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            {!isMember && <UpgradeCta variant="bar" />}
+            {showUpgrade && <UpgradeCta variant="bar" />}
             <form action={signOut}>
               <button
                 type="submit"
@@ -344,13 +344,13 @@ export function AppShell({
                 <NavLinks pathname={pathname} onNavigate={() => setMenuOpen(false)} viewer={viewer} />
               </nav>
 
-              {!isMember && (
+              {showUpgrade && (
                 <div className="mt-4">
                   <UpgradeCta variant="panel" onNavigate={() => setMenuOpen(false)} />
                 </div>
               )}
               <div className="mt-4 border-t border-line pt-4">
-                <UserCard email={email} firstName={firstName} isMember={isMember} tier={tier} />
+                <UserCard email={email} firstName={firstName} memberTier={memberTier} />
               </div>
             </motion.aside>
           </motion.div>

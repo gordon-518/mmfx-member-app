@@ -272,7 +272,7 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   - `verifyDeposit` tags `deposit_verified` with `tier: paidTierFor(amount)`, the tier for **that one deposit**. That's correct today only because every verification is a first deposit of at least $500. When top-ups land, switch it to the tier for the **new cumulative total** (`deposit_amount` after the insert), or every top-up will misreport its tier.
   - `fn_set_signup_attribution` treats first touch as all-or-nothing on `(cid, geo, feature)`. That's fine while both callers pass the whole cookie. If a caller ever passes a partial tuple, switch to per-field `coalesce`.
 
-- [ ] **3.3 Build the tier model.**
+- [x] **3.3 Build the tier model.**
   Replace `AccessTier = "Full" | "Limited"` (`src/lib/trial/status.ts`) with a tier derived by a pure function, `tierFor(profile, now)`:
   - `grandfathered` → **team**
   - `member_active` with cumulative ≥ 500 → **team**, ≥ 200 → **desk**, ≥ 50 → **foundation**
@@ -280,6 +280,12 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   - everything else → **free**
   Then update `getAccess()`, the feature map from task 2.2 (use the tier feature matrix above), and every `isMemberActive()` check. `/team-mm` and `/journal` become `tier === "team"`, and the journal API guard in `src/lib/journal/api.ts` must change to match.
   **Done when:** unit tests cover every threshold edge (49.99 / 50 / 199.99 / 200 / 499.99 / 500), grandfathered, trial in and out of its clock, and expired. Every route enforces the matrix.
+  **Landed (built before 3.2 on purpose):** 3.2's $50 minimum would otherwise have turned a $50 depositor into a full member with Team MM under the old binary model.
+  - `tierFor()` lives in `src/lib/tiers.ts` and is pure. Team MM applies to grandfathered members only while they are `member_active`. A member set by hand with no qualifying deposit gets Foundation instead of being locked out. A trial is Desk-equivalent.
+  - `getAccess()` adds `memberTier`. `features.ts` now holds the matrix as minimum tiers.
+  - These all use one map: requireFeature, the nav, the locked-preview CTAs ("Unlocks at Desk · $200"), `/team-mm` (was `isMemberActive`, which is now removed), the journal API (`requireMemberApi` → Team MM), and both "send me a copy" routes. The KYS send-copy route still required Full access after Phase 2, which was a bug.
+  - The coarse `tier` (Full/Limited) stays as a derived view for the dashboard and `/upgrade`.
+  - Prod distribution today: 150 members are all Team MM (38 verified at $500 or more, plus 112 grandfathered), 91 trials, 3,673 Free. No one's access changes on deploy.
 
 - [ ] **3.4 Check the TradingView grant automation against the new tiers.**
   Indicators and strategies now start at Foundation, and Free users must lose access. Check which rule `src/lib/tv/*` and `syncTV()` (called from `verifyDeposit`) use to grant and revoke today, and re-point it to `tierFor`: grant for trial and Foundation+, revoke for free.
