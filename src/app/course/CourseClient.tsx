@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LockIcon } from "@/components/icons";
+import { markLessonOneWatched } from "./actions";
 import type { CourseLevel, CourseModule } from "./courseData";
 
 // Only the fields the client needs — pptFile stays server-side (the download
@@ -105,6 +106,8 @@ export function CourseClient({
     if (!lesson || lesson.locked) return;
     setActiveSlug(slug);
     markWatched(slug);
+    // Onboarding step 4 (Phase 4): lesson 0 is Module 1's first lesson.
+    if (lesson.number === 0) void markLessonOneWatched();
     const mod = moduleOf(lesson);
     if (mod) setOpen((o) => new Set(o).add(mod.id));
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });

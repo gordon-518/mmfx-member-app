@@ -33,9 +33,9 @@ export function RoadmapJourney() {
     <div>
       <div className="max-w-xl">
         <p className="text-[13px] font-semibold uppercase tracking-wider text-orange">Your roadmap</p>
-        <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+        <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
           The path to trading gold profitably
-        </h1>
+        </h2>
         <p className="mt-3 text-[15px] leading-relaxed text-subtle">
           Three levels take you from reading the market, to executing on your own,
           to managing trades like a pro. Every tool you need is here — this is the

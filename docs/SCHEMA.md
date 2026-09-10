@@ -98,13 +98,13 @@ Funnel event log (conversion-fix 1.3). RLS on; admins may SELECT; nobody writes 
 | `props` | `jsonb` | no | A JSON object of at most 1 KB. Default `{}`. |
 | `created_at` | `timestamptz` | no | `now()`. |
 
-**Events:** `feature_view {feature}` (a *granted* view of a gated page; deduped per user + feature per 30 min) · `tv_username_set` (logged inside `fn_set_tradingview_username`) · `upgrade_viewed {region}` · `upgrade_broker_link_clicked {broker, flow}` · `upgrade_contact_clicked {channel}` · `deposit_verified {amount, broker, tier}`. Later phases add `deposit_submitted`, `tier_changed` and `onboarding_step_done`. The allowlist lives in the database and is mirrored in `src/lib/eventNames.ts`.
+**Events:** `feature_view {feature}` (a *granted* view of a gated page; deduped per user + feature per 30 min) · `tv_username_set` (logged inside `fn_set_tradingview_username`) · `upgrade_viewed {region}` · `upgrade_broker_link_clicked {broker, flow}` · `upgrade_contact_clicked {channel}` · `deposit_verified {amount, broker, cumulative, tier, first}` (tier = the new cumulative tier) · `tier_changed {from, to}` (3.2) · `onboarding_step_done {step}` (Phase 4; deduped per user + step). `deposit_submitted` comes with Phase 5. The allowlist lives in the database and is mirrored in `src/lib/eventNames.ts`.
 
 **Writers.** Every insert goes through `fn_app_event_insert` (allowlist, size cap, dedupe), which no client role can call. It's reached two ways:
-- `fn_log_event(p_event, p_props)` — `authenticated`. The user comes from `auth.uid()`, and **only** the two click events are accepted, so a browser can't forge `deposit_verified` or `feature_view`.
+- `fn_log_event(p_event, p_props)` — `authenticated`. The user comes from `auth.uid()`, and only the two upgrade click events plus `onboarding_step_done` with `step = 'lesson-1'` are accepted, so a browser can't forge `deposit_verified`, `feature_view` or other checklist steps.
 - `fn_log_event_as(p_user_id, p_event, p_props)` — `service_role` only. For server code logging a user it has already authenticated: page renders via Next's `after()` (where cookies are unavailable) and admin actions acting on another user.
 
-**Reader.** `fn_admin_funnel_stats(p_days)` — admin-only aggregate for `/stats`: activation rate, upgrade-funnel step counts, conversion split. Aggregates in the database because `app_events` outgrows PostgREST's 1000-row page cap within days.
+**Readers.** `fn_my_onboarding()` — `authenticated`, own row only (Phase 4). Returns `{tv, analysis, kys, lesson1, desk}` for the caller's five-step checklist, each read from where the step happens: `tradingview_username` saved (not `tv_connected_at`, which starts 10 Sep), a Daily Analysis `feature_view`, `kys_completed_at`, the lesson-1 `onboarding_step_done`, and an `upgrade_viewed`. Users can't read `app_events` directly. `fn_admin_funnel_stats(p_days)` — admin-only aggregate for `/stats`: activation rate, upgrade-funnel step counts, conversion split. Aggregates in the database because `app_events` outgrows PostgREST's 1000-row page cap within days.
 
 ---
 

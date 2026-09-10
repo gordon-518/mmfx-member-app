@@ -6,6 +6,8 @@ import { AppShell } from "@/components/AppShell";
 import { headerContent } from "./headerContent";
 import type { AccountStatus, AccessTier } from "@/lib/trial/status";
 import type { MemberTier } from "@/lib/tiers";
+import type { OnboardingState } from "@/lib/onboarding";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { ArrowIcon, LockIcon, LibraryIcon, AnalysisIcon, LiveIcon, SignalsIcon, NewsIcon } from "@/components/icons";
 import { Spotlight, type SpotlightSlide } from "./Spotlight";
 import { MarketBar } from "./MarketBar";
@@ -205,6 +207,8 @@ export function DashboardClient({
   showKysOnboarding = false,
   isAdmin = false,
   tradingAccount = null,
+  onboarding = null,
+  kysArchetype = null,
 }: {
   email: string;
   fullName: string | null;
@@ -218,6 +222,9 @@ export function DashboardClient({
   showKysOnboarding?: boolean;
   isAdmin?: boolean;
   tradingAccount?: string | null;
+  /** conversion-fix 4.2 — null for paid members (no card). */
+  onboarding?: OnboardingState | null;
+  kysArchetype?: string | null;
 }) {
   const head = headerContent(accountStatus, daysLeft);
   const locked = tier !== "Full";
@@ -279,6 +286,14 @@ export function DashboardClient({
             )}
           </div>
         </div>
+
+        {/* Onboarding card (4.2) — until all five steps are done. It renders
+            nothing once they are. */}
+        {onboarding && (
+          <div className="rise mt-6" style={{ animationDelay: "0.09s" }}>
+            <OnboardingChecklist state={onboarding} archetype={kysArchetype} variant="card" />
+          </div>
+        )}
 
         {/* Spotlight */}
         <div className="rise mt-6" style={{ animationDelay: "0.12s" }}>

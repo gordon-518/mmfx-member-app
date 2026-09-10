@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import { isClientEvent, sanitizeClientProps } from "./eventNames";
 
 describe("isClientEvent", () => {
-  it("accepts only the two browser-originated click events", () => {
+  it("accepts only the browser-originated events", () => {
     expect(isClientEvent("upgrade_broker_link_clicked")).toBe(true);
     expect(isClientEvent("upgrade_contact_clicked")).toBe(true);
+    expect(isClientEvent("onboarding_step_done")).toBe(true);
   });
   it("rejects server-only events, so a browser can't forge them", () => {
     expect(isClientEvent("deposit_verified")).toBe(false);
@@ -39,6 +40,10 @@ describe("sanitizeClientProps", () => {
       sanitizeClientProps("upgrade_contact_clicked", { channel: "telegram", broker: "octa" })
     ).toEqual({ channel: "telegram" });
     expect(sanitizeClientProps("upgrade_contact_clicked", { channel: "email" })).toEqual({});
+  });
+  it("keeps only a known checklist step on onboarding_step_done", () => {
+    expect(sanitizeClientProps("onboarding_step_done", { step: "lesson-1", extra: 1 })).toEqual({ step: "lesson-1" });
+    expect(sanitizeClientProps("onboarding_step_done", { step: "kys" })).toEqual({});
   });
   it("tolerates a missing or non-object payload", () => {
     expect(sanitizeClientProps("upgrade_contact_clicked", null)).toEqual({});

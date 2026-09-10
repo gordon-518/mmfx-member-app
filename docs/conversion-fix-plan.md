@@ -333,7 +333,7 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 
 *1–2 weeks. Can run alongside Phase 3; depends on Phases 1 and 2.*
 
-- [ ] **4.1 Replace the `/welcome` roadmap with an onboarding checklist.**
+- [x] **4.1 Replace the `/welcome` roadmap with an onboarding checklist.**
   Five steps, one a day, with a progress bar:
   1. Connect TradingView and get the indicators on your chart
   2. Watch today's Daily Analysis
@@ -343,12 +343,27 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   Store progress as `onboarding_step_done` events (task 1.3). Keep the existing `roadmap_seen` first-run gate in `src/proxy.ts`, pointed at the new page.
   **Where:** `src/app/welcome/*` (`RoadmapJourney.tsx` already groups content into stages: Read the market / Execute with confidence / Manage like a pro. Reuse those stages).
   **Done when:** a new test user sees the checklist first, and progress persists across sessions.
+  **Landed (10 Sept, `20260910000007_onboarding.sql`, applied to prod):** `/welcome` opens with "Your first five days": a progress bar and five day-by-day steps, each tagged with its roadmap stage. The existing roadmap stays below it as the full map, and the `roadmap_seen` proxy gate is unchanged. Progress is read from where each step actually happens: `fn_my_onboarding()` (own row, authenticated only) returns TradingView username saved, a Daily Analysis `feature_view`, KYS completed, lesson 1 watched, and `/upgrade` viewed. The TradingView step uses the username rather than `tv_connected_at`, because that stamp starts on 10 Sept and the 368 earlier connections would read as not done. Only lesson 1 needs a new event: the course player logs `onboarding_step_done {step: "lesson-1"}` via `fn_log_event`, which allows only that step and dedupes it. Step 5 is tailored to the KYS archetype (`deskPitchFor`, compliance-tested). Verified on prod as the real roles, with the transaction rolled back.
+  **Browser-verified (10 Sept)** with a throwaway Free user. `/welcome` opens on "Your first five days" at 0/5, with the five day and stage steps and the roadmap below. The nav shows Read the market, Execute, Manage and Foundations. The dashboard card reads "Getting started · 0/5", with Connect TradingView as the next step. After opening Daily Analysis, `/welcome` shows **1/5**, so progress persists across page loads.
 
-- [ ] **4.2 Add a dashboard checklist card** that shows until all five steps are done.
+- [x] **4.2 Add a dashboard checklist card** that shows until all five steps are done.
+  **Landed:** `OnboardingChecklist variant="card"` sits under the status hero, showing progress and the next step with a Start button. It appears for trial and Free users only, since paid members are past onboarding and the read is skipped for them. It renders nothing once all five steps are done.
 
 - [ ] **4.3 Mirror the steps in email.** This is content work. Set up SendPulse triggers for "step N not done by day N". Document the trigger list in this doc when it's built.
+  **Trigger list (drafted 10 Sept; still to be built in SendPulse, which is Gordon's content work):**
 
-- [ ] **4.4 Group the nav by trader stage.** Use the same three stages as the roadmap, so a new user isn't faced with every feature at once.
+  | Send on | If not done | Email | Links to |
+  |---|---|---|---|
+  | Day 1 | TradingView connected | "Get the indicators on your chart" | `/indicators` |
+  | Day 2 | Daily Analysis watched | "Today's read on gold" | `/daily-analysis` |
+  | Day 3 | Know Your Style taken | "What kind of trader are you?" | `/bots/know-your-style` |
+  | Day 4 | Lesson 1 watched | "Golden Mindset: lesson 1" | `/course` |
+  | Day 5 | Tier page seen | "What Desk adds, for your style" | `/upgrade` |
+
+  **Blocker before it can be built:** SendPulse doesn't know a contact's checklist yet. The nightly `sendpulseSync` needs an `onboarding` variable per contact (e.g. `tv,analysis`), which means adding a batch version of `fn_my_onboarding` for the service role. That's a small follow-up task.
+
+- [x] **4.4 Group the nav by trader stage.** Use the same three stages as the roadmap, so a new user isn't faced with every feature at once.
+  **Landed:** the AppShell nav is `NAV_SECTIONS`. Start here and Dashboard stay at the top, followed by Read the market, Execute, Manage and Foundations, with the same spine as the roadmap and dashboard rails. Lock badges and tier hints work as before, and Admin stays last.
 
 **Target:** TradingView connection from 8% to 25%, and the activation rate from task 1.5 moving with it.
 

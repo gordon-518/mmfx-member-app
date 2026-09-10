@@ -18,27 +18,49 @@ type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
 type NavItem = { label: string; href: string; icon: Icon };
 
-const NAV: NavItem[] = [
-  // "Start here" roadmap first, then the home hub, then ordered by moat (top =
-  // highest): recurring proprietary habit-drivers → exclusive IP/tools →
-  // commodity reference feeds.
-  { label: "Start here", href: "/welcome", icon: SparkIcon },
-  { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
-  { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
-  { label: "Signals", href: "/signals", icon: SignalsIcon },
-  { label: "Team MM", href: "/team-mm", icon: TelegramIcon },
-  // Members-only proprietary habit-driver — highest moat, so it sits high.
-  // Everyone sees it (locked unless they're a member): conversion-fix 2.4.
-  { label: "AI Trading Assistant", href: "/journal", icon: JournalIcon },
-  { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
-  { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
-  { label: "Strategies", href: "/strategies", icon: StrategiesIcon },
-  { label: "Course", href: "/course", icon: CourseIcon },
-  { label: "Know Your Style", href: "/bots/know-your-style", icon: StyleIcon },
-  { label: "Fundamental Desk", href: "/bots/fundamental", icon: DeskIcon },
-  { label: "Library", href: "/library", icon: LibraryIcon },
-  { label: "News & Articles", href: "/news", icon: NewsIcon },
-  { label: "Economic Calendar", href: "/calendar", icon: CalendarIcon },
+// Grouped by trader stage (conversion-fix 4.4): the same spine as the /welcome
+// roadmap and the dashboard rails, so a new user sees where each tool fits
+// instead of a flat list of fifteen.
+const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
+  {
+    items: [
+      { label: "Start here", href: "/welcome", icon: SparkIcon },
+      { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
+    ],
+  },
+  {
+    title: "Read the market",
+    items: [
+      { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
+      { label: "Fundamental Desk", href: "/bots/fundamental", icon: DeskIcon },
+      { label: "News & Articles", href: "/news", icon: NewsIcon },
+      { label: "Economic Calendar", href: "/calendar", icon: CalendarIcon },
+    ],
+  },
+  {
+    title: "Execute",
+    items: [
+      { label: "Signals", href: "/signals", icon: SignalsIcon },
+      { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
+      { label: "Strategies", href: "/strategies", icon: StrategiesIcon },
+    ],
+  },
+  {
+    title: "Manage",
+    items: [
+      { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
+      { label: "Know Your Style", href: "/bots/know-your-style", icon: StyleIcon },
+      { label: "AI Trading Assistant", href: "/journal", icon: JournalIcon },
+      { label: "Team MM", href: "/team-mm", icon: TelegramIcon },
+    ],
+  },
+  {
+    title: "Foundations",
+    items: [
+      { label: "Course", href: "/course", icon: CourseIcon },
+      { label: "Library", href: "/library", icon: LibraryIcon },
+    ],
+  },
 ];
 
 // Admin-only pages, grouped under an "Admin" nav section — rendered only for
@@ -124,7 +146,16 @@ function NavLinks({
   };
   return (
     <>
-      {NAV.map(renderItem)}
+      {NAV_SECTIONS.map((sec) => (
+        <div key={sec.title ?? "top"} className={`space-y-0.5 ${sec.title ? "pt-3" : ""}`}>
+          {sec.title && (
+            <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
+              {sec.title}
+            </p>
+          )}
+          {sec.items.map(renderItem)}
+        </div>
+      ))}
       {viewer.isAdmin && (
         <>
           <p className="mt-4 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
