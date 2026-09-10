@@ -293,13 +293,15 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   - The coarse `tier` (Full/Limited) stays as a derived view for the dashboard and `/upgrade`.
   - Prod distribution today: 150 members are all Team MM (38 verified at $500 or more, plus 112 grandfathered), 91 trials, 3,673 Free. No one's access changes on deploy.
 
-- [ ] **3.4 Check the TradingView grant automation against the new tiers.**
+- [x] **3.4 Check the TradingView grant automation against the new tiers.**
   Indicators and strategies now start at Foundation, and Free users must lose access. Check which rule `src/lib/tv/*` and `syncTV()` (called from `verifyDeposit`) use to grant and revoke today, and re-point it to `tierFor`: grant for trial and Foundation+, revoke for free.
   **Done when:** grant and revoke follow the tier on verify, on top-up and on trial expiry.
+  **Checked (10 Sept):** the grant rule was already the tier rule. The nightly `tv-sync` cron (`resolveTvAccounts`), the admin `syncTV` and the username-save actions grant to a live trial or any `member_active` user, and revoke otherwise. Every member resolves to Foundation or above under `tierFor`, and a trial's grant carries its `trial_ends_at` so TradingView expires it. A verify or top-up leaves the user `member_active`, so they stay granted; an expired trial is revoked by the cron. Rather than moving the per-row cron onto `tierFor`, `TV_ENTITLED_STATUSES` is now the single exported rule (the admin `syncTV` uses it too), and `src/lib/tv/tvTier.test.ts` pins it to the tier ladder for every status, so a tier change that ever puts a member below Foundation fails CI instead of mis-granting on TradingView.
 
-- [ ] **3.5 Gate signal delivery to Desk and above.**
+- [x] **3.5 Gate signal delivery to Desk and above.**
   Check how `/signals` hands out the Telegram signals channel, and how `/team-mm` hands out the VIP channel. Only render invite links for the correct tier. **Known limitation:** a Telegram invite link, once shared, can't be revoked per user. If per-user control matters, that needs a bot-issued single-use link, which is a separate task.
   **Done when:** Free and Foundation users can't see the signals invite link, and non-Team users can't see the Team MM link.
+  **Checked (10 Sept):** `/signals` builds its invite link in the Server Component, after `requireFeature("signals")` (Desk and up). Free and Foundation users get `LockedFeature`, which never includes the link, and it's in no client bundle. `/team-mm` renders `TeamMMMember` only for Team MM (3.3). Its only link is a DM to the desk to request a personal invite, added by hand after verification, so it isn't a channel invite. The known limitation stands: an already-shared signals invite link can't be revoked per user.
 
 - [ ] **3.6 Redesign the upgrade page as three tiers.**
   Keep the geo routing as it is (`regionFor()` and `DUPOIN_COUNTRIES` in `src/app/upgrade/page.tsx`; US/UK keeps its current contact path, since Phase 6 is on hold). Show three tier cards with their thresholds and contents. For an existing paid member, show the current cumulative deposit and **"top up $X to unlock <next tier>"**. Add this copy line near Signals: *"We don't send calls to an account that can't survive them."*
