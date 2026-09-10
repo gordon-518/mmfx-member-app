@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import type { ComponentType, SVGProps } from "react";
 import { getAccess } from "@/lib/access";
+import { logEventAfter } from "@/lib/events";
 import { Wordmark } from "@/components/AppShell";
 import { UpgradeFlow, type Region } from "./UpgradeFlow";
 import {
@@ -48,7 +49,7 @@ const LOCKED_ITEMS: { label: string; icon: Icon }[] = [
   { label: "Backtestable strategies", icon: StrategiesIcon },
   { label: "The MM System & playbooks", icon: LibraryIcon },
   { label: "Full video curriculum", icon: CourseIcon },
-  { label: "Two live classes a week", icon: LiveIcon },
+  { label: "Live classes with the desk", icon: LiveIcon },
   { label: "Daily signals", icon: SignalsIcon },
   { label: "Know Your Style & the Macro desk", icon: DeskIcon },
 ];
@@ -77,6 +78,12 @@ export default async function UpgradePage({
   const headerCountry = ((await headers()).get("x-vercel-ip-country") ?? "").toUpperCase();
   const region = regionFor(override ?? headerCountry);
   const isContact = region === "contact";
+
+  // conversion-fix 1.3 — the top of the upgrade funnel. Admin ?geo= previews
+  // aren't real visits, so they aren't counted.
+  if (access.profile && !override) {
+    logEventAfter(access.profile.id, "upgrade_viewed", { region });
+  }
   const assurances = isContact ? ASSURANCES_CONTACT : ASSURANCES_BROKER;
 
   return (

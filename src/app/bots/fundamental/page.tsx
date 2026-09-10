@@ -8,7 +8,7 @@ const BOT_URL = "https://api.marketmakersfx.net/?app=1";
 
 export default async function FundamentalPage() {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "fundamental-desk" });
 
   return (
     <>

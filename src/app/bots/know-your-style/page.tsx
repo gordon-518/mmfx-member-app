@@ -13,7 +13,7 @@ const EMBED_URL = "https://mmfx-know-your-style.vercel.app/?app=1";
 
 export default async function KnowYourStylePage() {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "know-your-style" });
 
   return (
     <>

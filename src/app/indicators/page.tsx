@@ -13,7 +13,7 @@ export default async function IndicatorsPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "indicators" });
 
   const { tv_error } = await searchParams;
   const tvError = typeof tv_error === "string" ? tv_error : null;

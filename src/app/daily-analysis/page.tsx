@@ -8,7 +8,7 @@ import {
 
 export default async function DailyAnalysisPage() {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "daily-analysis" });
 
   const supabase = await createClient();
   const { data } = await supabase

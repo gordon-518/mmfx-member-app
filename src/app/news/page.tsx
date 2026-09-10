@@ -10,7 +10,7 @@ export default async function NewsPage({
   searchParams: Promise<{ pair?: string }>;
 }) {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "news" });
 
   const { pair: rawPair } = await searchParams;
   // Only honour an allowlisted pair (getNews validates again before the fetch).

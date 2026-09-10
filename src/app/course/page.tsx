@@ -5,7 +5,7 @@ import { CourseClient, type ClientLesson } from "./CourseClient";
 
 export default async function CoursePage() {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "course" });
 
   // Pass only client-needed fields (pptFile stays server-side).
   const lessons: ClientLesson[] = LESSONS.map((l) => ({

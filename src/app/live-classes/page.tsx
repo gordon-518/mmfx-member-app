@@ -31,7 +31,7 @@ function splitByTime(rows: ClassRow[]): { upcoming: ClassRow[]; past: ClassRow[]
 
 export default async function LiveClassesPage() {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "live-classes" });
 
   const supabase = await createClient();
   const { data } = await supabase

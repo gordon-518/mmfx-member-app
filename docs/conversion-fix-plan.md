@@ -130,18 +130,20 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 
 *1–2 weeks. A prerequisite for measuring everything after it.*
 
-- [ ] **1.1 Fix signup attribution. This is a bug, and the root cause is known.**
+- [x] **1.1 Fix signup attribution. This is a bug, and the root cause is known.**
   `src/app/signup/actions.ts` writes `attr_cid/attr_geo/attr_feature` with a direct `.update()` from the session client. `profiles` has no UPDATE policy, so RLS matches zero rows and no error comes back. Result: 92 signups since the 3 Sept deploy, all with null attribution. Separately, the Google sign-in path (`src/app/auth/confirm/route.ts`) reads the `mmfx_attr` cookie but never persists it; it only forwards it to CAPI. The cookie itself is fine: it's set on `.marketmakersfx.net` and the app runs on `app.marketmakersfx.net`.
   **Fix:** a new `security definer` RPC `fn_set_signup_attribution(p_cid, p_geo, p_feature)` that acts on `auth.uid()`'s own row only, keeps first touch (update only where `attr_cid is null`), and uses the standard grant pattern. Call it from **both** paths.
   **Where:** new migration, `src/app/signup/actions.ts`, `src/app/auth/confirm/route.ts`.
   **Done when:** a test signup with an `mmfx_attr` cookie gets `attr_cid` set, through both the email-OTP and Google sign-in paths. (Organic `ORG-*` reporting via `organic_signups_by_cid` depends on this too, not only ads.)
+  **Landed (10 Sept, `20260910000002_funnel_instrumentation.sql`, applied to prod):** RPC called from both paths. Beyond the spec: first touch applies to the whole `(cid, geo, feature)` tuple, only within 24h of `signup_at` (so a returning Google login with a new ad cookie can't re-attribute an old signup), and malformed cookie values are dropped instead of raising. Role-simulated smoke test passed; **the live end-to-end check (a real signup through each path) is still to do after deploy.** The 3–10 Sept signups stay unattributed, since the cookie is gone.
 
-- [ ] **1.2 Populate `last_activity_at`.**
+- [x] **1.2 Populate `last_activity_at`.**
   `getAccess()` already calls `fn_resolve_trial_status` on every gated page, so stamping activity there costs no extra round trip. Extend the function to set `last_activity_at = now()` **only when the existing value is null or older than 15 minutes**, to throttle writes.
   **Where:** new migration re-creating `fn_resolve_trial_status` (copy the live body verbatim and add the stamp).
   **Done when:** browsing as a test user sets `last_activity_at`, and repeat page loads within 15 minutes don't rewrite it.
+  **Landed:** live body diffed against the migration; the only differences are the marked stamp. Smoke test confirmed the stamp. The only UPDATE trigger on `profiles` is the `updated_at` setter, and nothing reads `profiles.updated_at`.
 
-- [ ] **1.3 Add an event log.**
+- [x] **1.3 Add an event log.**
   A new `app_events` table (`id`, `user_id`, `event text`, `props jsonb`, `created_at`), RLS on, select for admins only, with inserts only through a `security definer` RPC `fn_log_event(p_event, p_props)` that takes the user from `auth.uid()` and rejects event names not on an allowlist. Add a server helper `logEvent()` in `src/lib/`, and a server action for client-side clicks.
   **Events to emit:**
   - `feature_view` with `{feature}`, on each gated route (hook it into the feature guard from task 2.2)
@@ -153,17 +155,20 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   - Later phases add `deposit_submitted`, `tier_changed` and `onboarding_step_done`.
   **Where:** new migration, `src/lib/events.ts`, `src/app/upgrade/UpgradeFlow.tsx` (click handlers on the broker, WhatsApp and Telegram CTAs), `src/app/admin/actions.ts`.
   **Done when:** every event on the list shows up in `app_events` from a test user's session.
+  **Landed:** there are two writers over one internal insert. `fn_log_event` (authenticated) accepts **only** the two click events, so a browser can't forge `deposit_verified`. `fn_log_event_as` (service_role) is for server renders via `after()`, where cookies are unavailable, and for admin actions on another user. `feature_view` is emitted via `requireFull({ feature })` on 13 gated pages and deduped per user and feature for 30 minutes; it moves into the 2.2 feature guard when that lands (the keys are in `src/lib/access/featureKeys.ts`). `tv_username_set` is logged inside the DB function. `deposit_verified` also carries `broker`. Props are capped at 1 KB. **To do after deploy: the live session check.**
 
-- [ ] **1.4 Timestamp activation.**
+- [x] **1.4 Timestamp activation.**
   Add `profiles.tv_connected_at timestamptz`, set inside `fn_set_tradingview_username` the first time a username is saved (never overwritten). Existing rows stay null; there's no reliable backfill.
   **Where:** new migration (re-create the function from its latest body in `20260806000001_tv_username_format.sql`), SCHEMA.md.
   **Done when:** saving a TV username sets `tv_connected_at` once.
+  **Landed:** the function was re-created from the **live** body (identical to the file) using `coalesce`, so the stamp is never overwritten.
 
-- [ ] **1.5 Define activation and surface the funnel on `/stats`.**
+- [x] **1.5 Define activation and surface the funnel on `/stats`.**
   **Activation milestone:** TradingView connected **and** Daily Analysis viewed, both within 48 hours of signup.
   Add to `/stats`: activation rate, the upgrade funnel step counts (viewed → broker link clicked → contact clicked → verified), and conversion split by activated vs not.
   **Where:** `src/lib/growth/*`, `src/app/stats/page.tsx`.
   **Done when:** all three views render from real `app_events` data.
+  **Landed:** `fn_admin_funnel_stats(p_days)` (admin-gated) aggregates in the database, avoiding the 1000-row cap; `src/lib/growth/funnel.ts` shapes the result. The activation cohort has to be at least 48h old and begin on or after 10 Sept (before that, neither signal existed), with legacy members excluded, so it **reads 0 until 12 Sept**.
 
 ---
 

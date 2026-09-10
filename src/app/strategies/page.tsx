@@ -44,7 +44,7 @@ export default async function StrategiesPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "strategies" });
 
   const { tv_error } = await searchParams;
   const tvError = typeof tv_error === "string" ? tv_error : null;

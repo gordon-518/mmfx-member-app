@@ -30,7 +30,7 @@ import { JournalDashboard } from "./JournalDashboard";
 const TRADES_CAP = 1000;
 
 export default async function JournalPage() {
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "ai-trading-assistant" });
   // Members-only benefit (admins allowed for support). Trials → upgrade.
   if (profile.account_status !== "member_active" && !profile.is_admin) {
     redirect("/upgrade");

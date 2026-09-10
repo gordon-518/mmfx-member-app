@@ -12,6 +12,7 @@ import {
   type GrowthPeriod,
 } from "@/lib/growth/metrics";
 import { fetchAllGrowthProfiles } from "@/lib/growth/profiles";
+import { summariseFunnel } from "@/lib/growth/funnel";
 
 // Admin-gated growth dashboard with a Daily/Weekly/Monthly/Yearly toggle
 // (?period=). Two metric families are handled differently:
@@ -289,6 +290,12 @@ export default async function GrowthPage({
   // it's derived live from profiles rather than read from a snapshot.
   const conv = computeConversion(profiles);
 
+  // conversion-fix 1.5 — activation + the upgrade funnel. Aggregated in the DB
+  // (app_events outgrows PostgREST's 1000-row page cap within days). A failed
+  // call renders as zeros rather than breaking the dashboard.
+  const { data: funnelRaw } = await supabase.rpc("fn_admin_funnel_stats", { p_days: 30 });
+  const funnel = summariseFunnel(funnelRaw);
+
   // Flow metrics — re-derived live from raw profiles for the full history.
   const flow = bucketFlowMetrics(profiles, period);
   const cur = flow[flow.length - 1] ?? { signups: 0, conversions: 0, churn: 0 };
@@ -540,6 +547,62 @@ export default async function GrowthPage({
               ))}
             </div>
           </div>
+        </div>
+
+        {/* conversion-fix 1.5 — activation + the upgrade funnel, from app_events */}
+        <h2 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+          Funnel <span className="text-orange">·</span> last {funnel.days} days
+        </h2>
+        <p className="mt-1 text-[12px] text-subtle">
+          Tracked from 10 Sep 2026. Activation needs a 48-hour window to mature, so its
+          cohort starts filling in two days after that; the upgrade steps count unique users.
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Card
+            label="Activation"
+            value={`${funnel.activationPct}%`}
+            sub={`${funnel.activated} of ${funnel.cohort} signups · TradingView + Daily Analysis within 48h`}
+            delay={440}
+          />
+          <div
+            className="rise rounded-2xl border border-line bg-card p-5 shadow-soft lg:col-span-2"
+            style={{ animationDelay: "460ms" }}
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+              Upgrade funnel · unique users
+            </p>
+            <ol className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {funnel.steps.map((step) => (
+                <li key={step.key} className="rounded-xl border border-line bg-paper/60 px-3 py-2.5">
+                  <p className="font-display text-2xl font-bold leading-none text-ink">{step.users}</p>
+                  <p className="mt-1 text-[11.5px] leading-snug text-subtle">{step.label}</p>
+                  <p className="mt-1 text-[10.5px] text-faint">
+                    {step.pctOfPrev == null ? "top of funnel" : `${step.pctOfPrev}% of previous`}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Card
+            label="TradingView ≤48h"
+            value={funnel.tv48}
+            sub={`of ${funnel.cohort} in the cohort · Daily Analysis ≤48h: ${funnel.da48}`}
+            delay={480}
+          />
+          <Card
+            label="Activated → deposit"
+            value={`${funnel.activatedConvPct}%`}
+            sub={`${funnel.activatedVerified} of ${funnel.activated} activated signups`}
+            delay={500}
+          />
+          <Card
+            label="Not activated → deposit"
+            value={`${funnel.notActivatedConvPct}%`}
+            sub={`${funnel.notActivatedVerified} of ${Math.max(0, funnel.cohort - funnel.activated)} others`}
+            delay={520}
+          />
         </div>
 
         {/* Point-in-time trends from snapshots */}

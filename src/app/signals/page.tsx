@@ -50,7 +50,7 @@ const CHANNELS = [
 
 export default async function SignalsPage() {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "signals" });
 
   return (
     <AppShell email={profile.email} accountStatus={profile.account_status} tier="Full" isAdmin={profile.is_admin}>
