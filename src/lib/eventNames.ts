@@ -12,6 +12,7 @@ export const APP_EVENTS = [
   "upgrade_broker_link_clicked",
   "upgrade_contact_clicked",
   "deposit_verified",
+  "tier_changed",
 ] as const;
 
 export type AppEvent = (typeof APP_EVENTS)[number];

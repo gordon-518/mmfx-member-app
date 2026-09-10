@@ -259,7 +259,7 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   **Done when:** the backfill row count equals the verified member count, `grandfathered` count = 112, and SCHEMA.md is updated.
   **Landed (10 Sept, `20260910000005_deposit_ledger.sql`, applied to prod):** 38 ledger rows for 38 verified members, with `sum(amount) = deposit_amount` for each, and 112 grandfathered, none of them verified. Applied twice to prove it's idempotent. Non-admins can't read or write the ledger. `verified_by` is an admin uuid and is null on backfilled rows. Growth metrics still define "legacy" as no deposit record, which is the same set today. Tier logic (3.3) keys off `grandfathered`, so a grandfathered member who later deposits stays Team MM.
 
-- [ ] **3.2 Let `fn_verify_deposit` handle tiers and top-ups.**
+- [x] **3.2 Let `fn_verify_deposit` handle tiers and top-ups.**
   Today it rejects `p_amount < 500`, **rejects anyone already `member_active`** (so a top-up can't be recorded at all), and **overwrites** `deposit_amount`. Change it to:
   - minimum **$50** per verified deposit
   - allow already-member users; the verification becomes a top-up
@@ -268,6 +268,11 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   - the first deposit flips `trial_*` → `member_active` exactly as today
   Update the admin action (`src/app/admin/actions.ts` → `verifyDeposit`) and emit `deposit_verified` / `tier_changed` events. The CAPI `Purchase` event fires on the **first deposit only** (decided 10 Sept). **Guard this explicitly:** today `verifyDeposit` fires `Purchase` on every call, which was only safe because `fn_verify_deposit` rejected anyone already a member. Once top-ups are allowed, every top-up would fire a second `Purchase`. Send it only when the verification flips the user to `member_active`.
   **Done when:** a $50 deposit creates a Foundation member, a later $150 top-up takes them to Desk, both show in the ledger, and the top-up sends no CAPI `Purchase`.
+  **Landed (10 Sept, `20260910000006_verify_deposit_tiers.sql`, applied to prod), shipped after 3.3 so a $50 member is Foundation, not full access:**
+  - Proved against prod as a real admin in a rolled-back scenario: $49.99 is refused; $50 makes a member at $50 cumulative; a $150 top-up is accepted and reaches $200 (Desk); the ledger has 2 rows credited to the admin; `deposit_verified_at` doesn't move on the top-up.
+  - `verifyDeposit` reads the member's state before calling the RPC. The CAPI `Purchase` fires only on a true first deposit: no earlier verification, and not already a member. So a top-up, a re-verified removed member, or a grandfathered member's first recorded deposit sends nothing.
+  - `deposit_verified` carries `{amount, broker, cumulative, tier, first}`, where `tier` is the new cumulative tier (Phase 1 review follow-up). `tier_changed {from, to}` fires when the tier moves and is on the DB allowlist.
+  - The admin form accepts $50 and up and shows "Top up" for members.
   **Carried over from the Phase 1 review:**
   - `verifyDeposit` tags `deposit_verified` with `tier: paidTierFor(amount)`, the tier for **that one deposit**. That's correct today only because every verification is a first deposit of at least $500. When top-ups land, switch it to the tier for the **new cumulative total** (`deposit_amount` after the insert), or every top-up will misreport its tier.
   - `fn_set_signup_attribution` treats first touch as all-or-nothing on `(cid, geo, feature)`. That's fine while both callers pass the whole cookie. If a caller ever passes a partial tuple, switch to per-field `coalesce`.

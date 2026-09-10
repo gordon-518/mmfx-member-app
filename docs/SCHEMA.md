@@ -6,7 +6,7 @@
 
 ## Overview
 
-One table — `profiles` — extends Supabase `auth.users` and holds every field needed for the trial/membership state machine, deposit verification, and content gating. No separate deposits table: each user has at most one qualifying deposit, so a join adds complexity without value.
+`profiles` extends Supabase `auth.users` and holds every field needed for the trial/membership state machine, deposit verification, and content gating. Verified deposits are also recorded one row each in `deposit_events` (conversion-fix 3.1): a member can top up, and tiers gate on the cumulative total kept in `profiles.deposit_amount`.
 
 ---
 
@@ -25,9 +25,9 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 | `last_known_trading_activity` | `timestamptz` | — | yes | Last known trade date from broker data. For future activity-gating. Null until first data received. |
 | `broker` | `text` | — | yes | `octa`, `dupoin` or `elev8`. Null until deposit is submitted. |
 | `deposit_amount` | `numeric` | — | yes | **Cumulative** verified deposits: always `sum(deposit_events.amount)` for the user, maintained by `fn_verify_deposit` and never computed on the fly (conversion-fix 3.1). Tiers gate on this high-water mark, never on balance: Foundation ≥ $50, Desk ≥ $200, Team MM ≥ $500. Null = no verified deposit. |
-| `deposit_verified_at` | `timestamptz` | — | yes | When the deposit was verified. Null = no verified deposit. |
+| `deposit_verified_at` | `timestamptz` | — | yes | When the **first** deposit was verified (the conversion timestamp the growth metrics count). Top-ups don't move it (conversion-fix 3.2). Null = no verified deposit. |
 | `deposit_verified_by` | `text` | — | yes | `manual`, `broker_postback`, or `webhook`. Launch uses `manual`. |
-| `ib_link_confirmed` | `boolean` | `false` | no | Whether the deposit is attributed to our IB link. Separate from deposit amount — a $500 deposit without IB attribution does NOT qualify. |
+| `ib_link_confirmed` | `boolean` | `false` | no | Whether the deposit is attributed to our IB link. Separate from deposit amount — a deposit without IB attribution does NOT qualify, whatever its size. |
 | `grandfathered` | `boolean` | `false` | no | Softr-era member migrated without a deposit record. **Always Team MM, never downgraded** by tier logic (conversion-fix decision 6). Set once for the 112 `member_active` rows with no `deposit_verified_at` by `20260910000005_deposit_ledger.sql`. Explicit, so the rule no longer rests on null semantics. |
 | `last_activity_at` | `timestamptz` | — | yes | Last app activity. Stamped by `fn_resolve_trial_status` (every gated page, via `getAccess()`), throttled to one write per 15 min (conversion-fix 1.2). Empty before 10 Sep 2026. |
 | `downgraded_at` | `timestamptz` | — | yes | When the user was downgraded. Used in re-trial eligibility computation. Null if never downgraded. Cleared on member upgrade and re-trial grant. |
@@ -65,6 +65,8 @@ The verified-deposit ledger (conversion-fix 3.1): one row per verified deposit, 
 | `verified_at` | `timestamptz` | no | Default `now()`. |
 | `note` | `text` | yes | Free text. Backfilled rows say so. |
 | `created_at` | `timestamptz` | no | Default `now()`. |
+
+**Writer — `fn_verify_deposit(target_user_id, p_broker, p_amount, p_ib_confirmed)`** (admin-only, `20260910000006`): refuses anything under $50, a non-partner broker, or an unconfirmed IB link. It inserts the ledger row (`verified_by = auth.uid()`), adds the amount to `deposit_amount`, flips the account to `member_active` and clears the trial clock. `deposit_verified_at` stays at the first verification. An existing member may be verified again: that's a top-up.
 
 **Backfill (10 Sep 2026):** one row per verified member (38) from their existing `deposit_amount` and `deposit_verified_at`, so `sum(amount) = deposit_amount` holds from day one. Verified after applying, and the migration was re-run to confirm it's idempotent.
 
@@ -140,7 +142,7 @@ One row per Singapore-time calendar day, written by the daily-stats cron (`/api/
                    v
             trial_active
               /        \
-    (14 days)            (verified $500 deposit
+    (14 days)            (verified $50+ deposit
        |                  + IB confirmed)
        v                       |
   trial_expired                v
@@ -152,7 +154,7 @@ One row per Singapore-time calendar day, written by the daily-stats cron (`/api/
        v
   re_trial_active
       /        \
-(14 days)       (verified $500 deposit
+(14 days)       (verified $50+ deposit
     |            + IB confirmed)
     v                  |
 re_trial_expired       v
@@ -214,7 +216,7 @@ Access tier is a pure function of `account_status` — no separate entitlements 
 
 2. **Broker expansion.** Adding a new broker means adding a value to the `broker` check constraint — a one-line `ALTER`, no enum type rebuild.
 
-3. **Deposit history.** If we ever need to track multiple deposits per user (partial deposits, top-ups), a `deposits` table can be added later with a FK to `profiles.id`. The current single-deposit fields on `profiles` would remain as the "qualifying deposit" snapshot.
+3. **Deposit history.** Done (conversion-fix 3.1/3.2): `deposit_events` records every verified deposit, and `fn_verify_deposit` accepts top-ups from $50, adds each one to `profiles.deposit_amount`, and leaves `deposit_verified_at` at the first verification.
 
 4. **Trial expiry job.** A scheduled job (tomorrow's work) will flip `trial_active` → `trial_expired` and `re_trial_active` → `re_trial_expired` when `trial_ends_at` passes.
 

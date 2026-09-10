@@ -10,7 +10,7 @@ import { banUserById, deleteUserById } from "@/lib/adminUsers";
 import type { AccountStatus } from "@/lib/trial/status";
 
 import { logEventAfter } from "@/lib/events";
-import { paidTierFor } from "@/lib/tiers";
+import { tierFor, tierLabel, type TierSnapshot } from "@/lib/tiers";
 const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
 
 // Fire-and-forget TV sync after any admin status change. Failures are logged
@@ -96,7 +96,16 @@ export async function verifyDeposit(formData: FormData) {
 
   const supabase = await requireAdmin(filters, targetEmail);
 
-  const { error } = await supabase.rpc("fn_verify_deposit", {
+  // conversion-fix 3.2 — the member's state BEFORE this verification decides
+  // whether it's a first deposit (the only kind that fires CAPI Purchase) or a
+  // top-up, and which tier they move from.
+  const { data: before } = await supabase
+    .from("profiles")
+    .select("account_status, trial_ends_at, deposit_amount, grandfathered, deposit_verified_at")
+    .eq("id", targetUserId)
+    .single();
+
+  const { data: after, error } = await supabase.rpc("fn_verify_deposit", {
     target_user_id: targetUserId,
     p_broker: broker,
     p_amount: amount,
@@ -109,36 +118,56 @@ export async function verifyDeposit(formData: FormData) {
 
   await syncTV(supabase, targetUserId);
 
-  // conversion-fix 1.3 — the money event at the bottom of the funnel. Logged for
-  // the MEMBER, not the admin clicking verify, so it goes through the server-side
-  // path. Runs after the response; the redirect below doesn't cancel it.
+  // A first deposit flips a non-member to member_active and has never been
+  // verified before. Re-verifying a removed member, or a grandfathered member's
+  // first recorded deposit, is not a new funded account.
+  const isFirstDeposit =
+    before != null && before.deposit_verified_at == null && before.account_status !== "member_active";
+  const tierBefore = before ? tierFor(before as TierSnapshot) : "free";
+  const tierAfter = after ? tierFor(after as TierSnapshot) : tierBefore;
+  const cumulative = Number((after as { deposit_amount?: number | string } | null)?.deposit_amount ?? amount);
+
+  // conversion-fix 1.3 / 3.2 — the money events, logged for the MEMBER (not the
+  // admin clicking verify) through the server-side path, after the response.
+  // tier is the tier the NEW CUMULATIVE total reaches, not this one deposit's.
   logEventAfter(targetUserId, "deposit_verified", {
     amount,
     broker,
-    tier: paidTierFor(amount),
+    cumulative,
+    tier: tierAfter,
+    first: isFirstDeposit,
   });
+  if (tierAfter !== tierBefore) {
+    logEventAfter(targetUserId, "tier_changed", { from: tierBefore, to: tierAfter });
+  }
 
   // Funded-account conversion — the money event that ties ad spend to IB
   // revenue. action_source "website" (not "system_generated"): the conversion
   // culminates the web funnel, it optimizes as a standard web conversion, and —
   // unlike system_generated — it renders in Events Manager Test Events. Matched
   // on email + user id. Guarded so a Meta hiccup never blocks admin verify.
-  try {
-    await sendCapiEvent({
-      eventName: "Purchase",
-      actionSource: "website",
-      eventSourceUrl: "https://app.marketmakersfx.net/upgrade",
-      user: { email: targetEmail, externalId: targetUserId },
-      customData: { value: amount, currency: "USD", content_name: "funded_account", broker },
-    });
-  } catch (e) {
-    console.error("[meta-capi] Purchase failed:", e);
+  // FIRST DEPOSIT ONLY (decided 10 Sept): now that top-ups are recorded, firing
+  // on every verification would send Meta a second Purchase for one account.
+  if (isFirstDeposit) {
+    try {
+      await sendCapiEvent({
+        eventName: "Purchase",
+        actionSource: "website",
+        eventSourceUrl: "https://app.marketmakersfx.net/upgrade",
+        user: { email: targetEmail, externalId: targetUserId },
+        customData: { value: amount, currency: "USD", content_name: "funded_account", broker },
+      });
+    } catch (e) {
+      console.error("[meta-capi] Purchase failed:", e);
+    }
   }
 
   revalidatePath("/admin");
   backTo({
     ...filters,
-    ok: `Deposit verified — ${targetEmail} is now a member`,
+    ok: isFirstDeposit
+      ? `Deposit verified — ${targetEmail} is now a ${tierLabel(tierAfter)} member ($${cumulative})`
+      : `Top-up recorded — ${targetEmail}: $${cumulative} cumulative, ${tierLabel(tierAfter)}`,
     target: targetEmail,
   });
 }
