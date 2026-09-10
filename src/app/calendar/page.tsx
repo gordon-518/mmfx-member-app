@@ -32,7 +32,7 @@ export default async function CalendarPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "calendar" });
 
   const { week } = await searchParams;
   const offset = clampWeek(typeof week === "string" ? parseInt(week, 10) : 0);

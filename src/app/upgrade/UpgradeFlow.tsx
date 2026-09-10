@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import {
   UserPlusIcon, WalletIcon, ChatIcon, CheckIcon, SwapIcon, SparkIcon, TelegramIcon, WhatsAppIcon,
 } from "@/components/icons";
+import { logUpgradeClick } from "./actions";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 export type Region = "octa" | "dupoin" | "contact";
@@ -30,7 +31,23 @@ const CONTACT_WHATSAPP_URL =
 const CONTACT_TELEGRAM_URL = "https://t.me/m/GIf6KqN9ZWZl";
 // -----------------------------------------------------------------------------
 
-type Cta = { label: string; href: string; primary?: boolean; icon?: Icon };
+// conversion-fix 1.3: CTAs that are funnel steps carry the event they emit.
+type Track =
+  | {
+      event: "upgrade_broker_link_clicked";
+      props: { broker: "octa" | "dupoin" | "elev8"; flow: "new" | "switch" };
+    }
+  | { event: "upgrade_contact_clicked"; props: { channel: "whatsapp" | "telegram" } };
+type Cta = { label: string; href: string; primary?: boolean; icon?: Icon; track?: Track };
+
+/** Fire-and-forget: the link opens in a new tab, so this page and its request survive. */
+function track(t?: Track) {
+  return t
+    ? () => {
+        void logUpgradeClick(t.event, t.props);
+      }
+    : undefined;
+}
 type Step = {
   icon: Icon;
   title: string;
@@ -45,7 +62,7 @@ function CtaButton({ cta }: { cta: Cta }) {
     : "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto";
   const Icon = cta.icon;
   return (
-    <a href={cta.href} target="_blank" rel="noopener noreferrer" className={cls}>
+    <a href={cta.href} target="_blank" rel="noopener noreferrer" className={cls} onClick={track(cta.track)}>
       {Icon && <Icon className="h-[17px] w-[17px]" />}
       {cta.label}
       {!Icon && <span aria-hidden>{cta.primary ? "→" : "↗"}</span>}
@@ -139,7 +156,14 @@ function newAccountSteps(region: "octa" | "dupoin"): Step[] {
       icon: UserPlusIcon,
       title: `Open your ${brand} account`,
       body: <>It takes a couple of minutes, and we&apos;re set as your partner automatically through the link.</>,
-      ctas: [{ label: "Open your account", href: signup, primary: true }],
+      ctas: [
+        {
+          label: "Open your account",
+          href: signup,
+          primary: true,
+          track: { event: "upgrade_broker_link_clicked", props: { broker: region, flow: "new" } },
+        },
+      ],
     },
     {
       icon: WalletIcon,
@@ -151,8 +175,8 @@ function newAccountSteps(region: "octa" | "dupoin"): Step[] {
       title: "Send us your details",
       body: <>Once you&apos;ve funded, message us with {DETAILS_LINE} so we can match your account and switch you on.</>,
       ctas: [
-        { label: "WhatsApp", href: WHATSAPP_URL, primary: true, icon: WhatsAppIcon },
-        { label: "Telegram", href: TELEGRAM_URL, icon: TelegramIcon },
+        { label: "WhatsApp", href: WHATSAPP_URL, primary: true, icon: WhatsAppIcon, track: { event: "upgrade_contact_clicked", props: { channel: "whatsapp" } } },
+        { label: "Telegram", href: TELEGRAM_URL, icon: TelegramIcon, track: { event: "upgrade_contact_clicked", props: { channel: "telegram" } } },
       ],
     },
     {
@@ -171,8 +195,16 @@ function octaSwitchSteps(): Step[] {
       title: "Open the change-partner form",
       body: <>Keep your existing account — just request a partner change with your broker.</>,
       ctas: [
-        { label: "Octa form", href: OCTA_CHANGE_IB },
-        { label: "Elev8 form", href: ELEV8_CHANGE_IB },
+        {
+          label: "Octa form",
+          href: OCTA_CHANGE_IB,
+          track: { event: "upgrade_broker_link_clicked", props: { broker: "octa", flow: "switch" } },
+        },
+        {
+          label: "Elev8 form",
+          href: ELEV8_CHANGE_IB,
+          track: { event: "upgrade_broker_link_clicked", props: { broker: "elev8", flow: "switch" } },
+        },
       ],
     },
     {
@@ -195,8 +227,8 @@ function octaSwitchSteps(): Step[] {
       title: "Send us your details",
       body: <>Message our support with {DETAILS_LINE} so we can add you. It switches over within about an hour.</>,
       ctas: [
-        { label: "Telegram", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon },
-        { label: "WhatsApp", href: WHATSAPP_URL, icon: WhatsAppIcon },
+        { label: "Telegram", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon, track: { event: "upgrade_contact_clicked", props: { channel: "telegram" } } },
+        { label: "WhatsApp", href: WHATSAPP_URL, icon: WhatsAppIcon, track: { event: "upgrade_contact_clicked", props: { channel: "whatsapp" } } },
       ],
     },
     {
@@ -225,8 +257,8 @@ function dupoinSwitchSteps(): Step[] {
       title: "Send us your Full Name + UID",
       body: <>Message our support and we&apos;ll process the partner switch with Dupoin by hand.</>,
       ctas: [
-        { label: "Telegram", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon },
-        { label: "WhatsApp", href: WHATSAPP_URL, icon: WhatsAppIcon },
+        { label: "Telegram", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon, track: { event: "upgrade_contact_clicked", props: { channel: "telegram" } } },
+        { label: "WhatsApp", href: WHATSAPP_URL, icon: WhatsAppIcon, track: { event: "upgrade_contact_clicked", props: { channel: "whatsapp" } } },
       ],
     },
     {
@@ -254,11 +286,11 @@ function ContactCard() {
           The partnered brokers can&apos;t operate where you are — so we set you up personally. Reach out and we&apos;ll take it from there.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto">
+          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" onClick={track({ event: "upgrade_contact_clicked", props: { channel: "whatsapp" } })} className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto">
             <WhatsAppIcon className="h-[17px] w-[17px]" />
             Contact us on WhatsApp
           </a>
-          <a href={CONTACT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto">
+          <a href={CONTACT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" onClick={track({ event: "upgrade_contact_clicked", props: { channel: "telegram" } })} className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto">
             <TelegramIcon className="h-[17px] w-[17px]" />
             Telegram
           </a>

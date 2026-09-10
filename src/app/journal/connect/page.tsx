@@ -16,7 +16,7 @@ export default async function JournalConnectPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "ai-trading-assistant" });
   if (profile.account_status !== "member_active" && !profile.is_admin) {
     redirect("/upgrade");
   }

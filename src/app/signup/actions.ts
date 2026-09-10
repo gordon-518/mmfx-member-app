@@ -45,17 +45,18 @@ export async function recordSignupConversion(): Promise<void> {
 
     // Persist attribution BEFORE the CAPI call — CAPI is best-effort and can throw,
     // and losing the cid means the signup can never be attributed to its post/ad.
+    //
+    // Through a security-definer RPC (conversion-fix 1.1). profiles has no UPDATE
+    // policy, so the direct .update() this replaced matched zero rows and returned
+    // NO error — every signup from 3–10 Sep lost its attribution silently. The RPC
+    // writes the caller's own row, first touch only, within 24h of signup.
     if (attr.cid || attr.geo || attr.feature) {
-      const { error: attrError } = await supabase
-        .from("profiles")
-        .update({
-          attr_cid: attr.cid ?? null,
-          attr_geo: attr.geo ?? null,
-          attr_feature: attr.feature ?? null,
-        })
-        .eq("id", user.id)
-        .is("attr_cid", null); // first touch wins — never overwrite on a re-trial
-      if (attrError) console.error("[attribution] persist failed:", attrError);
+      const { error: attrError } = await supabase.rpc("fn_set_signup_attribution", {
+        p_cid: attr.cid ?? null,
+        p_geo: attr.geo ?? null,
+        p_feature: attr.feature ?? null,
+      });
+      if (attrError) console.error("[attribution] persist failed:", attrError.message);
     }
 
     await sendSignupConversions(

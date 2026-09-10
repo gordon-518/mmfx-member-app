@@ -28,10 +28,12 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 | `deposit_verified_at` | `timestamptz` | — | yes | When the deposit was verified. Null = no verified deposit. |
 | `deposit_verified_by` | `text` | — | yes | `manual`, `broker_postback`, or `webhook`. Launch uses `manual`. |
 | `ib_link_confirmed` | `boolean` | `false` | no | Whether the deposit is attributed to our IB link. Separate from deposit amount — a $500 deposit without IB attribution does NOT qualify. |
-| `last_activity_at` | `timestamptz` | — | yes | Last app activity (login, page view). For engagement tracking. |
+| `last_activity_at` | `timestamptz` | — | yes | Last app activity. Stamped by `fn_resolve_trial_status` (every gated page, via `getAccess()`), throttled to one write per 15 min (conversion-fix 1.2). Empty before 10 Sep 2026. |
 | `downgraded_at` | `timestamptz` | — | yes | When the user was downgraded. Used in re-trial eligibility computation. Null if never downgraded. Cleared on member upgrade and re-trial grant. |
 | `is_admin` | `boolean` | `false` | no | Admin flag (Day 4). Set manually in SQL only, never from the app. Gates the admin SELECT policy and the admin-only functions via `is_admin()`. |
 | `tradingview_username` | `text` | — | yes | TradingView handle the user submits to request indicator access (Day 6). Set only by `fn_set_tradingview_username` on the user's own row; indicator granting is manual. |
+| `tv_connected_at` | `timestamptz` | — | yes | When the user **first** saved a TradingView username: the activation timestamp. Set once inside `fn_set_tradingview_username`, never overwritten. Null for users who connected before 10 Sep 2026 (no reliable backfill). |
+| `attr_cid` / `attr_geo` / `attr_feature` | `text` | — | yes | Signup attribution from the marketing site's `mmfx_attr` cookie: cid (`CRT-…` paid, `ORG-…` organic), 2-letter geo, feature slug. Written only by `fn_set_signup_attribution`: own row, first touch on the whole tuple, within 24h of signup, malformed values dropped. Null for direct signups, and for every signup 3–10 Sep 2026 (the RLS bug fixed in conversion-fix 1.1). |
 | `created_at` | `timestamptz` | `now()` | no | Row creation time. |
 | `updated_at` | `timestamptz` | `now()` | no | Updated via trigger on every row change. |
 
@@ -44,6 +46,28 @@ One table — `profiles` — extends Supabase `auth.users` and holds every field
 - `trial_count` checked: `>= 1 AND <= 2`.
 
 All enums use `text` + check constraints rather than Postgres enum types — easier to extend without migrations.
+
+---
+
+## Table: `app_events`
+
+Funnel event log (conversion-fix 1.3). RLS on; admins may SELECT; nobody writes directly. Defined in `20260910000002_funnel_instrumentation.sql`.
+
+| Column | Type | Nullable | Notes |
+|---|---|---|---|
+| `id` | `bigint` identity | no | PK. |
+| `user_id` | `uuid` | no | FK `profiles(id)`, on delete cascade. |
+| `event` | `text` | no | One of the allowlist below. |
+| `props` | `jsonb` | no | A JSON object of at most 1 KB. Default `{}`. |
+| `created_at` | `timestamptz` | no | `now()`. |
+
+**Events:** `feature_view {feature}` (a *granted* view of a gated page; deduped per user + feature per 30 min) · `tv_username_set` (logged inside `fn_set_tradingview_username`) · `upgrade_viewed {region}` · `upgrade_broker_link_clicked {broker, flow}` · `upgrade_contact_clicked {channel}` · `deposit_verified {amount, broker, tier}`. Later phases add `deposit_submitted`, `tier_changed` and `onboarding_step_done`. The allowlist lives in the database and is mirrored in `src/lib/eventNames.ts`.
+
+**Writers.** Every insert goes through `fn_app_event_insert` (allowlist, size cap, dedupe), which no client role can call. It's reached two ways:
+- `fn_log_event(p_event, p_props)` — `authenticated`. The user comes from `auth.uid()`, and **only** the two click events are accepted, so a browser can't forge `deposit_verified` or `feature_view`.
+- `fn_log_event_as(p_user_id, p_event, p_props)` — `service_role` only. For server code logging a user it has already authenticated: page renders via Next's `after()` (where cookies are unavailable) and admin actions acting on another user.
+
+**Reader.** `fn_admin_funnel_stats(p_days)` — admin-only aggregate for `/stats`: activation rate, upgrade-funnel step counts, conversion split. Aggregates in the database because `app_events` outgrows PostgREST's 1000-row page cap within days.
 
 ---
 

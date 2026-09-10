@@ -77,7 +77,7 @@ function ReadDownload({ slug, compact }: { slug: string; compact?: boolean }) {
 
 export default async function LibraryPage() {
   // Gate: Limited users redirect to /upgrade, signed-out to /login.
-  const profile = await requireFull();
+  const profile = await requireFull({ feature: "library" });
 
   const featured = EBOOKS.find((b) => b.featured);
   const rest = EBOOKS.filter((b) => !b.featured);

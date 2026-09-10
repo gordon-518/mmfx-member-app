@@ -2,6 +2,8 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import { getAccess, type AccessProfile } from "./getAccess";
+import { logEventAfter } from "@/lib/events";
+import type { FeatureKey } from "./featureKeys";
 
 /**
  * Guard for gated pages. Call it at the top of any page/layout that serves
@@ -12,10 +14,18 @@ import { getAccess, type AccessProfile } from "./getAccess";
  * Not signed in -> /login. Signed in but not Full (including a missing
  * profile — fail closed) -> redirectTo (default /upgrade). Only returns,
  * with the profile, when access is granted.
+ *
+ * Pass `feature` to record a feature_view event for the granted view
+ * (conversion-fix 1.3): `requireFull({ feature: "daily-analysis" })`. Denied
+ * visits aren't counted. The string form `requireFull("/somewhere")` still
+ * sets redirectTo, for existing callers.
  */
 export async function requireFull(
-  redirectTo: string = "/upgrade"
+  opts: string | { redirectTo?: string; feature?: FeatureKey } = "/upgrade"
 ): Promise<AccessProfile> {
+  const { redirectTo = "/upgrade", feature } =
+    typeof opts === "string" ? { redirectTo: opts, feature: undefined } : opts;
+
   // Path-only: "//evil.com" or "https://evil.com" in a Location header is an
   // open redirect. This is a reusable primitive — guard it at the source.
   if (!redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
@@ -45,6 +55,10 @@ export async function requireFull(
   ) {
     redirect("/dashboard");
   }
+
+  // Logged after the response, and deduped per user + feature per 30 minutes
+  // in the database, so a refresh never costs a render or a duplicate row.
+  if (feature) logEventAfter(access.profile.id, "feature_view", { feature });
 
   return access.profile;
 }

@@ -9,6 +9,8 @@ import { sendCapiEvent } from "@/lib/meta-capi";
 import { banUserById, deleteUserById } from "@/lib/adminUsers";
 import type { AccountStatus } from "@/lib/trial/status";
 
+import { logEventAfter } from "@/lib/events";
+import { paidTierFor } from "@/lib/tiers";
 const TV_ACTIVE = new Set<AccountStatus>(["trial_active", "re_trial_active", "member_active"]);
 
 // Fire-and-forget TV sync after any admin status change. Failures are logged
@@ -106,6 +108,15 @@ export async function verifyDeposit(formData: FormData) {
   }
 
   await syncTV(supabase, targetUserId);
+
+  // conversion-fix 1.3 — the money event at the bottom of the funnel. Logged for
+  // the MEMBER, not the admin clicking verify, so it goes through the server-side
+  // path. Runs after the response; the redirect below doesn't cancel it.
+  logEventAfter(targetUserId, "deposit_verified", {
+    amount,
+    broker,
+    tier: paidTierFor(amount),
+  });
 
   // Funded-account conversion — the money event that ties ad spend to IB
   // revenue. action_source "website" (not "system_generated"): the conversion
