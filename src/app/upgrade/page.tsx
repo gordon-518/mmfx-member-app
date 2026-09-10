@@ -6,6 +6,8 @@ import { getAccess } from "@/lib/access";
 import { logEventAfter } from "@/lib/events";
 import { Wordmark } from "@/components/AppShell";
 import { UpgradeFlow, type Region } from "./UpgradeFlow";
+import { TierCards } from "./TierCards";
+import { nextTierFor, tierLabel } from "@/lib/tiers";
 import {
   IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon, LiveIcon, SignalsIcon, DeskIcon, LockIcon,
 } from "@/components/icons";
@@ -81,6 +83,12 @@ export default async function UpgradePage({
   // conversion-fix 2.5 — an expired trial is on Free (the reverse trial), so it
   // is never told its access "ended". A live trial gets forward-looking copy.
   const onFree = access.tier !== "Full";
+  // conversion-fix 3.6 — paid members see their tier, their cumulative
+  // deposits and the top-up to the next tier.
+  const memberTier = access.memberTier;
+  const cumulative = Number(access.profile?.deposit_amount ?? 0) || 0;
+  const isPaid = memberTier === "foundation" || memberTier === "desk" || memberTier === "team";
+  const next = isPaid ? nextTierFor(cumulative) : null;
 
   // conversion-fix 1.3 — the top of the upgrade funnel. Admin ?geo= previews
   // aren't real visits, so they aren't counted.
@@ -115,32 +123,54 @@ export default async function UpgradePage({
           Market Makers FX
         </p>
         <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
-          {onFree ? "You're on Free. Your desk is still set." : "Keep your whole desk after the trial."}
+          {memberTier === "team"
+            ? "You have the whole desk."
+            : isPaid && next
+              ? `You're on ${tierLabel(memberTier)}. Top up $${next.topUp.toLocaleString("en-US")} to unlock ${tierLabel(next.next)}.`
+              : onFree
+                ? "You're on Free. Your desk is still set."
+                : "Keep your whole desk after the trial."}
         </h1>
         <p className="mt-5 text-[16px] leading-relaxed text-subtle">
-          {onFree
-            ? "Your trial has ended, so you're on the Free plan. Daily Analysis, the calendar, news, Know Your Style and Module 1 of the course stay open. The rest is locked, not gone."
-            : "Right now everything is unlocked. Fund your account and it stays that way when your trial ends."}
+          {memberTier === "team"
+            ? "Team MM is the top tier: nothing left to unlock."
+            : isPaid
+              ? `You've deposited $${cumulative.toLocaleString("en-US")} so far, and it stays yours. Tiers count everything you've deposited, never your balance, so a drawdown never locks you out.`
+              : onFree
+                ? "Your trial has ended, so you're on the Free plan. Daily Analysis, the calendar, news, Know Your Style and Module 1 of the course stay open. The rest is locked, not gone."
+                : "Right now everything is unlocked. Fund your account and it stays that way when your trial ends."}
         </p>
 
-        {/* What's locked — visual manifest */}
-        <p className="mt-10 text-[11px] font-semibold uppercase tracking-wider text-faint">
-          {onFree ? "What's locked on Free" : "What locks when the trial ends"}
-        </p>
-        <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          {LOCKED_ITEMS.map((item) => (
-            <li
-              key={item.label}
-              className="relative flex items-center gap-3 rounded-xl border border-line bg-card/70 px-4 py-3"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper text-faint">
-                <item.icon className="h-[18px] w-[18px]" />
-              </span>
-              <span className="min-w-0 text-[13.5px] font-medium text-subtle">{item.label}</span>
-              <LockIcon className="absolute right-3 top-3 h-3.5 w-3.5 text-faint/60" />
-            </li>
-          ))}
-        </ul>
+        {isContact ? (
+          <>
+            {/* What's locked — visual manifest */}
+            <p className="mt-10 text-[11px] font-semibold uppercase tracking-wider text-faint">
+              {onFree ? "What's locked on Free" : "What locks when the trial ends"}
+            </p>
+            <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {LOCKED_ITEMS.map((item) => (
+                <li
+                  key={item.label}
+                  className="relative flex items-center gap-3 rounded-xl border border-line bg-card/70 px-4 py-3"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper text-faint">
+                    <item.icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="min-w-0 text-[13.5px] font-medium text-subtle">{item.label}</span>
+                  <LockIcon className="absolute right-3 top-3 h-3.5 w-3.5 text-faint/60" />
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <>
+            {/* conversion-fix 3.6 — three tiers on cumulative deposits */}
+            <p className="mt-10 text-[11px] font-semibold uppercase tracking-wider text-faint">
+              Three tiers · on everything you&apos;ve deposited, never your balance
+            </p>
+            <TierCards memberTier={memberTier} cumulative={cumulative} />
+          </>
+        )}
 
         {/* The reframe — region-aware (broker deposit model vs US/UK lifetime fee) */}
         <div className="mt-12">
@@ -152,8 +182,8 @@ export default async function UpgradePage({
               </>
             ) : (
               <>
-                Keeping all of it isn&apos;t a $500 purchase. It&apos;s{" "}
-                <span className="text-orange">$500 that stays yours.</span>
+                None of it is a purchase. Start at $50, and{" "}
+                <span className="text-orange">it stays yours.</span>
               </>
             )}
           </p>
@@ -193,7 +223,7 @@ export default async function UpgradePage({
         {/* How to reopen — the geo-routed pathway */}
         <div className="mt-14">
           <h2 className="font-display text-2xl font-bold tracking-tight text-ink">
-            {onFree ? "Reopen your desk" : "Keep your desk"}
+            {isPaid ? "Top up through your broker" : onFree ? "Reopen your desk" : "Keep your desk"}
           </h2>
           <p className="mt-2 text-[15px] leading-relaxed text-subtle">
             A few steps and your access switches back on. Follow the path that fits you.

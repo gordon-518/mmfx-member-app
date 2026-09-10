@@ -62,6 +62,19 @@ export function tierFor(p: TierSnapshot, now: Date = new Date()): MemberTier {
   return accessTier(p, now) === "Full" ? "trial" : "free";
 }
 
+const PAID_ORDER: readonly PaidTier[] = ["foundation", "desk", "team"];
+
+/**
+ * The next paid tier a cumulative total can reach, and the top-up that gets
+ * there (conversion-fix 3.6: "top up $X to unlock Desk"). Null at Team MM.
+ */
+export function nextTierFor(cumulativeUsd: number): { next: PaidTier; topUp: number } | null {
+  const have = Number.isFinite(cumulativeUsd) && cumulativeUsd > 0 ? cumulativeUsd : 0;
+  const next = PAID_ORDER.find((t) => TIER_THRESHOLDS[t] > have);
+  if (!next) return null;
+  return { next, topUp: Math.round((TIER_THRESHOLDS[next] - have) * 100) / 100 };
+}
+
 const LABELS: Readonly<Record<MemberTier, string>> = {
   free: "Free",
   trial: "Trial",
