@@ -50,11 +50,17 @@ export async function requireFeature(
   const profile = access.profile;
   const isMember = profile.account_status === "member_active";
 
-  if (isMember && !profile.trading_account_number) {
+  // A US/UK lifetime member doesn't use our brokers, so no account number is
+  // needed (Phase 6). Without one, the AI assistant has nothing to connect.
+  if (isMember && !profile.trading_account_number && !profile.lifetime_plan) {
     redirect("/dashboard");
   }
 
-  const viewer: Viewer = { tier: access.memberTier, isAdmin: profile.is_admin };
+  const viewer: Viewer = {
+    tier: access.memberTier,
+    isAdmin: profile.is_admin,
+    noMentorship: profile.lifetime_plan === "team",
+  };
   const locked = !canAccess(feature, viewer);
 
   if (locked && onLocked === "redirect") {

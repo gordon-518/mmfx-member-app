@@ -42,11 +42,14 @@ export interface TierSnapshot {
   /** Cumulative verified deposits (PostgREST may send numeric as a string). */
   deposit_amount: number | string | null;
   grandfathered: boolean | null;
+  /** US/UK lifetime plan (Phase 6): either plan is the Team MM tier. */
+  lifetime_plan?: string | null;
 }
 
 /**
  * The viewer's tier.
  * - member_active + grandfathered            -> team (decision 6: never downgraded)
+ * - member_active + a US/UK lifetime plan     -> team (Phase 6)
  * - member_active                            -> by cumulative deposits; a member an
  *   admin set by hand with no qualifying deposit gets Foundation, the lowest paid
  *   tier, rather than being locked out
@@ -56,7 +59,7 @@ export interface TierSnapshot {
  */
 export function tierFor(p: TierSnapshot, now: Date = new Date()): MemberTier {
   if (p.account_status === "member_active") {
-    if (p.grandfathered) return "team";
+    if (p.grandfathered || p.lifetime_plan) return "team";
     return paidTierFor(Number(p.deposit_amount ?? 0)) ?? "foundation";
   }
   return accessTier(p, now) === "Full" ? "trial" : "free";

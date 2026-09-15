@@ -25,6 +25,12 @@ describe("course gating", () => {
     expect(canWatchLesson(18, MODULES, { tier: "foundation", isAdmin: false })).toBe(true);
   });
 
+  it("Team MM Access (lifetime, no Mentorship) gets Module 1 only", () => {
+    const teamOnly = { tier: "team" as const, isAdmin: false, noMentorship: true };
+    expect(canWatchLesson(2, MODULES, teamOnly)).toBe(true);
+    expect(canWatchLesson(3, MODULES, teamOnly)).toBe(false);
+  });
+
   it("nothing is free if the free module is missing (fail closed)", () => {
     expect(isLessonFree(0, [{ id: 2, from: 0, to: 5 }])).toBe(false);
   });

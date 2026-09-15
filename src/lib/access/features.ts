@@ -49,6 +49,8 @@ export const FEATURE_HREF: Readonly<Record<FeatureKey, string>> = {
 export interface Viewer {
   tier: MemberTier;
   isAdmin: boolean;
+  /** US/UK Team MM Access (Phase 6): Team MM without the full course. */
+  noMentorship?: boolean;
 }
 
 /**

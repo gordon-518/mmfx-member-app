@@ -7,6 +7,7 @@ import { tierFor, tierLabel, type TierSnapshot } from "@/lib/tiers";
 import { DepositQueue, type QueueRow } from "./DepositQueue";
 import { HotLeads, type HotLead } from "./HotLeads";
 import {
+  grantLifetime,
   grantRetrial,
   runSendpulseSync,
   saveTvSession,
@@ -88,6 +89,7 @@ interface AdminProfileRow {
   country: string | null;
   trading_account_number: string | null;
   grandfathered: boolean;
+  lifetime_plan: string | null;
 }
 
 interface LedgerRow {
@@ -160,7 +162,7 @@ export default async function AdminPage({
       : "";
 
   const ADMIN_PROFILE_COLUMNS =
-    "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country, trading_account_number, grandfathered";
+    "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country, trading_account_number, grandfathered, lifetime_plan";
 
   function buildQuery() {
     let q = supabase
@@ -504,6 +506,7 @@ export default async function AdminPage({
                       <span className="block text-[11px] font-semibold text-orange">
                         {tierLabel(tierFor(p))}
                         {p.grandfathered ? " · grandfathered" : ""}
+                        {p.lifetime_plan ? ` · lifetime${p.lifetime_plan === "team" ? "" : " + Mentorship"}` : ""}
                       </span>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap">
@@ -588,6 +591,22 @@ export default async function AdminPage({
                           </label>
                           <button type="submit" className={BTN_PRIMARY}>
                             {p.account_status === "member_active" ? "Top up" : "Verify"}
+                          </button>
+                        </form>
+                        {/* Phase 6 — grant a US/UK lifetime plan once it's paid. */}
+                        <form action={grantLifetime} className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <input type="hidden" name="target_user_id" value={p.id} />
+                          <input type="hidden" name="target_email" value={p.email} />
+                          {hiddenFilters}
+                          <select name="plan" required defaultValue="" className={INPUT}>
+                            <option value="" disabled>
+                              lifetime plan
+                            </option>
+                            <option value="team">Team MM · USD 588</option>
+                            <option value="team_mentorship">Team MM + Mentorship · USD 1,588</option>
+                          </select>
+                          <button type="submit" className={BTN_GHOST}>
+                            Grant
                           </button>
                         </form>
                     </td>

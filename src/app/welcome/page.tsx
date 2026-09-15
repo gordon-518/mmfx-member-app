@@ -25,7 +25,8 @@ export default async function WelcomePage() {
   // (not a redirect) so it can never ping-pong with the proxy's /welcome gate.
   if (
     access.profile?.account_status === "member_active" &&
-    !access.profile.trading_account_number
+    !access.profile.trading_account_number &&
+    !access.profile.lifetime_plan
   ) {
     return <TradingAccountGate />;
   }

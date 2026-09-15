@@ -31,7 +31,7 @@ export async function syncSendpulseAudiences(): Promise<SendpulseSyncResult> {
 
   const { data: users, error } = await admin
     .from("profiles")
-    .select("id, email, full_name, account_status, trial_ends_at, deposit_amount, grandfathered");
+    .select("id, email, full_name, account_status, trial_ends_at, deposit_amount, grandfathered, lifetime_plan");
   if (error) return { ...empty, error: error.message };
 
   // conversion-fix 4.3 — every contact's onboarding progress, in one query, so
@@ -65,6 +65,7 @@ export async function syncSendpulseAudiences(): Promise<SendpulseSyncResult> {
         trial_ends_at: trialEndsAt,
         deposit_amount: (u.deposit_amount as number | string | null) ?? null,
         grandfathered: (u.grandfathered as boolean | null) ?? false,
+        lifetime_plan: (u.lifetime_plan as string | null) ?? null,
       },
       new Date(now)
     );

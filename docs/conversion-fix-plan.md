@@ -401,9 +401,27 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 
 ---
 
-## Phase 6 — US/UK path (on hold)
+## Phase 6 — US/UK path
 
-*On hold (decided 10 Sept).* Leave the current routing untouched: `regionFor()` sends US and GB to `contact`, and the lifetime fee is arranged over Telegram. Don't change the `contact` branch of `/upgrade` during task 3.6.
+*Picked up 15 Sept.* Gordon set two lifetime plans, paid once, since the partnered brokers can't take US/UK clients:
+
+| Plan | Price | Opens |
+|---|---|---|
+| **Team MM Access** | USD 588 | The Team MM tier, except the full course (Module 1 stays free) |
+| **Team MM + Mentorship** | USD 1,588 | Everything, including all 19 Mentorship lessons |
+
+Lifetime members don't need a trading account number, because they don't use our brokers. Without one the AI Trading Assistant can't connect, which is intended.
+
+- [x] **6.1 Lifetime plans on `/upgrade` for US/UK.** `regionFor()` is unchanged: US and GB still route to `contact`. That branch now shows the two plan cards (`LifetimePlans`, from `src/lib/lifetimePlans.ts`): price, contents, a WhatsApp message that names the plan and price, and Telegram. A member's own plan is marked, and Team MM holders get "Add the Mentorship". Payment is still arranged in chat; there's no checkout.
+- [x] **6.2 Grant and entitlements.** `profiles.lifetime_plan` plus `fn_admin_grant_lifetime` (`20260915000003`, applied to prod, verified as the real roles in a rolled-back transaction). `/admin` has a "Grant lifetime plan" form on each row. `tierFor` treats either plan as Team MM. Team MM Access holders get Module 1 only of the course, in the page and the slides API. The trading-account gate skips lifetime members. A grant that turns a non-member into a member fires CAPI `Purchase` at the plan price.
+- **Verified (15 Sept):** 7 role checks on prod, rolled back. They covered: non-admin refused, unknown plan refused, grant makes the account `member_active` with no clock and no account number, upgrade to Mentorship, no downgrade, and no direct writes. In the browser, via the admin `?geo=US` preview:
+  - A Free user sees both cards at USD 588 and USD 1,588, with WhatsApp messages naming the plan. There are no tier cards and no deposit form.
+  - A Team MM Access member sees "You have Team MM…", "Your plan" and "Add the Mentorship".
+  - `/dashboard` opens without the trading-account gate.
+  - `/course` shows Module 1, and "the other 16 lessons are in the Team MM + Mentorship plan".
+
+  The admin Grant button wasn't clicked on a test user, because it sends a real CAPI Purchase.
+
 
 When this is picked back up, here's the case for it: the UK has the highest TradingView connection rate of any market (21.7%) and zero conversions. The options were (a) a real checkout, or (b) a clear in-app offer card with one-click contact, plus whether to show the price in-app.
 

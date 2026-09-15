@@ -115,7 +115,8 @@ export default async function DashboardPage() {
   // Funded members must save a trading account number before the desk unlocks.
   if (
     access.profile.account_status === "member_active" &&
-    !access.profile.trading_account_number
+    !access.profile.trading_account_number &&
+    !access.profile.lifetime_plan
   ) {
     return <TradingAccountGate />;
   }
