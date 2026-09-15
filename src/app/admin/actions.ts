@@ -11,7 +11,9 @@ import type { AccountStatus } from "@/lib/trial/status";
 import { TV_ENTITLED_STATUSES } from "@/lib/tv/resolveTvAccounts";
 
 import { logEventAfter } from "@/lib/events";
-import { tierFor, tierLabel, type TierSnapshot } from "@/lib/tiers";
+import { tierFor, tierLabel, type MemberTier, type TierSnapshot } from "@/lib/tiers";
+import { sendEmail } from "@/lib/sendpulse";
+import { depositVerifiedEmail, depositRejectedEmail } from "@/lib/depositEmails";
 // One entitlement rule shared with the nightly cron (conversion-fix 3.4).
 const TV_ACTIVE = TV_ENTITLED_STATUSES;
 
@@ -80,6 +82,73 @@ async function requireAdmin(
   return supabase;
 }
 
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+// Everything that follows a successful fn_verify_deposit, shared by the manual
+// verify form and the submission review queue (conversion-fix 5.2), so both
+// paths sync TradingView, log the money events and fire CAPI Purchase exactly
+// the same way. `before` is the profile read BEFORE verifying.
+async function afterVerify(
+  supabase: Supabase,
+  v: {
+    targetUserId: string;
+    targetEmail: string;
+    amount: number;
+    broker: string;
+    before: Record<string, unknown> | null;
+    after: Record<string, unknown> | null;
+  }
+): Promise<{ isFirstDeposit: boolean; tierBefore: MemberTier; tierAfter: MemberTier; cumulative: number }> {
+  const { targetUserId, targetEmail, amount, broker, before, after } = v;
+  await syncTV(supabase, targetUserId);
+
+  // A first deposit flips a non-member to member_active and has never been
+  // verified before. Re-verifying a removed member, or a grandfathered member's
+  // first recorded deposit, is not a new funded account.
+  const isFirstDeposit =
+    before != null && before.deposit_verified_at == null && before.account_status !== "member_active";
+  const tierBefore = before ? tierFor(before as unknown as TierSnapshot) : "free";
+  const tierAfter = after ? tierFor(after as unknown as TierSnapshot) : tierBefore;
+  const cumulative = Number((after as { deposit_amount?: number | string } | null)?.deposit_amount ?? amount);
+
+  // conversion-fix 1.3 / 3.2 — the money events, logged for the MEMBER (not the
+  // admin clicking verify) through the server-side path, after the response.
+  // tier is the tier the NEW CUMULATIVE total reaches, not this one deposit's.
+  logEventAfter(targetUserId, "deposit_verified", {
+    amount,
+    broker,
+    cumulative,
+    tier: tierAfter,
+    first: isFirstDeposit,
+  });
+  if (tierAfter !== tierBefore) {
+    logEventAfter(targetUserId, "tier_changed", { from: tierBefore, to: tierAfter });
+  }
+
+  // Funded-account conversion — the money event that ties ad spend to IB
+  // revenue. action_source "website" (not "system_generated"): the conversion
+  // culminates the web funnel, it optimizes as a standard web conversion, and —
+  // unlike system_generated — it renders in Events Manager Test Events. Matched
+  // on email + user id. Guarded so a Meta hiccup never blocks admin verify.
+  // FIRST DEPOSIT ONLY (decided 10 Sept): now that top-ups are recorded, firing
+  // on every verification would send Meta a second Purchase for one account.
+  if (isFirstDeposit) {
+    try {
+      await sendCapiEvent({
+        eventName: "Purchase",
+        actionSource: "website",
+        eventSourceUrl: "https://app.marketmakersfx.net/upgrade",
+        user: { email: targetEmail, externalId: targetUserId },
+        customData: { value: amount, currency: "USD", content_name: "funded_account", broker },
+      });
+    } catch (e) {
+      console.error("[meta-capi] Purchase failed:", e);
+    }
+  }
+
+  return { isFirstDeposit, tierBefore, tierAfter, cumulative };
+}
+
 export async function verifyDeposit(formData: FormData) {
   const targetUserId = String(formData.get("target_user_id") ?? "");
   const targetEmail = String(formData.get("target_email") ?? "");
@@ -123,51 +192,14 @@ export async function verifyDeposit(formData: FormData) {
     backTo({ ...filters, error: error.message, target: targetEmail });
   }
 
-  await syncTV(supabase, targetUserId);
-
-  // A first deposit flips a non-member to member_active and has never been
-  // verified before. Re-verifying a removed member, or a grandfathered member's
-  // first recorded deposit, is not a new funded account.
-  const isFirstDeposit =
-    before != null && before.deposit_verified_at == null && before.account_status !== "member_active";
-  const tierBefore = before ? tierFor(before as TierSnapshot) : "free";
-  const tierAfter = after ? tierFor(after as TierSnapshot) : tierBefore;
-  const cumulative = Number((after as { deposit_amount?: number | string } | null)?.deposit_amount ?? amount);
-
-  // conversion-fix 1.3 / 3.2 — the money events, logged for the MEMBER (not the
-  // admin clicking verify) through the server-side path, after the response.
-  // tier is the tier the NEW CUMULATIVE total reaches, not this one deposit's.
-  logEventAfter(targetUserId, "deposit_verified", {
+  const { isFirstDeposit, tierAfter, cumulative } = await afterVerify(supabase, {
+    targetUserId,
+    targetEmail,
     amount,
     broker,
-    cumulative,
-    tier: tierAfter,
-    first: isFirstDeposit,
+    before,
+    after,
   });
-  if (tierAfter !== tierBefore) {
-    logEventAfter(targetUserId, "tier_changed", { from: tierBefore, to: tierAfter });
-  }
-
-  // Funded-account conversion — the money event that ties ad spend to IB
-  // revenue. action_source "website" (not "system_generated"): the conversion
-  // culminates the web funnel, it optimizes as a standard web conversion, and —
-  // unlike system_generated — it renders in Events Manager Test Events. Matched
-  // on email + user id. Guarded so a Meta hiccup never blocks admin verify.
-  // FIRST DEPOSIT ONLY (decided 10 Sept): now that top-ups are recorded, firing
-  // on every verification would send Meta a second Purchase for one account.
-  if (isFirstDeposit) {
-    try {
-      await sendCapiEvent({
-        eventName: "Purchase",
-        actionSource: "website",
-        eventSourceUrl: "https://app.marketmakersfx.net/upgrade",
-        user: { email: targetEmail, externalId: targetUserId },
-        customData: { value: amount, currency: "USD", content_name: "funded_account", broker },
-      });
-    } catch (e) {
-      console.error("[meta-capi] Purchase failed:", e);
-    }
-  }
 
   revalidatePath("/admin");
   backTo({
@@ -393,4 +425,97 @@ export async function deleteUser(email: string, confirmEmail: string): Promise<U
   if (!r.ok) return { ok: false, error: r.error ?? "Failed." };
   revalidatePath("/admin");
   return { ok: true, message: `${found.user.email} permanently deleted.` };
+}
+
+// ─── conversion-fix 5.2 / 5.3 — the deposit submission review queue ─────────
+// Verify or reject one pending submission from /admin. The rules live in
+// fn_review_deposit_submission (verify runs fn_verify_deposit). After a verify
+// the same afterVerify path as the manual form runs; either way the member is
+// emailed. Emails are best-effort: sendEmail never throws.
+
+const FROM_MEMBERS = { name: "Market Makers FX", email: "hello@marketmakersfx.net" };
+
+export async function reviewSubmission(formData: FormData) {
+  const submissionId = String(formData.get("submission_id") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  const ibConfirmed = formData.get("ib_confirmed") === "on";
+  const filters = filterParams(formData);
+
+  if (!submissionId || (decision !== "verify" && decision !== "reject")) {
+    backTo({ ...filters, error: "Unknown review action" });
+  }
+
+  const supabase = await requireAdmin(filters, "");
+
+  const { data: sub } = await supabase
+    .from("deposit_submissions")
+    .select("id, user_id, amount, broker, status")
+    .eq("id", submissionId)
+    .maybeSingle();
+  if (!sub) backTo({ ...filters, error: "Submission not found" });
+
+  const targetUserId = sub.user_id as string;
+  const amount = Number(sub.amount);
+  const broker = sub.broker as string;
+  const { data: before } = await supabase
+    .from("profiles")
+    .select("email, full_name, account_status, trial_ends_at, deposit_amount, grandfathered, deposit_verified_at")
+    .eq("id", targetUserId)
+    .single();
+  const targetEmail = (before?.email as string | undefined) ?? "";
+
+  const { error } = await supabase.rpc("fn_review_deposit_submission", {
+    p_id: submissionId,
+    p_action: decision,
+    p_reason: decision === "reject" ? reason : null,
+    p_ib_confirmed: ibConfirmed,
+  });
+  if (error) backTo({ ...filters, error: error.message, target: targetEmail });
+
+  if (decision === "reject") {
+    if (targetEmail) {
+      const mail = depositRejectedEmail({ name: (before?.full_name as string | null) ?? null, amount, reason });
+      const sent = await sendEmail({ to: { name: (before?.full_name as string | null) ?? targetEmail, email: targetEmail }, from: FROM_MEMBERS, ...mail });
+      if (!sent.ok) console.error("[deposit-review] reject email failed:", sent.detail);
+    }
+    revalidatePath("/admin");
+    backTo({ ...filters, ok: `Rejected ${targetEmail}'s $${amount} submission; they'll see the reason`, target: targetEmail });
+  }
+
+  const { data: after } = await supabase
+    .from("profiles")
+    .select("account_status, trial_ends_at, deposit_amount, grandfathered, deposit_verified_at")
+    .eq("id", targetUserId)
+    .single();
+
+  const { isFirstDeposit, tierAfter, cumulative } = await afterVerify(supabase, {
+    targetUserId,
+    targetEmail,
+    amount,
+    broker,
+    before,
+    after,
+  });
+
+  if (targetEmail) {
+    const mail = depositVerifiedEmail({
+      name: (before?.full_name as string | null) ?? null,
+      amount,
+      cumulative,
+      tier: tierAfter,
+      topUp: before?.account_status === "member_active",
+    });
+    const sent = await sendEmail({ to: { name: (before?.full_name as string | null) ?? targetEmail, email: targetEmail }, from: FROM_MEMBERS, ...mail });
+    if (!sent.ok) console.error("[deposit-review] verify email failed:", sent.detail);
+  }
+
+  revalidatePath("/admin");
+  backTo({
+    ...filters,
+    ok: isFirstDeposit
+      ? `Verified — ${targetEmail} is now a ${tierLabel(tierAfter)} member ($${cumulative})`
+      : `Top-up verified — ${targetEmail}: $${cumulative} cumulative, ${tierLabel(tierAfter)}`,
+    target: targetEmail,
+  });
 }

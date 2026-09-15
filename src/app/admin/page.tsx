@@ -3,7 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { Wordmark } from "@/components/AppShell";
 import { canGrantRetrial } from "@/lib/trial/admin";
 import type { AccountStatus } from "@/lib/trial/status";
-import { tierFor, tierLabel } from "@/lib/tiers";
+import { tierFor, tierLabel, type TierSnapshot } from "@/lib/tiers";
+import { DepositQueue, type QueueRow } from "./DepositQueue";
 import {
   grantRetrial,
   runSendpulseSync,
@@ -210,6 +211,45 @@ export default async function AdminPage({
     ledgerByUser.set(e.user_id, list);
   }
 
+  // conversion-fix 5.2 — the deposit review queue, oldest first, each proof
+  // behind a one-hour signed URL (admin SELECT on the private bucket).
+  const { data: pendingData } = await supabase
+    .from("deposit_submissions")
+    .select("id, user_id, amount, broker, trading_account_number, tradingview_username, proof_path, created_at")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(100);
+  const pending = pendingData ?? [];
+  const pendingUserIds = [...new Set(pending.map((p) => p.user_id as string))];
+  const { data: pendingProfiles } = pendingUserIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, email, full_name, account_status, trial_ends_at, deposit_amount, grandfathered")
+        .in("id", pendingUserIds)
+    : { data: [] as Record<string, unknown>[] };
+  const pendingProfileById = new Map((pendingProfiles ?? []).map((p) => [p.id as string, p]));
+  const queueRows: QueueRow[] = await Promise.all(
+    pending.map(async (p) => {
+      const prof = pendingProfileById.get(p.user_id as string);
+      const { data: signed } = await supabase.storage
+        .from("deposit-proofs")
+        .createSignedUrl(p.proof_path as string, 3600);
+      return {
+        id: p.id as string,
+        email: (prof?.email as string | undefined) ?? (p.user_id as string),
+        name: (prof?.full_name as string | null | undefined) ?? null,
+        tier: prof ? tierLabel(tierFor(prof as unknown as TierSnapshot)) : "—",
+        amount: Number(p.amount),
+        broker: p.broker as string,
+        account: p.trading_account_number as string,
+        tradingview: (p.tradingview_username as string | null) ?? null,
+        createdAt: p.created_at as string,
+        proofUrl: signed?.signedUrl ?? null,
+        isTopUp: prof?.account_status === "member_active",
+      };
+    })
+  );
+
   // Admin-managed content (admin sees all rows via the is_admin policy).
   const { data: analysisData } = await supabase
     .from("daily_analysis")
@@ -291,6 +331,9 @@ export default async function AdminPage({
             Failed to load profiles: {listError.message}
           </p>
         )}
+
+        {/* conversion-fix 5.2 — the deposit review queue, the main work item. */}
+        <DepositQueue rows={queueRows} hiddenFilters={hiddenFilters} />
 
         {/* TradingView session — manual refresh fallback for when the app's
             programmatic login is CAPTCHA-blocked. */}
