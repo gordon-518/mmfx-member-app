@@ -18,7 +18,7 @@ describe("tier cards", () => {
 
   it("each tier includes everything below it", () => {
     const count = (t: "foundation" | "desk" | "team") => CARD_ROWS.filter((r) => includes(t, r)).length;
-    expect(count("foundation")).toBe(4);
+    expect(count("foundation")).toBe(2);
     expect(count("desk")).toBe(6);
     expect(count("team")).toBe(8);
   });

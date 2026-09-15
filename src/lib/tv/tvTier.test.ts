@@ -1,33 +1,52 @@
 import { describe, it, expect } from "vitest";
-import { TV_ENTITLED_STATUSES } from "./resolveTvAccounts";
-import { tierFor } from "@/lib/tiers";
+import { tvEntitlement, type TvProfileRow } from "./resolveTvAccounts";
+import { accessTierFor } from "@/lib/tiers";
 import { canAccess } from "@/lib/access/features";
-import type { AccountStatus } from "@/lib/trial/status";
 
-// conversion-fix 3.4 — the TradingView grant automation decides by account
-// status (cheap, and it runs over every profile nightly), while pages decide by
-// the tier ladder. They must agree: indicators and strategies open at
-// Foundation, trials are Desk-equivalent, Free loses access. This pins it, so a
-// tier change that makes some member_active user less than Foundation (or a
-// new status) fails here instead of silently granting or revoking on TradingView.
+// conversion-fix 3.4, revised 15 Sep (indicators + strategies moved to Desk):
+// the TradingView grant automation must agree with the page gates for every
+// kind of profile, so a tier change can't silently mis-grant or revoke on
+// TradingView (where a revoke also deletes the member's alerts).
 
-const ALL: AccountStatus[] = [
-  "trial_active",
-  "trial_expired",
-  "member_active",
-  "re_trial_active",
-  "re_trial_expired",
-  "member_expired",
+const NOW = new Date("2026-09-15T00:00:00Z");
+const LATER = "2026-09-25T00:00:00Z";
+const EARLIER = "2026-09-01T00:00:00Z";
+
+const base = (o: Partial<TvProfileRow>): TvProfileRow => ({
+  tradingview_username: "x",
+  account_status: "member_active",
+  trial_ends_at: null,
+  deposit_amount: null,
+  grandfathered: false,
+  lifetime_plan: null,
+  ...o,
+});
+
+const CASES: [string, TvProfileRow][] = [
+  ["trial, clock running", base({ account_status: "trial_active", trial_ends_at: LATER })],
+  ["trial, clock passed", base({ account_status: "trial_active", trial_ends_at: EARLIER })],
+  ["expired trial", base({ account_status: "trial_expired", trial_ends_at: EARLIER })],
+  ["Foundation member ($60)", base({ deposit_amount: 60 })],
+  ["early depositor ($60, trial running)", base({ deposit_amount: 60, trial_ends_at: LATER })],
+  ["Desk member ($250)", base({ deposit_amount: 250 })],
+  ["Team member ($600)", base({ deposit_amount: 600 })],
+  ["grandfathered", base({ grandfathered: true })],
+  ["lifetime Team MM", base({ lifetime_plan: "team" })],
+  ["removed member", base({ account_status: "member_expired", deposit_amount: 600 })],
 ];
-const FUTURE = "2999-01-01T00:00:00Z";
 
 describe("TradingView entitlement matches the tier ladder", () => {
-  it.each(ALL)("%s", (status) => {
-    // The weakest profile in each status: no deposit, not grandfathered, and
-    // (for trials) inside the clock, which is when TV is granted with an expiry.
-    const tier = tierFor({ account_status: status, trial_ends_at: FUTURE, deposit_amount: null, grandfathered: false });
-    const byTier =
-      canAccess("indicators", { tier, isAdmin: false }) && canAccess("strategies", { tier, isAdmin: false });
-    expect(TV_ENTITLED_STATUSES.has(status)).toBe(byTier);
+  it.each(CASES)("%s", (_label, row) => {
+    const tier = accessTierFor(
+      { ...row, deposit_amount: row.deposit_amount ?? null, grandfathered: row.grandfathered ?? false },
+      NOW
+    );
+    const pages = canAccess("indicators", { tier, isAdmin: false }) && canAccess("strategies", { tier, isAdmin: false });
+    expect(tvEntitlement(row, NOW).grant).toBe(pages);
+  });
+
+  it("only a trial-backed grant carries an expiry", () => {
+    expect(tvEntitlement(base({ deposit_amount: 250 }), NOW).expiresAt).toBeNull();
+    expect(tvEntitlement(base({ deposit_amount: 60, trial_ends_at: LATER }), NOW).expiresAt).toBe(LATER);
   });
 });

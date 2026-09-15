@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
 
   const { data: users, error } = await admin
     .from("profiles")
-    .select("tradingview_username, account_status, trial_ends_at")
+    .select("tradingview_username, account_status, trial_ends_at, deposit_amount, grandfathered, lifetime_plan")
     .not("tradingview_username", "is", null);
 
   if (error) {

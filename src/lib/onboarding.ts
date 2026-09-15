@@ -56,7 +56,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     key: "desk",
     day: 5,
     title: "See what Desk adds",
-    blurb: "Live classes and the Fundamental Desk: learn the system live, with the macro read behind it.",
+    blurb: "The TradingView indicators and strategy scripts, live classes, and the Fundamental Desk's macro read.",
     href: "/upgrade",
     stage: "Your next tier",
   },

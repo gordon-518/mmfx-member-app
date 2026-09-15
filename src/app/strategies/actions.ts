@@ -4,12 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { grantTVAccess } from "@/lib/tv/client";
-import { TV_ENTITLED_STATUSES } from "@/lib/tv/resolveTvAccounts";
+import { tvEntitlement, type TvProfileRow } from "@/lib/tv/resolveTvAccounts";
 import { validateTradingViewUsername } from "@/lib/tvUsername";
-import type { AccountStatus } from "@/lib/trial/status";
 
-// One entitlement rule shared with the cron and admin sync (conversion-fix 3.4).
-const TV_ACTIVE = TV_ENTITLED_STATUSES;
 
 export async function setTradingViewUsernameFromStrategies(formData: FormData) {
   const username = String(formData.get("tradingview_username") ?? "");
@@ -39,13 +36,12 @@ export async function setTradingViewUsernameFromStrategies(formData: FormData) {
   try {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("account_status, trial_ends_at")
+      .select("account_status, trial_ends_at, deposit_amount, grandfathered, lifetime_plan")
       .eq("id", user.id)
       .single();
-    if (profile && TV_ACTIVE.has(profile.account_status as AccountStatus)) {
-      const expiresAt =
-        profile.account_status === "member_active" ? null : profile.trial_ends_at;
-      await grantTVAccess(username.trim(), expiresAt);
+    const ent = profile ? tvEntitlement(profile as TvProfileRow & { tradingview_username: string | null }) : null;
+    if (ent?.grant) {
+      await grantTVAccess(username.trim(), ent.expiresAt);
     }
   } catch (e) {
     console.error("[tv-sync] setTradingViewUsernameFromStrategies:", e);
