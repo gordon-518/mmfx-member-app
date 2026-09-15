@@ -3,13 +3,13 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { submitDeposit, logUpgradeClick, type DepositFormState } from "./actions";
-import { ADMIN_TELEGRAM_HANDLE, ADMIN_TELEGRAM_URL, adminDmMessage } from "@/lib/depositRef";
+import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_URL, adminDmMessage } from "@/lib/depositRef";
 
 // Deposit submission (conversion-fix 5.1 / 5.4). The primary way to get a
 // deposit verified: the member uploads the proof here instead of sending it
 // on WhatsApp or Telegram. A paid member uses the same form for a top-up.
 //
-// Step 1 is messaging @MM_3000 on Telegram. The desk shouldn't message
+// Step 1 is messaging Admin Amelia (@MM_3000) on Telegram. The desk shouldn't message
 // members first, so the member opens the chat with their reference code and
 // the admin replies there. The app can't see a personal account's DMs, so
 // the gate is a required "I've messaged" tick, which opening or copying ticks.
@@ -72,7 +72,7 @@ export function DepositSubmitForm({
   if (state && "ok" in state) {
     return (
       <p className="rounded-xl border border-orange/25 bg-accent-soft/40 px-4 py-3 text-[14px] text-ink">
-        {`Got it: your $${state.amount.toLocaleString("en-US")} ${isTopUp ? "top-up" : "deposit"} is in for review. We'll reply to your message to @${ADMIN_TELEGRAM_HANDLE} on Telegram and switch your access on as soon as it's verified.`}
+        {`Got it: your $${state.amount.toLocaleString("en-US")} ${isTopUp ? "top-up" : "deposit"} is in for review. ${ADMIN_DISPLAY_NAME} will reply to your message on Telegram and switch your access on as soon as it's verified.`}
       </p>
     );
   }
@@ -81,7 +81,7 @@ export function DepositSubmitForm({
     <form action={action} className="space-y-6">
       <div className="rounded-xl border border-orange/25 bg-accent-soft/30 p-4">
         <p className={STEP}>Step 1</p>
-        <p className="mt-1 text-[14.5px] font-semibold text-ink">Message @{ADMIN_TELEGRAM_HANDLE} on Telegram</p>
+        <p className="mt-1 text-[14.5px] font-semibold text-ink">Message {ADMIN_DISPLAY_NAME} on Telegram</p>
         <p className="mt-1 text-[13px] leading-relaxed text-subtle">
           Our admin can&apos;t message you first. Send this so we can reach you about your deposit.
         </p>
@@ -107,7 +107,7 @@ export function DepositSubmitForm({
             onClick={openChat}
             className="rounded-xl bg-ink px-4 py-2 text-[13px] font-semibold text-paper transition-opacity hover:opacity-90"
           >
-            Open @{ADMIN_TELEGRAM_HANDLE} ↗
+            Message {ADMIN_DISPLAY_NAME} ↗
           </a>
           <label className="flex items-center gap-2 text-[13px] text-ink">
             <input
@@ -117,7 +117,7 @@ export function DepositSubmitForm({
               onChange={(e) => setMessaged(e.target.checked)}
               className="accent-orange"
             />
-            I&apos;ve messaged @{ADMIN_TELEGRAM_HANDLE}
+            I&apos;ve messaged {ADMIN_DISPLAY_NAME}
           </label>
         </div>
       </div>

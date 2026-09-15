@@ -20,7 +20,6 @@ const IB_NUMBER = "47807426";
 const SWITCH_REASON = "They are assisting me in my trading with signals and analysis.";
 const WHATSAPP_URL =
   "https://wa.me/6588035858?text=Hi%20MMFX%2C%20requesting%20upgrade.%20Broker%3A%20%5BOcta%2FDupoin%5D%20Account%23%3A%20%5Bnumber%5D%20Tier%3A%20%5BTeam%20MM%2FMentorship%5D";
-const TELEGRAM_URL = "https://t.me/m/QBXboWUEMWRl";
 const TELEGRAM_SWITCH = ADMIN_TELEGRAM_URL;
 // US/UK contact path — these visitors can't open a partnered broker account, so
 // the WhatsApp message + Telegram thread are dedicated to arranging access.
@@ -62,11 +61,18 @@ function CtaButton({ cta }: { cta: Cta }) {
     ? "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto"
     : "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto";
   const Icon = cta.icon;
+  // "#…" jumps to a section of this page, so it stays in the same tab.
+  const inPage = cta.href.startsWith("#");
   return (
-    <a href={cta.href} target="_blank" rel="noopener noreferrer" className={cls} onClick={track(cta.track)}>
+    <a
+      href={cta.href}
+      {...(inPage ? {} : { target: "_blank", rel: "noopener noreferrer" })}
+      className={cls}
+      onClick={track(cta.track)}
+    >
       {Icon && <Icon className="h-[17px] w-[17px]" />}
       {cta.label}
-      {!Icon && <span aria-hidden>{cta.primary ? "→" : "↗"}</span>}
+      {!Icon && <span aria-hidden>{inPage ? "↓" : cta.primary ? "→" : "↗"}</span>}
     </a>
   );
 }
@@ -146,8 +152,22 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
   );
 }
 
-const DETAILS_LINE =
-  "your full name, Telegram username, trading account number, balance, country, and TradingView username";
+// Tiers count every verified deposit, so $50 is the real starting point
+// (conversion-fix tiers: Foundation $50, Desk $200, Team MM $500).
+const TIER_LADDER = (
+  <>
+    $50 opens Foundation, $200 the Desk and $500 Team MM, and every top-up counts toward the next tier.
+  </>
+);
+
+// The deposit form on this page (#submit-deposit) is how a deposit gets
+// verified, so every path ends there instead of "send us your details".
+const FORM_STEP: Step = {
+  icon: ChatIcon,
+  title: "Fill in the form below",
+  body: <>Message Admin Amelia on Telegram, then submit your deposit details with a screenshot. We check it against your account and switch you on.</>,
+  ctas: [{ label: "Go to the form", href: "#submit-deposit", primary: true }],
+};
 
 function newAccountSteps(region: "octa" | "dupoin"): Step[] {
   const signup = region === "octa" ? OCTA_SIGNUP : DUPOIN_SIGNUP;
@@ -168,18 +188,10 @@ function newAccountSteps(region: "octa" | "dupoin"): Step[] {
     },
     {
       icon: WalletIcon,
-      title: "Fund it with $500",
-      body: <>The capital sits in <em className="font-medium not-italic text-ink">your</em> account, under <em className="font-medium not-italic text-ink">your</em> name. You trade it, you withdraw it — nothing is paid to us.</>,
+      title: "Fund it from $50",
+      body: <>{TIER_LADDER} The capital sits in <em className="font-medium not-italic text-ink">your</em> account, under <em className="font-medium not-italic text-ink">your</em> name. You trade it, you withdraw it — nothing is paid to us.</>,
     },
-    {
-      icon: ChatIcon,
-      title: "Send us your details",
-      body: <>Once you&apos;ve funded, message us with {DETAILS_LINE} so we can match your account and switch you on.</>,
-      ctas: [
-        { label: "WhatsApp", href: WHATSAPP_URL, primary: true, icon: WhatsAppIcon, track: { event: "upgrade_contact_clicked", props: { channel: "whatsapp" } } },
-        { label: "Telegram", href: TELEGRAM_URL, icon: TelegramIcon, track: { event: "upgrade_contact_clicked", props: { channel: "telegram" } } },
-      ],
-    },
+    FORM_STEP,
     {
       icon: CheckIcon,
       title: "Your desk reopens",
@@ -220,18 +232,10 @@ function octaSwitchSteps(): Step[] {
     },
     {
       icon: WalletIcon,
-      title: "Hold at least $500",
-      body: <>Keep $500 in the account so your access can be restored.</>,
+      title: "Hold at least $50",
+      body: <>{TIER_LADDER} The switch goes through within about an hour.</>,
     },
-    {
-      icon: ChatIcon,
-      title: "Send us your details",
-      body: <>Message our support with {DETAILS_LINE} so we can add you. It switches over within about an hour.</>,
-      ctas: [
-        { label: "Telegram", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon, track: { event: "upgrade_contact_clicked", props: { channel: "telegram" } } },
-        { label: "WhatsApp", href: WHATSAPP_URL, icon: WhatsAppIcon, track: { event: "upgrade_contact_clicked", props: { channel: "whatsapp" } } },
-      ],
-    },
+    FORM_STEP,
     {
       icon: CheckIcon,
       title: "Your desk reopens",
@@ -245,8 +249,8 @@ function dupoinSwitchSteps(): Step[] {
   return [
     {
       icon: WalletIcon,
-      title: "Hold at least $500",
-      body: <>Keep $500 in your existing Dupoin account so access can be restored.</>,
+      title: "Hold at least $50",
+      body: <>In your existing Dupoin account. {TIER_LADDER}</>,
     },
     {
       icon: SparkIcon,
@@ -255,13 +259,14 @@ function dupoinSwitchSteps(): Step[] {
     },
     {
       icon: ChatIcon,
-      title: "Send us your Full Name + UID",
-      body: <>Message our support and we&apos;ll process the partner switch with Dupoin by hand.</>,
+      title: "Send Admin Amelia your Full Name + UID",
+      body: <>Message Admin Amelia on Telegram and we&apos;ll process the partner switch with Dupoin by hand.</>,
       ctas: [
-        { label: "Telegram", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon, track: { event: "upgrade_contact_clicked", props: { channel: "telegram" } } },
+        { label: "Message Admin Amelia", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon, track: { event: "upgrade_contact_clicked", props: { channel: "telegram" } } },
         { label: "WhatsApp", href: WHATSAPP_URL, icon: WhatsAppIcon, track: { event: "upgrade_contact_clicked", props: { channel: "whatsapp" } } },
       ],
     },
+    { ...FORM_STEP, body: <>Once the switch is confirmed, submit your deposit details with a screenshot so we can switch you on.</> },
     {
       icon: CheckIcon,
       title: "Your desk reopens",
