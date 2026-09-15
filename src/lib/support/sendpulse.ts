@@ -97,7 +97,7 @@ export async function getContact(contactId: string): Promise<ContactInfo | null>
     isBusiness: Boolean(c.business_connection),
     tags: (Array.isArray(c.tags) ? c.tags : [])
       .map((t) => (typeof t === "string" ? t : t?.name))
-      .filter((t): t is string => typeof t === "string"),
+      .filter((t): t is string => typeof t === "string" && t.length > 0),
   };
 }
 

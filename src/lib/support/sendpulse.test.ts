@@ -59,6 +59,14 @@ describe("getContact", () => {
       id: "c1", username: "Sam_T", firstName: "Sam", isBusiness: true, tags: ["country_UK/USA", "capital_under100"],
     });
   });
+
+  it("drops empty tag names", async () => {
+    mockFetch((url) => {
+      if (url.endsWith("/oauth/access_token")) return json({ access_token: "T", expires_in: 3600 });
+      return json({ data: { id: "c2", channel_data: {}, tags: [{ name: "" }, "", "intent_signals", { name: "exp_mid" }] } });
+    });
+    await expect(getContact("c2")).resolves.toMatchObject({ tags: ["intent_signals", "exp_mid"], username: null, firstName: "" });
+  });
 });
 
 describe("send", () => {
