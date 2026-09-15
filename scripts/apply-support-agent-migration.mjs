@@ -55,25 +55,51 @@ try {
   ok("a non-admin sees no settings row", seen === 0, `rows=${seen}`);
 
   await client.query("begin");
-  const admin = (await client.query("select id from public.profiles where is_admin limit 1")).rows[0];
-  if (!admin) {
-    ok("no admin profile to test with", false);
-  } else {
-    await client.query("set local role authenticated");
+  try {
     await client.query(
-      "select set_config('request.jwt.claims', json_build_object('sub', $1::uuid, 'role', 'authenticated')::text, true)",
-      [admin.id]
+      "insert into public.support_chats (contact_id, state) values ('__rls_proof__', 'auto')"
     );
-    const n = (await client.query("select count(*)::int n from public.support_settings")).rows[0].n;
-    ok("an admin can read support_settings", n === 1);
-    try {
-      await client.query("select count(*)::int from public.support_events");
-      ok("an admin can read support_events", true);
-    } catch {
-      ok("an admin can read support_events", false);
+    await client.query(
+      "insert into public.support_events (contact_id, kind) values ('__rls_proof__', 'skip')"
+    );
+
+    const admin = (await client.query("select id from public.profiles where is_admin limit 1")).rows[0];
+    if (!admin) {
+      ok("no admin profile to test with", false);
+    } else {
+      await client.query("set local role authenticated");
+      await client.query(
+        "select set_config('request.jwt.claims', json_build_object('sub', $1::uuid, 'role', 'authenticated')::text, true)",
+        [admin.id]
+      );
+      const settingsN = (await client.query("select count(*)::int n from public.support_settings")).rows[0].n;
+      ok("an admin can read support_settings", settingsN === 1);
+      const chatsN = (await client.query(
+        "select count(*)::int n from public.support_chats where contact_id = '__rls_proof__'"
+      )).rows[0].n;
+      ok("an admin can read support_chats", chatsN === 1);
+      const eventsN = (await client.query(
+        "select count(*)::int n from public.support_events where contact_id = '__rls_proof__'"
+      )).rows[0].n;
+      ok("an admin can read support_events", eventsN === 1);
+
+      await client.query(
+        `select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000000","role":"authenticated"}', true)`
+      );
+      const chatsN2 = (await client.query(
+        "select count(*)::int n from public.support_chats where contact_id = '__rls_proof__'"
+      )).rows[0].n;
+      ok("a non-admin cannot read support_chats", chatsN2 === 0, `rows=${chatsN2}`);
+      const eventsN2 = (await client.query(
+        "select count(*)::int n from public.support_events where contact_id = '__rls_proof__'"
+      )).rows[0].n;
+      ok("a non-admin cannot read support_events", eventsN2 === 0, `rows=${eventsN2}`);
     }
+  } catch (e) {
+    ok("admin/non-admin RLS proof", false, e.message);
+  } finally {
+    await client.query("rollback").catch(() => {});
   }
-  await client.query("rollback");
 
   const job = (await client.query("select schedule from cron.job where jobname = 'support-events-purge'")).rows[0];
   ok("purge job scheduled daily", job?.schedule === "30 0 * * *");
