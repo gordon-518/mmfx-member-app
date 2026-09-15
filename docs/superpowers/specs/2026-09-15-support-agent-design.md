@@ -82,6 +82,7 @@ Every kept flow that explains joining should end by pointing to `/upgrade` ($50 
 - **Send a flow link** in a reply. The member taps it, the bot opens and the flow runs with its buttons. Only links on the approved list can be sent (guardrail 4).
 - **Start a flow directly** with `POST /telegram/flows/run`, the same as "send flow" in the inbox. This works in bot chats only: SendPulse can't show buttons or quick replies in Telegram Business chats, so in @MM_3000 chats the agent sends the link instead.
 - Both are managed in `/admin/support` as `approved_flows`: label, flow ID and/or link, and when to use it. Only flows Gordon marks as current are listed.
+- **The flow link Gordon sends by hand is the bot itself: `https://t.me/marketmakers18bot`.** Tapping it opens @marketmakers18bot, where the Welcome and Join/SignUp flows take over. `approved_flows` is seeded with it. In @MM_3000 chats it's how the agent moves someone who wants to join into the bot, alongside `/upgrade`.
 
 ## Architecture
 
@@ -186,6 +187,7 @@ RLS for all three: admins may `SELECT`; writes are service-role only.
 | `src/app/admin/support/page.tsx` | Switch, fact-sheet editor, Needs-Amelia queue, activity log, today's numbers | db, server actions |
 | `src/components/AppShell.tsx` | Add "Support Agent" to `ADMIN_NAV` | — |
 | `src/app/api/cron/daily-stats/route.ts` | Add a Support block to the 9am Telegram DM: replies, handoffs, open Needs-Amelia chats, median response time | `support_events` |
+| `src/app/upgrade/DepositSubmitForm.tsx` | Copy only. Step 1 becomes "Once your top-up is in your trading account, send this so we can reach you about your deposit." so members message Admin Amelia only after funding (Gordon, 15 Sept). | — |
 
 The model is `claude-sonnet-5`, called with plain `fetch` like `src/lib/channel/draft.ts`. `SUPPORT_AGENT_MODEL` overrides it. The reply is a structured JSON decision; the implementation plan picks how, following the claude-api reference.
 
@@ -270,7 +272,7 @@ If a check fails, the agent redrafts once, passing the failure reasons. If the r
    - Turn off both **Standard reply** flows.
    - Change the ending of **Join/SignUp** ("Steps to Join MM Mentorship: USD500, register with Dupoin") to point to `/upgrade`.
    - Change the join steps in **TeamMM** ("Steps to Join Team MM: USD100, register with Dupoin") to point to `/upgrade`.
-   - Add the flow links you send by hand to `approved_flows` in `/admin/support`.
+   - Check the seeded bot link in `approved_flows` (`/admin/support`), and add any flow-specific links you use.
 
    Without these, the bot and the agent give members different answers.
 1. Build on branch `support-agent`, open a PR, merge and deploy. The switch is **off** by default.
