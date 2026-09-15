@@ -83,16 +83,20 @@ export default async function UpgradePage({
   const lifetimePlan = isLifetimePlan(access.profile?.lifetime_plan) ? access.profile.lifetime_plan : null;
 
   // conversion-fix 5.1 — the latest deposit submission decides whether the
-  // form or its review status shows (RLS: a user reads only their own).
+  // form or its review status shows.
   let latestSubmission: {
     status: "pending" | "verified" | "rejected";
     amount: number | string;
     reject_reason: string | null;
   } | null = null;
   if (access.profile && !isContact) {
+    // Filter to the viewer explicitly. RLS alone isn't enough: admins may read
+    // every submission (the review queue), so without this an admin's own
+    // /upgrade showed whoever submitted last.
     const { data } = await (await createClient())
       .from("deposit_submissions")
       .select("status, amount, reject_reason")
+      .eq("user_id", access.profile.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
