@@ -411,10 +411,14 @@ When this is picked back up, here's the case for it: the UK has the highest Trad
 
 ## Phase 7 — Measurement (ongoing from Phase 1)
 
-- [ ] **Tier cohort report:** 90-day cumulative deposits per acquired member, by entry tier. This is the metric that decides whether the ladder is working, not conversion rate.
-- [ ] **Daily Analysis viewers vs non-viewers**, conversion from Free to paid. If viewers convert *worse*, the free read is satisfying demand rather than creating it; hold back the PDF levels rather than pulling the read.
-- [ ] **14-day trial cohort** vs the 7-day baseline (4.17% vs 1.15%).
-- [ ] **Activation rate and TradingView connection rate**, week over week, against the Phase 4 target.
+- [x] **Tier cohort report:** 90-day cumulative deposits per acquired member, by entry tier. This is the metric that decides whether the ladder is working, not conversion rate.
+  **Built (15 Sept, `fn_admin_measurement`, on /stats):** today all 38 acquired members entered at Team MM, because the old verify minimum was $500, and 1 has passed 90 days (avg $501). The first Foundation and Desk cohorts start with 3.2's $50 minimum.
+- [x] **Daily Analysis viewers vs non-viewers**, conversion from Free to paid. If viewers convert *worse*, the free read is satisfying demand rather than creating it; hold back the PDF levels rather than pulling the read.
+  **Built:** too early to read; the Free cohort only starts on 10 Sept (1 viewer on 15 Sept).
+- [x] **14-day trial cohort** vs the 7-day baseline (4.17% vs 1.15%).
+  **Built:** on 15 Sept, the 7-day era converts **1.5% within 30 days** (16 of 1,042 matured signups; 3,098 in the era). The 14-day era has 92 signups and none has reached 30 days, so the first real comparison lands around 10 Oct.
+- [x] **Activation rate and TradingView connection rate**, week over week, against the Phase 4 target.
+  **Built:** the week of 7 Sept had 59 signups, **18.6%** connected TradingView within 48h against the 25% target, and 8.5% activated. Weekly rows appear as each signup week matures.
 
 ---
 

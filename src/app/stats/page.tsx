@@ -13,6 +13,8 @@ import {
 } from "@/lib/growth/metrics";
 import { fetchAllGrowthProfiles } from "@/lib/growth/profiles";
 import { summariseFunnel } from "@/lib/growth/funnel";
+import { shapeMeasurement } from "@/lib/growth/measurement";
+import { tierLabel } from "@/lib/tiers";
 
 // Admin-gated growth dashboard with a Daily/Weekly/Monthly/Yearly toggle
 // (?period=). Two metric families are handled differently:
@@ -295,6 +297,10 @@ export default async function GrowthPage({
   // call renders as zeros rather than breaking the dashboard.
   const { data: funnelRaw } = await supabase.rpc("fn_admin_funnel_stats", { p_days: 30 });
   const funnel = summariseFunnel(funnelRaw);
+
+  // conversion-fix Phase 7 — is the ladder working? One admin-only aggregate.
+  const { data: measurementRaw } = await supabase.rpc("fn_admin_measurement");
+  const m = shapeMeasurement(measurementRaw);
 
   // Flow metrics — re-derived live from raw profiles for the full history.
   const flow = bucketFlowMetrics(profiles, period);
@@ -603,6 +609,78 @@ export default async function GrowthPage({
             sub={`${funnel.notActivatedVerified} of ${Math.max(0, funnel.cohort - funnel.activated)} others`}
             delay={520}
           />
+        </div>
+
+        {/* conversion-fix Phase 7 — measurement */}
+        <h2 className="mt-10 font-display text-lg font-bold tracking-tight text-ink">
+          Measurement <span className="text-orange">·</span> is the ladder working?
+        </h2>
+        <p className="mt-1 text-[12px] text-subtle">
+          Cohorts need time: 90 days for tier deposits, 30 days for trial conversion. The event-based
+          views start on 10 Sep 2026. Grandfathered members are left out of every view.
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {m.tiers.map((t, i) => (
+            <Card
+              key={t.tier}
+              label={`Entry tier · ${tierLabel(t.tier)}`}
+              value={t.avgCum90 == null ? "—" : `$${Math.round(t.avgCum90).toLocaleString("en-US")}`}
+              sub={`avg deposits in 90 days · ${t.mature} of ${t.members} members matured${
+                t.medianCum90 != null ? ` · median $${Math.round(t.medianCum90).toLocaleString("en-US")}` : ""
+              }`}
+              delay={540 + i * 20}
+            />
+          ))}
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Card
+            label="Free → paid · Daily Analysis viewers"
+            value={`${m.split.viewersPct}%`}
+            sub={`${m.split.viewersConverted} of ${m.split.viewers} viewers · non-viewers ${m.split.othersPct}% (${m.split.othersConverted} of ${m.split.others})`}
+            delay={600}
+          />
+          {m.trials.map((t, i) => (
+            <Card
+              key={t.era}
+              label={`${t.era} trial · deposit within 30 days`}
+              value={t.rate30Pct == null ? "maturing" : `${t.rate30Pct}%`}
+              sub={
+                t.rate30Pct == null
+                  ? `${t.signups} signups, none 30 days old yet · ${t.convertedSoFar} deposited so far`
+                  : `${t.converted30} of ${t.mature} matured signups · ${t.signups} in the era`
+              }
+              delay={620 + i * 20}
+            />
+          ))}
+        </div>
+        <div className="rise mt-4 overflow-x-auto rounded-2xl border border-line bg-card p-5 shadow-soft" style={{ animationDelay: "660ms" }}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">
+            Weekly signups · TradingView and activation within 48h · Phase 4 target: TradingView 25%
+          </p>
+          {m.weekly.length === 0 ? (
+            <p className="mt-2 text-[13px] text-subtle">No signup week has matured yet.</p>
+          ) : (
+            <table className="mt-3 w-full min-w-[420px] text-left text-[13px]">
+              <thead className="text-[11px] uppercase tracking-wide text-faint">
+                <tr>
+                  <th className="py-1.5 pr-3 font-semibold">Week of</th>
+                  <th className="py-1.5 pr-3 font-semibold">Signups</th>
+                  <th className="py-1.5 pr-3 font-semibold">TradingView ≤48h</th>
+                  <th className="py-1.5 font-semibold">Activated ≤48h</th>
+                </tr>
+              </thead>
+              <tbody>
+                {m.weekly.map((w) => (
+                  <tr key={w.week} className="border-t border-line">
+                    <td className="py-1.5 pr-3 text-ink">{w.week}</td>
+                    <td className="py-1.5 pr-3 text-ink">{w.signups}</td>
+                    <td className={`py-1.5 pr-3 font-semibold ${w.tvPct >= 25 ? "text-ink" : "text-orange"}`}>{w.tvPct}%</td>
+                    <td className="py-1.5 text-ink">{w.activatedPct}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Point-in-time trends from snapshots */}
