@@ -49,7 +49,7 @@ const usd = (n: number) => `USD ${n.toLocaleString("en-US")}`;
 // verbatim, do not remove" block in src/app/upgrade/page.tsx (~lines 357-361).
 // Not exported there, and this file may only touch facts.ts/facts.test.ts, so
 // it's duplicated here — keep the two in sync by hand if that copy changes.
-const RISK_FOOTER = "Trading involves risk, including the possible loss of capital. No returns are guaranteed.";
+export const RISK_FOOTER = "Trading involves risk, including the possible loss of capital. No returns are guaranteed.";
 
 // Dupoin's country list, derived once from the shared source of truth
 // (brokerRegion.ts) so this text can never drift into a hand-copied list.
@@ -64,17 +64,40 @@ function stripHandle(h: string): string {
   return h.trim().replace(/^@+/, "");
 }
 
-/** "example.com" -> "https://example.com". A link that already has a scheme passes through. */
-function normalizeLink(link: string): string {
-  const trimmed = link.trim();
-  return /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+/**
+ * Today's date in Singapore time, as YYYY-MM-DD. Built from Intl parts
+ * rather than toLocaleDateString("en-CA", ...), so it never depends on a
+ * locale happening to format dates as YYYY-MM-DD — that's a locale
+ * convention, not a guarantee.
+ */
+function sgtDate(now: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Singapore", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/**
+ * Shared link normaliser: trims, strips trailing punctuation, and adds a
+ * "https://" scheme when one is missing. Returns null for anything that
+ * doesn't end up as an http(s) URL (e.g. "tg://resolve?domain=x"), so a
+ * non-web scheme never sneaks into the allow-list. Exported so the guard
+ * (Task 5) normalises draft URLs the exact same way as this fact sheet's
+ * allow.urls — otherwise a link could pass one normalisation and fail the
+ * other.
+ */
+export function normaliseUrl(u: string): string | null {
+  const trimmed = u.trim().replace(/[.,!?;:'"]+$/, "");
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  return /^https?:\/\//i.test(withScheme) ? withScheme : null;
 }
 
 export function buildFactSheet(s: SupportSettings, now: Date = new Date()): FactSheet {
   // The desk runs on Singapore time, so the bonus expiry is a Singapore
   // date, not UTC — comparing against now.toISOString() would flip the code
   // off up to 8 hours early for members west of SGT.
-  const sgtToday = now.toLocaleDateString("en-CA", { timeZone: "Asia/Singapore" }); // YYYY-MM-DD
+  const sgtToday = sgtDate(now);
   const trimmedBonusCode = s.bonus_code.trim() || null;
   const validExpiry = /^\d{4}-\d{2}-\d{2}$/.test(s.bonus_code_expires);
   const bonusCode = trimmedBonusCode && validExpiry && sgtToday <= s.bonus_code_expires ? trimmedBonusCode : null;
@@ -88,14 +111,21 @@ export function buildFactSheet(s: SupportSettings, now: Date = new Date()): Fact
 
   // Only flows with a real link are worth stating — starting a flow by id is
   // out of scope for this build. flow_id entries still count for allow.flowIds.
+  // A flow whose link normalises to null (e.g. a tg:// deep link) is skipped
+  // entirely rather than stated with a broken/rejected URL.
   const flowsWithLinks = s.approved_flows
-    .map((f) => ({ ...f, link: f.link?.trim() ? normalizeLink(f.link) : undefined }))
+    .map((f) => ({ ...f, link: f.link?.trim() ? normaliseUrl(f.link) ?? undefined : undefined }))
     .filter((f): f is typeof f & { link: string } => Boolean(f.link));
   const flows = flowsWithLinks.map((f) => `- ${f.label}: ${f.link}. Use when ${f.use_when}.`).join("\n");
 
+  // The welcome bot's handle, derived from BOT_LINK rather than hard-coded,
+  // so this can never drift from the actual bot the "HOW TO JOIN" flow opens.
+  const botHandle = (BOT_LINK.split("/").pop() ?? "").toLowerCase().replace(/^@+/, "");
+
   // Official accounts: normalise for display (trim/strip @, keep case) and
   // separately for the allow-list (also lowercased). The admin handle and the
-  // welcome bot are always allowed and always shown, whatever settings say.
+  // welcome bot are always allowed, whatever settings say — the bot itself is
+  // not added to accountsForText, so it's always allowed but not always shown.
   const cleanedAccounts = s.official_accounts
     .map((a) => ({ handle: stripHandle(a.handle), label: a.label }))
     .filter((a) => a.handle.length > 0);
@@ -112,7 +142,7 @@ export function buildFactSheet(s: SupportSettings, now: Date = new Date()): Fact
     `- Desk, from $${TIER_THRESHOLDS.desk}: adds ${featuresFor("desk")}.`,
     `- Team MM, from $${TIER_THRESHOLDS.team}: adds ${featuresFor("team")}.`,
     `RISK: ${RISK_FOOTER} Never tell anyone their money is safe or protected.`,
-    `TRIAL: ${TRIAL_DAYS} days of Desk-level access for new signups — everything except ${featuresFor("team")}. A deposit that reaches Team MM ($${TIER_THRESHOLDS.team}) during the trial unlocks it immediately; otherwise trial access continues until the trial ends, then the member moves to the tier their verified deposits reached (Free below $${TIER_THRESHOLDS.foundation}).`,
+    `TRIAL: ${TRIAL_DAYS} days of Desk-level access for new signups — everything except ${featuresFor("team")}. If their verified deposits add up to Team MM ($${TIER_THRESHOLDS.team}) during the trial, Team MM opens as soon as the deposit is approved. Otherwise trial access continues until the trial ends, then they move to the tier their verified deposits reached (Free below $${TIER_THRESHOLDS.foundation}).`,
     `US AND UK: partner brokers can't take them. Two lifetime plans, paid once: ${plans}. Payment is arranged in chat on the upgrade page.`,
     `BROKERS: Dupoin for exactly these countries: ${DUPOIN_COUNTRY_NAMES}. US and UK: the lifetime plans (see US AND UK). Every other country: Octa or Elev8. The upgrade page picks automatically from the member's country. If the member's country isn't known, send the upgrade page and never guess.`,
     `HOW TO JOIN, always in this order: 1) open an account through the upgrade page (Octa: ${OCTA_SIGNUP}, Dupoin: ${DUPOIN_SIGNUP}). Send the direct broker link only when the member's country is known (they said it, or a country tag shows it) and matches that broker; otherwise send the upgrade page. 2) top up from $${TIER_THRESHOLDS.foundation}; 3) only after the top-up, message ${ADMIN_DISPLAY_NAME} (@${ADMIN_TELEGRAM_HANDLE}) with the reference code shown on the upgrade page (MM- plus 6 characters); 4) submit the deposit details on the upgrade page (broker, account number, amount, screenshot, TradingView and Telegram usernames); 5) the team checks it and emails them when it's approved. Never tell anyone to message ${ADMIN_DISPLAY_NAME} before topping up.`,
@@ -134,7 +164,7 @@ export function buildFactSheet(s: SupportSettings, now: Date = new Date()): Fact
       amounts: new Set<number>([...Object.values(TIER_THRESHOLDS), ...LIFETIME_PLAN_ORDER.map((p) => LIFETIME_PLANS[p].priceUsd)]),
       urls,
       appPaths: APP_PATHS,
-      handles: new Set([...cleanedAccounts.map((a) => a.handle.toLowerCase()), adminHandleLower, "marketmakers18bot"]),
+      handles: new Set([...cleanedAccounts.map((a) => a.handle.toLowerCase()), adminHandleLower, botHandle]),
       ibNumber: IB_NUMBER,
       bonusCode,
       flowIds: new Set(s.approved_flows.map((f) => f.flow_id).filter((x): x is string => Boolean(x))),

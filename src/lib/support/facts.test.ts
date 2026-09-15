@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { buildFactSheet, TRIAL_DAYS } from "./facts";
+import { buildFactSheet, TRIAL_DAYS, RISK_FOOTER, normaliseUrl } from "./facts";
 import type { SupportSettings } from "./types";
 import { TIER_THRESHOLDS } from "@/lib/tiers";
 import { LIFETIME_PLANS } from "@/lib/lifetimePlans";
 import { DUPOIN_COUNTRIES } from "@/lib/brokerRegion";
-import { SWITCH_REASON } from "@/lib/brokerLinks";
+import { BOT_LINK, SWITCH_REASON } from "@/lib/brokerLinks";
 
 const settings: SupportSettings = {
   enabled: true, bonus_code: "TeamMM001", bonus_code_expires: "2026-12-15",
@@ -50,6 +50,11 @@ describe("buildFactSheet", () => {
     expect([...f.allow.handles].sort()).toEqual(["marketmakers18bot", "mm_3000", "mmfx_boss"]);
   });
 
+  it("derives the allowed bot handle from BOT_LINK", () => {
+    const expectedHandle = BOT_LINK.split("/").pop()!.toLowerCase().replace(/^@+/, "");
+    expect(f.allow.handles.has(expectedHandle)).toBe(true);
+  });
+
   it("always allows the admin and bot handles, and normalises messy handles", () => {
     const noAccounts = buildFactSheet({ ...settings, official_accounts: [] }, NOW);
     expect(noAccounts.allow.handles.has("mm_3000")).toBe(true);
@@ -87,6 +92,20 @@ describe("buildFactSheet", () => {
     expect(f.text).not.toContain("money stays theirs");
   });
 
+  it("states that Team MM opens on deposit approval, not on the deposit itself", () => {
+    const trialLine = f.text.split("\n").find((l) => l.startsWith("TRIAL:"));
+    expect(trialLine).toBeDefined();
+    expect(trialLine).toContain("days of Desk-level access");
+    expect(trialLine).toContain(`($${TIER_THRESHOLDS.team})`);
+    expect(trialLine).toContain("approved");
+    expect(trialLine).toContain(`Free below $${TIER_THRESHOLDS.foundation}`);
+    expect(trialLine).not.toContain("immediately");
+  });
+
+  it("exports RISK_FOOTER and uses it verbatim in the RISK line", () => {
+    expect(f.text).toContain(RISK_FOOTER);
+  });
+
   it("trims the bonus code and checks its expiry against Singapore time, not UTC", () => {
     expect(buildFactSheet(settings, new Date("2026-12-15T15:59:00Z")).allow.bonusCode).toBe("TeamMM001");
     expect(buildFactSheet(settings, new Date("2026-12-15T16:01:00Z")).allow.bonusCode).toBeNull();
@@ -121,5 +140,19 @@ describe("buildFactSheet", () => {
   it("lists each lifetime plan's first include", () => {
     expect(f.text).toContain(LIFETIME_PLANS.team.includes[0]);
     expect(f.text).toContain(LIFETIME_PLANS.team_mentorship.includes[0]);
+  });
+});
+
+describe("normaliseUrl", () => {
+  it("strips trailing punctuation and adds a missing scheme", () => {
+    expect(normaliseUrl("t.me/foo/.")).toBe("https://t.me/foo/");
+  });
+
+  it("trims surrounding whitespace and trailing punctuation on a link that already has a scheme", () => {
+    expect(normaliseUrl(" https://x.com/a, ")).toBe("https://x.com/a");
+  });
+
+  it("rejects a non-http(s) scheme", () => {
+    expect(normaliseUrl("tg://resolve?domain=x")).toBeNull();
   });
 });
