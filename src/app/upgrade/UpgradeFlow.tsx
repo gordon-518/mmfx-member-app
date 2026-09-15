@@ -7,17 +7,15 @@ import {
 } from "@/components/icons";
 import { logUpgradeClick } from "./actions";
 import { ADMIN_TELEGRAM_URL } from "@/lib/depositRef";
+import {
+  OCTA_SIGNUP, DUPOIN_SIGNUP, OCTA_CHANGE_IB, ELEV8_CHANGE_IB, IB_NUMBER, SWITCH_REASON,
+} from "@/lib/brokerLinks";
+import type { Region } from "@/lib/brokerRegion";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
-export type Region = "octa" | "dupoin" | "contact";
+export type { Region } from "@/lib/brokerRegion";
 
 // --- Funnel links (see memory mmfx-broker-funnel) ----------------------------
-const OCTA_SIGNUP = "https://clickto.trade/bT8tAZDKvQY?ib=47807426";
-const DUPOIN_SIGNUP = "https://dupoin.me/ett5od077";
-const OCTA_CHANGE_IB = "https://my.octabroker.com/change-partner-request/";
-const ELEV8_CHANGE_IB = "https://my.elev8.com/change-partner-request/";
-const IB_NUMBER = "47807426";
-const SWITCH_REASON = "They are assisting me in my trading with signals and analysis.";
 const WHATSAPP_URL =
   "https://wa.me/6588035858?text=Hi%20MMFX%2C%20requesting%20upgrade.%20Broker%3A%20%5BOcta%2FDupoin%5D%20Account%23%3A%20%5Bnumber%5D%20Tier%3A%20%5BTeam%20MM%2FMentorship%5D";
 const TELEGRAM_SWITCH = ADMIN_TELEGRAM_URL;
