@@ -14,7 +14,8 @@ import { LifetimePlans } from "./LifetimePlans";
 import { isLifetimePlan, LIFETIME_PLANS } from "@/lib/lifetimePlans";
 import { createClient } from "@/lib/supabase/server";
 import { nextTierFor, tierLabel } from "@/lib/tiers";
-import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_URL, adminDmMessage, depositRef } from "@/lib/depositRef";
+import { depositRef } from "@/lib/depositRef";
+import { AmeliaLastStep } from "./AmeliaLastStep";
 
 // Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
 // a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
@@ -108,6 +109,7 @@ export default async function UpgradePage({
     status: "pending" | "verified" | "rejected";
     amount: number | string;
     reject_reason: string | null;
+    admin_dm_clicked_at: string | null;
   } | null = null;
   if (access.profile && !isContact) {
     // Filter to the viewer explicitly. RLS alone isn't enough: admins may read
@@ -115,7 +117,7 @@ export default async function UpgradePage({
     // /upgrade showed whoever submitted last.
     const { data } = await (await createClient())
       .from("deposit_submissions")
-      .select("status, amount, reject_reason")
+      .select("status, amount, reject_reason, admin_dm_clicked_at")
       .eq("user_id", access.profile.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -316,26 +318,15 @@ export default async function UpgradePage({
                 access on. Tiers count every deposit you&apos;ve made, so a top-up moves you up.
               </p>
               <div className="mt-6">
-                {latestSubmission?.status === "pending" ? (
-                  <div className="rounded-xl border border-orange/25 bg-accent-soft/40 px-4 py-3 text-[14px] text-ink">
-                    <p>
-                      {`Your $${Number(latestSubmission.amount).toLocaleString("en-US")} deposit is waiting for review. We'll switch your access on as soon as it's verified.`}
-                    </p>
-                    {refCode && (
-                      <p className="mt-2 text-[13px] text-subtle">
-                        Haven&apos;t messaged us yet? Our admin can&apos;t message you first, so send{" "}
-                        <a
-                          href={`${ADMIN_TELEGRAM_URL}?text=${encodeURIComponent(adminDmMessage(refCode))}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-semibold text-orange hover:text-accent-ink"
-                        >
-                          {ADMIN_DISPLAY_NAME} ↗
-                        </a>{" "}
-                        your reference <span className="font-mono font-semibold text-ink">{refCode}</span> on Telegram.
-                      </p>
-                    )}
-                  </div>
+                {latestSubmission?.status === "pending" && refCode ? (
+                  // The last step after submitting: message Admin Amelia. Stays
+                  // here until the deposit is reviewed.
+                  <AmeliaLastStep
+                    refCode={refCode}
+                    amount={Number(latestSubmission.amount)}
+                    isTopUp={isPaid}
+                    clicked={latestSubmission.admin_dm_clicked_at !== null}
+                  />
                 ) : (
                   <>
                     {latestSubmission?.status === "rejected" && (

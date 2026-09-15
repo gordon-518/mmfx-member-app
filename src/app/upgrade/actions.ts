@@ -109,3 +109,17 @@ export async function submitDeposit(
   revalidatePath("/upgrade");
   return { ok: true, amount };
 }
+
+// The last step after submitting: the member clicked "Message Admin Amelia".
+// Stamps their own pending submission, which stops the 24-hour reminder email
+// (fn_mark_submission_dm_clicked takes no arguments, so it can't mark anyone
+// else's). Fire-and-forget from the browser; never throws.
+export async function markAdminDmClicked(): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("fn_mark_submission_dm_clicked");
+    if (error) console.error("[deposit-dm] mark clicked failed:", error.message);
+  } catch (e) {
+    console.error("[deposit-dm] mark clicked threw:", e);
+  }
+}

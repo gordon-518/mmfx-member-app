@@ -15,4 +15,10 @@ describe("depositRef", () => {
     expect(adminDmMessage("MM-ABC123")).toContain("MM-ABC123");
     expect(ADMIN_TELEGRAM_URL).toBe("https://t.me/MM_3000");
   });
+
+  it("includes the amount when it's known", () => {
+    expect(adminDmMessage("MM-ABC123", 1250)).toBe(
+      "Hi Amelia, I've just submitted my $1,250 deposit on the MMFX app. My reference is MM-ABC123."
+    );
+  });
 });
