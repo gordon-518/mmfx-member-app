@@ -13,6 +13,7 @@ import { logEventAfter } from "@/lib/events";
 import { tierFor, tierLabel, type MemberTier, type TierSnapshot } from "@/lib/tiers";
 import { sendEmail } from "@/lib/sendpulse";
 import { depositVerifiedEmail, depositRejectedEmail } from "@/lib/depositEmails";
+import { parseReviewAmount } from "@/lib/depositReview";
 import { isLifetimePlan, LIFETIME_PLANS, lifetimePrice } from "@/lib/lifetimePlans";
 
 // Fire-and-forget TV sync after any admin status change. Failures are logged
@@ -440,7 +441,8 @@ export async function reviewSubmission(formData: FormData) {
   const ibConfirmed = formData.get("ib_confirmed") === "on";
   const filters = filterParams(formData);
 
-  if (!submissionId || (decision !== "verify" && decision !== "reject")) {
+  // verify | reject | close (close: already recorded another way; 15 Sep).
+  if (!submissionId || (decision !== "verify" && decision !== "reject" && decision !== "close")) {
     backTo({ ...filters, error: "Unknown review action" });
   }
 
@@ -463,13 +465,29 @@ export async function reviewSubmission(formData: FormData) {
     .single();
   const targetEmail = (before?.email as string | undefined) ?? "";
 
+  // The queue's amount box: what the broker actually shows, which can differ
+  // from what the member typed. Blank means the submitted amount.
+  let verifiedAmount = amount;
+  if (decision === "verify") {
+    const parsed = parseReviewAmount(formData.get("amount") as string | null, amount);
+    if (!parsed.ok) backTo({ ...filters, error: parsed.error, target: targetEmail });
+    else verifiedAmount = parsed.amount;
+  }
+
   const { error } = await supabase.rpc("fn_review_deposit_submission", {
     p_id: submissionId,
     p_action: decision,
-    p_reason: decision === "reject" ? reason : null,
+    p_reason: decision === "verify" ? null : reason || null,
     p_ib_confirmed: ibConfirmed,
+    p_amount: decision === "verify" ? verifiedAmount : null,
   });
   if (error) backTo({ ...filters, error: error.message, target: targetEmail });
+
+  // Close: no money added, no email, nothing for the member.
+  if (decision === "close") {
+    revalidatePath("/admin");
+    backTo({ ...filters, ok: `Closed ${targetEmail}'s $${amount} submission. Nothing added, no email sent`, target: targetEmail });
+  }
 
   if (decision === "reject") {
     if (targetEmail) {
@@ -490,7 +508,7 @@ export async function reviewSubmission(formData: FormData) {
   const { isFirstDeposit, tierAfter, cumulative } = await afterVerify(supabase, {
     targetUserId,
     targetEmail,
-    amount,
+    amount: verifiedAmount,
     broker,
     before,
     after,
@@ -499,7 +517,7 @@ export async function reviewSubmission(formData: FormData) {
   if (targetEmail) {
     const mail = depositVerifiedEmail({
       name: (before?.full_name as string | null) ?? null,
-      amount,
+      amount: verifiedAmount,
       cumulative,
       tier: tierAfter,
       topUp: before?.account_status === "member_active",
@@ -511,9 +529,11 @@ export async function reviewSubmission(formData: FormData) {
   revalidatePath("/admin");
   backTo({
     ...filters,
-    ok: isFirstDeposit
-      ? `Verified — ${targetEmail} is now a ${tierLabel(tierAfter)} member ($${cumulative})`
-      : `Top-up verified — ${targetEmail}: $${cumulative} cumulative, ${tierLabel(tierAfter)}`,
+    ok:
+      (isFirstDeposit
+        ? `Verified — ${targetEmail} is now a ${tierLabel(tierAfter)} member ($${cumulative})`
+        : `Top-up verified — ${targetEmail}: $${cumulative} cumulative, ${tierLabel(tierAfter)}`) +
+      (verifiedAmount !== amount ? ` · verified as $${verifiedAmount} (they submitted $${amount})` : ""),
     target: targetEmail,
   });
 }

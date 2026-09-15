@@ -106,7 +106,7 @@ export default async function UpgradePage({
   // The code the member sends @MM_3000 so the admin can match the DM.
   const refCode = access.profile ? depositRef(access.profile.id) : null;
   let latestSubmission: {
-    status: "pending" | "verified" | "rejected";
+    status: "pending" | "verified" | "rejected" | "closed";
     amount: number | string;
     reject_reason: string | null;
     admin_dm_clicked_at: string | null;

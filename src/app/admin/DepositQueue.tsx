@@ -2,8 +2,11 @@ import { reviewSubmission } from "./actions";
 
 // The deposit review queue (conversion-fix 5.2). Pending submissions, oldest
 // first, each with a short-lived signed link to its proof. Verify runs the
-// Phase 3 rules through fn_review_deposit_submission -> fn_verify_deposit;
-// Reject needs a reason, which the member sees on /upgrade.
+// Phase 3 rules through fn_review_deposit_submission -> fn_verify_deposit, at
+// the amount in the box (pre-filled with what the member typed; change it to
+// what the broker shows). Reject needs a reason, which the member sees on
+// /upgrade. Close is for a deposit already recorded another way: no money is
+// added, no email is sent and the member sees nothing (15 Sep).
 
 export interface QueueRow {
   id: string;
@@ -88,6 +91,18 @@ export function DepositQueue({ rows, hiddenFilters }: { rows: QueueRow[]; hidden
                   <input type="hidden" name="submission_id" value={r.id} />
                   <input type="hidden" name="decision" value="verify" />
                   {hiddenFilters}
+                  <label className="flex items-center gap-1 text-subtle" title="Change it to what the broker shows, if different">
+                    $
+                    <input
+                      name="amount"
+                      type="number"
+                      min="50"
+                      step="0.01"
+                      defaultValue={r.amount}
+                      aria-label="Amount to verify"
+                      className={`w-24 ${INPUT}`}
+                    />
+                  </label>
                   <label className="flex items-center gap-1 text-subtle">
                     <input name="ib_confirmed" type="checkbox" className="accent-orange" /> IB confirmed
                   </label>
@@ -110,7 +125,23 @@ export function DepositQueue({ rows, hiddenFilters }: { rows: QueueRow[]; hidden
                     Reject
                   </button>
                 </form>
+                <form action={reviewSubmission} className="flex items-center">
+                  <input type="hidden" name="submission_id" value={r.id} />
+                  <input type="hidden" name="decision" value="close" />
+                  {hiddenFilters}
+                  <button
+                    type="submit"
+                    title="Already recorded another way: adds no money, sends no email, the member sees nothing"
+                    className="cursor-pointer rounded-lg border border-line px-3 py-1.5 font-medium text-faint transition-colors hover:border-orange/40 hover:text-accent-ink"
+                  >
+                    Close · already recorded
+                  </button>
+                </form>
               </div>
+              <p className="mt-1.5 text-[11.5px] text-faint">
+                Verify adds the amount in the box to their total (change it if the broker shows a different figure).
+                Close is for a deposit you&apos;ve already recorded by hand: nothing is added and they get no email.
+              </p>
             </li>
           ))}
         </ul>
