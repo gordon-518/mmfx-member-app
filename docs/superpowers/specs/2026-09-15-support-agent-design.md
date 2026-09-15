@@ -15,7 +15,7 @@ The 15 Sept study of 102,634 messages found 6,362 manual inbox replies, 62% of t
 
 ## Non-goals
 
-- Editing Amelia's saved replies or the bot's flows inside SendPulse. That's dashboard work, but one flow fix is a go-live prerequisite (see Rollout).
+- Building or rewriting SendPulse flows. That's dashboard work, but three flow changes are go-live prerequisites (see SendPulse flows and Rollout).
 - Verifying deposits or changing anyone's access. The agent reads status; it never writes it.
 - Starting conversations. It only ever replies.
 
@@ -27,6 +27,7 @@ The 15 Sept study of 102,634 messages found 6,362 manual inbox replies, 62% of t
 | Launch | **Live on deploy.** Safety comes from handoff rules, code guardrails, caps and an on/off switch. |
 | Amelia's-account chats (@MM_3000, Telegram Business) | **Included.** Every reply there starts with `MMFX Assistant:`. |
 | Architecture | **Agent inside the member app**, not SendPulse's built-in AI and not a hybrid. |
+| SendPulse flows | **Keep the entry, system, questionnaire and broadcast flows; turn off the catch-all.** The agent answers questions, and can send or start approved flows. |
 
 ## Fact sheet
 
@@ -62,6 +63,25 @@ These are the only facts the agent may state.
 - **Notes:** free text the agent may use.
 
 **Retired:** the Google Forms. `/admin` is the source of truth for deposit review.
+
+## SendPulse flows and the agent
+
+Decided 15 Sept: the flows keep doing what free text can't, and the agent answers the questions. Flow and message mapping comes from each message's `chain_id`, which is its flow's ID.
+
+| Flow (SendPulse) | Status | Why |
+|---|---|---|
+| Welcome message (`/start`), Privacy policy, Unsubscription | **Keep** | Telegram system and compliance commands |
+| Join/SignUp: the questionnaire (capital, country, experience, goal) | **Keep, edit its ending** | Its tap-button answers tag the member (`capital_*`, `country_*`, `exp_*`, `intent_*`), and the agent uses those tags. It currently ends on "Steps to Join MM Mentorship: minimum deposit USD500, register with Dupoin" (82 sends in the last 30 days). |
+| TeamMM, MM Mentorship SignUp, Mentorship Waitlist | **Keep, edit any join steps** | Ad and link entry points that keep attribution. TeamMM still contains "Steps to Join Team MM: minimum deposit USD100, register with Dupoin" (2,205 sends, 4 in the last 30 days). |
+| WeeklyReport, MM System 1hr Follow-up | **Keep** | Broadcasts and scheduled follow-ups |
+| Standard reply (both) | **Turn off** | The catch-all. The agent replaces it, and while it's on, the agent stands down every time it fires (Architecture, step 2). |
+
+Every kept flow that explains joining should end by pointing to `/upgrade` ($50 / $200 / $500) instead of listing steps.
+
+**How the agent uses flows**, the way Amelia does by hand:
+- **Send a flow link** in a reply. The member taps it, the bot opens and the flow runs with its buttons. Only links on the approved list can be sent (guardrail 4).
+- **Start a flow directly** with `POST /telegram/flows/run`, the same as "send flow" in the inbox. This works in bot chats only: SendPulse can't show buttons or quick replies in Telegram Business chats, so in @MM_3000 chats the agent sends the link instead.
+- Both are managed in `/admin/support` as `approved_flows`: label, flow ID and/or link, and when to use it. Only flows Gordon marks as current are listed.
 
 ## Architecture
 
@@ -115,6 +135,7 @@ RLS for all three: admins may `SELECT`; writes are service-role only.
 | `office_hours` | text |
 | `trade_cadence` | text |
 | `notes` | text |
+| `approved_flows` | jsonb: `[{label, flow_id?, link?, use_when}]`, managed in `/admin/support` |
 | `updated_by` | uuid |
 | `updated_at` | timestamptz |
 
@@ -156,7 +177,7 @@ RLS for all three: admins may `SELECT`; writes are service-role only.
 | Unit | Responsibility | Depends on |
 |---|---|---|
 | `src/app/api/support/webhook/route.ts` | Check the secret; record the event; dedupe; return 200; run `run` in `after()`. Also handles `outgoing_message`, for the quiet period. | `run`, db |
-| `src/lib/support/sendpulse.ts` | Token cache; `getMessages` (paged with `skip=`, since `page=` is ignored), `getContact`, `send`, `setTag`/`deleteTag`, `setPauseAutomation`/`deletePauseAutomation`, `openChat` | SendPulse API |
+| `src/lib/support/sendpulse.ts` | Token cache; `getMessages` (paged with `skip=`, since `page=` is ignored), `getContact`, `send`, `setTag`/`deleteTag`, `setPauseAutomation`/`deletePauseAutomation`, `openChat`, `runFlow` | SendPulse API |
 | `src/lib/support/facts.ts` | Build the fact sheet from code constants plus `support_settings`, and the guard's allowlist | tiers, features, lifetimePlans, UpgradeFlow constants, depositRef |
 | `src/lib/support/member.ts` | Reference code or Telegram handle → member → `{tier, trialEndsAt, latestSubmission}`, on an exact single match only | db |
 | `src/lib/support/agent.ts` | Prompt and Claude call; returns `{action: reply \| handoff, topic, confidence, reply, reason}` | Claude API |
@@ -175,7 +196,7 @@ A draft fails any of these checks:
 1. **Money amounts.** Every currency amount must be on the allowlist (tier thresholds and plan prices from code), **or** appear in the member's own last 15 messages.
 2. **IB numbers.** Any 6–9 digit IB-style number must be `47807426`.
 3. **Bonus codes.** Any bonus code must be the current one, and none after its expiry date.
-4. **Links.** Every URL must be on the allowlist: the `app.marketmakersfx.net` paths above and the broker signup and change-partner links from `UpgradeFlow.tsx`.
+4. **Links.** Every URL must be on the allowlist: the `app.marketmakersfx.net` paths above, the broker signup and change-partner links from `UpgradeFlow.tsx`, and the flow links in `approved_flows`. Only approved flow IDs may be started.
 5. **@handles.** Only the official accounts.
 6. **Profit language.** Nothing like "guaranteed", "profit", "returns", "printing", "make money", "risk-free" or "double".
 7. **Deposit claims.** It may not say a deposit is received, approved or verified unless `member.ts` returned a matching `verified` submission.
@@ -245,7 +266,13 @@ If a check fails, the agent redrafts once, passing the failure reasons. If the r
 
 ## Rollout
 
-0. **Prerequisite (Gordon, in SendPulse).** Update the join flows before switching the agent on. "Steps to Join Team MM" says minimum **USD100** and "Register with Dupoin" (1,680 sends), and "Steps to Join MM Mentorship" says **USD500**. Both contradict the live tiers, so the bot and the agent would give members different answers. Point both to `/upgrade` ($50 / $200 / $500).
+0. **Prerequisite (Gordon, in SendPulse), before switching the agent on:**
+   - Turn off both **Standard reply** flows.
+   - Change the ending of **Join/SignUp** ("Steps to Join MM Mentorship: USD500, register with Dupoin") to point to `/upgrade`.
+   - Change the join steps in **TeamMM** ("Steps to Join Team MM: USD100, register with Dupoin") to point to `/upgrade`.
+   - Add the flow links you send by hand to `approved_flows` in `/admin/support`.
+
+   Without these, the bot and the agent give members different answers.
 1. Build on branch `support-agent`, open a PR, merge and deploy. The switch is **off** by default.
 2. Apply the migration to prod. Set `SUPPORT_WEBHOOK_SECRET`, `SUPPORT_PING_CHAT_ID` and, optionally, `SUPPORT_AGENT_MODEL` in Vercel.
 3. **Gordon** adds the webhook in SendPulse: Bot Settings → Webhooks, events `incoming_message` and `outgoing_message`, pointing at the URL with the key.
@@ -255,5 +282,5 @@ If a check fails, the agent redrafts once, passing the failure reasons. If the r
 ## To verify on day 1 (SendPulse doesn't document these)
 
 - **Does `incoming_message` fire for Telegram Business chats?** If not, @MM_3000 chats stay manual until there's a workaround (SendPulse keyword flows, or Telegram's own business-bot updates).
-- **Do Amelia's replies from her phone produce `outgoing_message`?** If not, the quiet period only covers replies sent from the SendPulse inbox. Tell her.
+- **Do Amelia's replies from her phone produce `outgoing_message`?** Probably yes. Her template replies appear in SendPulse's history as outgoing messages carrying a Telegram `message_id`, which suggests they're synced from her phone. Confirm it live. If not, the quiet period only covers replies sent from the SendPulse inbox.
 - **What's in the webhook payload?** Especially whether there's a message id, which decides the `dedupe_key` inputs.
