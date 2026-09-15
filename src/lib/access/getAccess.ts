@@ -7,7 +7,7 @@ import {
   type AccessTier,
   type AccountStatus,
 } from "@/lib/trial/status";
-import { tierFor, type MemberTier } from "@/lib/tiers";
+import { accessTierFor, tierFor, type MemberTier } from "@/lib/tiers";
 
 // The single server-side access resolver. Every gated surface derives its
 // view of the user from this — never from ad-hoc per-page checks.
@@ -47,8 +47,12 @@ export type Access =
       /** Days left on the trial clock, from the SAME instant as tier. */
       daysLeft: number;
       /** The tier ladder (conversion-fix 3.3): what the feature map gates on.
-       *  `tier` above is the coarse Full/Limited view of the same state. */
+       *  Includes the early-depositor trial rule (accessTierFor). `tier` above
+       *  is the coarse Full/Limited view of the same state. */
       memberTier: MemberTier;
+      /** What their deposits (or plan) have earned, ignoring any running trial:
+       *  for labels and upgrade maths. */
+      earnedTier: MemberTier;
     };
 
 /**
@@ -71,7 +75,7 @@ export async function getAccess(): Promise<Access> {
   );
 
   if (error || !profile) {
-    return { signedIn: true, profile: null, tier: "Limited", daysLeft: 0, memberTier: "free" };
+    return { signedIn: true, profile: null, tier: "Limited", daysLeft: 0, memberTier: "free", earnedTier: "free" };
   }
 
   // One instant for both derivations — tier and countdown can never disagree.
@@ -82,7 +86,8 @@ export async function getAccess(): Promise<Access> {
     profile: row,
     tier: accessTier(row, now),
     daysLeft: daysRemaining(row.trial_ends_at, now),
-    memberTier: tierFor(row, now),
+    memberTier: accessTierFor(row, now),
+    earnedTier: tierFor(row, now),
   };
 }
 

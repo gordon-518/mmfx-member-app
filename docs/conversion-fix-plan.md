@@ -331,6 +331,21 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 
 ---
 
+### Added 15 Sept (Gordon)
+
+- [x] **Trial fairness for early depositors.** A trial user who deposits (say $50) keeps full trial access until the trial ends, then drops to the tier their deposits reached. `fn_verify_deposit` keeps a still-running trial clock (`20260915000004_trial_fairness.sql`, applied to prod and proved as a real admin in a rolled-back scenario: the clock survives a $50 verify on a running trial, and an expired trial's clock is still cleared). `accessTierFor()` in `src/lib/tiers.ts` (tested) gives the higher of the earned tier and trial access while the clock runs. `getAccess` exposes `memberTier`, which the gates use, and `earnedTier`, which labels and upgrade maths use.
+- [x] **`/upgrade` redesign, inspired by Higgsfield's pricing page.** Broker regions get:
+  - outcome-first tier cards: a persona line, what the tier adds, "stays in your own trading account", every paid feature listed with the missing ones greyed as "from <tier>", and a "Most complete" badge on Team MM
+  - a deposit slider that shows the tier and what opens (with the top-up for members)
+  - a two-question plan finder that uses the Know Your Style archetype
+  - a comparison grid generated from the access map
+  - an FAQ
+  - a real trial-countdown banner, never a manufactured one
+
+  The content lives in `src/lib/upgradeContent.ts` (tested, compliance-checked). The US/UK path is unchanged.
+
+---
+
 ## Phase 4 — Guided onboarding
 
 *1–2 weeks. Can run alongside Phase 3; depends on Phases 1 and 2.*
