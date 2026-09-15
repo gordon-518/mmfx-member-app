@@ -3,6 +3,7 @@
 // they say what the tier opens, never what it earns.
 
 import { tierLabel, type MemberTier } from "@/lib/tiers";
+import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_URL, adminDmMessage } from "@/lib/depositRef";
 
 export interface DepositEmail {
   subject: string;
@@ -46,6 +47,30 @@ export function depositVerifiedEmail(opts: {
     html: wrap(
       `<p>${esc(hi)}</p><p>Your <b>${esc(usd(opts.amount))}</b> ${what} is verified. You're on <b>${esc(tier)}</b>, with ${esc(usd(opts.cumulative))} in deposits so far, and your desk is open now.</p>` +
         `<p><a href="${APP}/dashboard" style="color:#ea580c;font-weight:600">Open your desk →</a></p><p>— Don, Market Makers FX</p>`
+    ),
+  };
+}
+
+// The 24-hour nudge (Gordon, 15 Sep): the submission is pending and the member
+// hasn't clicked "Message Admin Amelia". Sent once, by the deposit-dm-reminder cron.
+export function depositDmReminderEmail(opts: { name: string | null; amount: number; ref: string }): DepositEmail {
+  const hi = opts.name ? `Hi ${opts.name.split(/\s+/)[0]},` : "Hi,";
+  const chat = `${ADMIN_TELEGRAM_URL}?text=${encodeURIComponent(adminDmMessage(opts.ref, opts.amount))}`;
+  const why = `Our admin can't message you first, so it's how we reach you if anything about your deposit needs checking.`;
+  const lines = [
+    hi,
+    `Your ${usd(opts.amount)} deposit is in for review. One step is left: send ${ADMIN_DISPLAY_NAME} a message on Telegram. ${why}`,
+    `Message ${ADMIN_DISPLAY_NAME}: ${chat}`,
+    `Your reference is ${opts.ref}. It's already in the message.`,
+    "— Don, Market Makers FX",
+  ];
+  return {
+    subject: `One last step for your ${usd(opts.amount)} deposit`,
+    text: lines.join("\n\n") + "\n\nTrading involves risk, including the possible loss of capital. No returns are guaranteed.",
+    html: wrap(
+      `<p>${esc(hi)}</p><p>Your <b>${esc(usd(opts.amount))}</b> deposit is in for review. One step is left: send ${esc(ADMIN_DISPLAY_NAME)} a message on Telegram. ${esc(why)}</p>` +
+        `<p><a href="${esc(chat)}" style="color:#ea580c;font-weight:600">Message ${esc(ADMIN_DISPLAY_NAME)} on Telegram →</a></p>` +
+        `<p>Your reference is <b>${esc(opts.ref)}</b>. It's already in the message.</p><p>— Don, Market Makers FX</p>`
     ),
   };
 }
