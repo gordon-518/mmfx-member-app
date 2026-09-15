@@ -10,6 +10,8 @@
 
 export const ADMIN_TELEGRAM_HANDLE = "MM_3000";
 export const ADMIN_TELEGRAM_URL = `https://t.me/${ADMIN_TELEGRAM_HANDLE}`;
+/** How members see the @MM_3000 account (Gordon, 15 Sep). */
+export const ADMIN_DISPLAY_NAME = "Admin Amelia";
 
 /** "MM-3F9A2C": stable per member, the first 6 hex characters of the user id. */
 export function depositRef(userId: string): string {
@@ -18,5 +20,5 @@ export function depositRef(userId: string): string {
 
 /** The message the member sends to @MM_3000. */
 export function adminDmMessage(ref: string): string {
-  return `Hi, I'm submitting my deposit on the MMFX app. My reference is ${ref}.`;
+  return `Hi Amelia, I'm submitting my deposit on the MMFX app. My reference is ${ref}.`;
 }

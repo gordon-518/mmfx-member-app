@@ -14,7 +14,7 @@ import { LifetimePlans } from "./LifetimePlans";
 import { isLifetimePlan, LIFETIME_PLANS } from "@/lib/lifetimePlans";
 import { createClient } from "@/lib/supabase/server";
 import { nextTierFor, tierLabel } from "@/lib/tiers";
-import { ADMIN_TELEGRAM_HANDLE, ADMIN_TELEGRAM_URL, adminDmMessage, depositRef } from "@/lib/depositRef";
+import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_URL, adminDmMessage, depositRef } from "@/lib/depositRef";
 
 // Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
 // a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
@@ -330,7 +330,7 @@ export default async function UpgradePage({
                           rel="noopener noreferrer"
                           className="font-semibold text-orange hover:text-accent-ink"
                         >
-                          @{ADMIN_TELEGRAM_HANDLE} ↗
+                          {ADMIN_DISPLAY_NAME} ↗
                         </a>{" "}
                         your reference <span className="font-mono font-semibold text-ink">{refCode}</span> on Telegram.
                       </p>
