@@ -45,10 +45,12 @@ These are the only facts the agent may state.
 - **Broker routing:** `regionFor()` in `src/app/upgrade/page.tsx`. Octa/Elev8 for most countries, Dupoin for the listed countries, US/UK go to the lifetime plans. `/upgrade` detects the country itself, so the agent just sends people there.
 - **Broker links and switching** (`src/app/upgrade/UpgradeFlow.tsx`): Octa/Elev8 IB **47807426**, the signup and change-partner links, and the switch reason text. Existing Dupoin clients send Admin Amelia their full name and UID.
 - **Depositing** (`src/app/upgrade/*`, `src/lib/depositRef.ts`):
-  1. Fund your own account (from $50).
-  2. Message **Admin Amelia (@MM_3000)** with your reference code (`MM-` plus 6 characters, shown on `/upgrade`).
-  3. Submit the form on `/upgrade`: broker, account number, amount, screenshot, TradingView and Telegram usernames.
+  1. Top up your own trading account (from $50).
+  2. **Only after the top-up:** message **Admin Amelia (@MM_3000)** with your reference code (`MM-` plus 6 characters, shown on `/upgrade`). This is step 1 of the form on `/upgrade`. It comes after funding so Amelia only hears from members whose money is already in, which saves her the back-and-forth.
+  3. Submit your deposit details (step 2 of the form): broker, account number, amount, screenshot, TradingView and Telegram usernames.
   4. The team checks it in `/admin` and emails you when it's approved.
+
+  When the agent explains how to join, it always gives the steps in this order and never tells a member to message Amelia before they've topped up.
 - **App links:** `/signup`, `/upgrade`, `/indicators`, `/team-mm`, `/course`. Anyone who wants to join goes to **`/upgrade`**.
 
 **Editable in `/admin/support`** (changes without a deploy):
@@ -94,7 +96,7 @@ The agent matches a chat to a member in two ways, and tries them in order:
 
 - **If matched,** the agent may state that member's tier, trial end date and latest submission status (pending, approved, or needs a fix, with the rejection reason).
 - **If not matched,** it states no member-specific status and points the member to `/upgrade`, where they're logged in.
-- **A reference-code DM** (the `adminDmMessage()` text, or any message containing a code) gets an automatic acknowledgement, for example: "Thanks, your reference MM-3F9A2C is noted. Submit your deposit on the upgrade page if you haven't yet. The team checks it and you'll get an email when it's approved." It never says the deposit is received or approved unless `deposit_submissions` shows `verified`.
+- **A reference-code DM** (the `adminDmMessage()` text, or any message containing a code) gets an automatic acknowledgement, for example: "Thanks, your reference MM-3F9A2C is noted. If your top-up is already in your trading account, submit the details on the upgrade page now. If not, top up first, then submit. The team checks it and you'll get an email when it's approved." It never says the deposit is received or approved unless `deposit_submissions` shows `verified`.
 
 ## Components
 
