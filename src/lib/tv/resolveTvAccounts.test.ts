@@ -1,10 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { resolveTvAccounts, type TvProfileRow } from "./resolveTvAccounts";
+
+// The fixtures use fixed Sept 2026 trial dates; pin "now" before them so a
+// trial counts as live, as it did when these cases were written.
+beforeAll(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-08-20T00:00:00Z"));
+});
+afterAll(() => vi.useRealTimers());
 
 const row = (o: Partial<TvProfileRow>): TvProfileRow => ({
   tradingview_username: "someone",
   account_status: "member_active",
   trial_ends_at: null,
+  // A Team-level member by default: the scripts are a Desk feature now.
+  deposit_amount: 500,
   ...o,
 });
 
@@ -88,5 +98,25 @@ describe("resolveTvAccounts", () => {
     ]);
     expect(out).toHaveLength(2);
     expect(out.find((x) => x.tvUsername === "b")?.action).toBe("revoke");
+  });
+});
+
+describe("resolveTvAccounts — the scripts are a Desk feature (15 Sep)", () => {
+  it("a Foundation member ($60) gets no TradingView access", () => {
+    expect(resolveTvAccounts([row({ tradingview_username: "f", deposit_amount: 60 })])).toEqual([
+      { tvUsername: "f", action: "revoke", trialEndsAt: null },
+    ]);
+  });
+  it("an early depositor on a running trial gets access until the trial ends", () => {
+    expect(resolveTvAccounts([row({ tradingview_username: "e", deposit_amount: 60, trial_ends_at: "2026-09-04" })])).toEqual([
+      { tvUsername: "e", action: "grant", trialEndsAt: "2026-09-04" },
+    ]);
+  });
+  it("grandfathered and lifetime members are permanent", () => {
+    const out = resolveTvAccounts([
+      row({ tradingview_username: "g", deposit_amount: null, grandfathered: true }),
+      row({ tradingview_username: "l", deposit_amount: null, lifetime_plan: "team" }),
+    ]);
+    expect(out.every((o) => o.action === "grant" && o.trialEndsAt === null)).toBe(true);
   });
 });

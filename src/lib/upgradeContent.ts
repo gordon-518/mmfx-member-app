@@ -24,11 +24,11 @@ export interface TierContent {
 export const TIER_CONTENT: Readonly<Record<PaidTier, TierContent>> = {
   foundation: {
     persona: "For traders learning the system",
-    adds: "The full course, 10 TradingView indicators, the strategy scripts and the MM Library.",
+    adds: "The full course, all 19 lessons, and the MM Library.",
   },
   desk: {
-    persona: "For traders who want to learn it live",
-    adds: "Live classes with the desk, and the Fundamental Desk's macro read.",
+    persona: "For traders who want the tools, and to learn it live",
+    adds: "10 TradingView indicators, the strategy scripts, live classes with the desk, and the Fundamental Desk's macro read.",
   },
   team: {
     persona: "For traders taking the desk's calls",
@@ -49,8 +49,8 @@ export interface CardRow {
 export const CARD_ROWS: readonly CardRow[] = [
   { key: "course", label: "The full course, all 19 lessons", min: "foundation" },
   { key: "library", label: "The MM Library, 4 eBooks", min: "foundation" },
-  { key: "indicators", label: "10 TradingView indicators", min: "foundation" },
-  { key: "strategies", label: "Strategy scripts", min: "foundation" },
+  { key: "indicators", label: "10 TradingView indicators", min: "desk" },
+  { key: "strategies", label: "Strategy scripts", min: "desk" },
   { key: "live-classes", label: "Live classes with the desk", min: "desk" },
   { key: "fundamental-desk", label: "The Fundamental Desk", min: "desk" },
   { key: "team-mm", label: "The private Team MM channel: the desk's calls", min: "team" },

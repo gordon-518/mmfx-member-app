@@ -76,8 +76,8 @@ These are settled. Don't reopen them in the fixing chat.
 | Mentorship — Module 1 only | `/course`, `/api/slides/[slug]` | ✓ | — | — | — |
 | Full Mentorship (19 lessons, 6 modules) | `/course`, `/api/slides/[slug]` | — | ✓ | ✓ | ✓ |
 | MM Library (4 eBooks) | `/library`, `/api/ebooks/[slug]` | — | ✓ | ✓ | ✓ |
-| 10 TradingView indicators | `/indicators` + TV grant automation | — | ✓ | ✓ | ✓ |
-| Strategy scripts | `/strategies` | — | ✓ | ✓ | ✓ |
+| 10 TradingView indicators | `/indicators` + TV grant automation | — | — | ✓ | ✓ |
+| Strategy scripts | `/strategies` | — | — | ✓ | ✓ |
 | Signals channel (public Telegram) | `/signals` | ✓ | ✓ | ✓ | ✓ |
 | Live Classes | `/live-classes` | — | — | ✓ | ✓ |
 | Fundamental Desk | `/bots/fundamental` | — | — | ✓ | ✓ |
@@ -85,6 +85,8 @@ These are settled. Don't reopen them in the fixing chat.
 | Team MM channel (the desk's calls) | `/team-mm` | — | — | — | ✓ |
 
 **Corrected 15 Sept (Gordon):** "signals from the desk" and the private Team MM channel are the same thing, and the public Telegram signals channel is already free. So `/signals` is open on every plan, Desk is Live Classes plus the Fundamental Desk, and the desk's calls are Team MM.
+
+**Also 15 Sept (Gordon):** the 10 TradingView indicators and the strategy scripts moved from Foundation to **Desk**. Foundation is now the full course and the MM Library. The TradingView grant automation (nightly cron, admin sync and username save) now follows the tier ladder through `tvEntitlement`: a permanent grant for Desk and above, grandfathered or lifetime members; a grant expiring at the trial end while a trial clock runs; nothing otherwise. No existing member was below Desk, so nobody lost access.
 
 ### Decisions resolved 10 Sept
 

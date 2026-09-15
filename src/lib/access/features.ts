@@ -20,8 +20,9 @@ export const FEATURE_MIN_TIER: Readonly<Record<FeatureKey, FeatureMinTier>> = {
   // Free reaches Module 1 only; the full course is Foundation (course.ts).
   course: "free",
   library: "foundation",
-  indicators: "foundation",
-  strategies: "foundation",
+  // Moved to Desk (Gordon, 15 Sep).
+  indicators: "desk",
+  strategies: "desk",
   // The public Telegram signals channel is free; the desk's calls are the
   // private Team MM channel (team-mm below). Corrected 15 Sep (Gordon).
   signals: "free",

@@ -7,16 +7,13 @@ import { grantTVAccess, revokeTVAccess, setTVSession, testTVSession } from "@/li
 import { syncSendpulseAudiences } from "@/lib/sendpulseSync";
 import { sendCapiEvent } from "@/lib/meta-capi";
 import { banUserById, deleteUserById } from "@/lib/adminUsers";
-import type { AccountStatus } from "@/lib/trial/status";
-import { TV_ENTITLED_STATUSES } from "@/lib/tv/resolveTvAccounts";
+import { tvEntitlement, type TvProfileRow } from "@/lib/tv/resolveTvAccounts";
 
 import { logEventAfter } from "@/lib/events";
 import { tierFor, tierLabel, type MemberTier, type TierSnapshot } from "@/lib/tiers";
 import { sendEmail } from "@/lib/sendpulse";
 import { depositVerifiedEmail, depositRejectedEmail } from "@/lib/depositEmails";
 import { isLifetimePlan, LIFETIME_PLANS, lifetimePrice } from "@/lib/lifetimePlans";
-// One entitlement rule shared with the nightly cron (conversion-fix 3.4).
-const TV_ACTIVE = TV_ENTITLED_STATUSES;
 
 // Fire-and-forget TV sync after any admin status change. Failures are logged
 // but never block the admin action — the daily cron is the safety net.
@@ -27,14 +24,14 @@ async function syncTV(
   try {
     const { data } = await supabase
       .from("profiles")
-      .select("tradingview_username, account_status, trial_ends_at")
+      .select("tradingview_username, account_status, trial_ends_at, deposit_amount, grandfathered, lifetime_plan")
       .eq("id", targetUserId)
       .single();
     if (!data?.tradingview_username) return;
-    const status = data.account_status as AccountStatus;
-    if (TV_ACTIVE.has(status)) {
-      const expiresAt = status === "member_active" ? null : data.trial_ends_at;
-      await grantTVAccess(data.tradingview_username, expiresAt);
+    // One entitlement rule with the nightly cron: the scripts are a Desk feature.
+    const ent = tvEntitlement(data as TvProfileRow);
+    if (ent.grant) {
+      await grantTVAccess(data.tradingview_username, ent.expiresAt);
     } else {
       await revokeTVAccess(data.tradingview_username);
     }
