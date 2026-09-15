@@ -393,9 +393,11 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
 - [x] **5.4 Top-ups use the same form.** A paid member submitting a top-up moves up the ladder through the same queue.
   **Landed with 5.1:** a paid member sees "Submit a top-up". `fn_submit_deposit` accepts any signed-in user, and review verifies through `fn_verify_deposit`, which adds the amount to the cumulative total (3.2). The review queue that actually moves the member up is 5.2.
 
-- [ ] **5.5 Add a hot-leads list to admin.** Users who hit the activation milestone, have had 3+ sessions, and viewed `/upgrade` without submitting. It's a working list for manual WhatsApp follow-up.
+- [x] **5.5 Add a hot-leads list to admin.** Users who hit the activation milestone, have had 3+ sessions, and viewed `/upgrade` without submitting. It's a working list for manual WhatsApp follow-up.
+  **Landed (`20260910000010_hot_leads.sql`, applied to prod):** `fn_admin_hot_leads()` is admin-only, and `/admin` shows the list under the review queue: email, status, country, active days, upgrade views, signup date and last seen. The app doesn't record sessions, so "3+ sessions" is **3+ distinct days with any app event**, which doesn't inflate on refreshes. Activation here means TradingView connected and Daily Analysis viewed at any time; the 48h window stays in the `/stats` metric only. Verified: the admin gets the list (1 lead on 15 Sept), every row meets the rules, and non-admins and anon are refused.
 
 **Done when (phase):** the upgrade funnel on `/stats` shows `deposit_submitted` between "contact clicked" and "verified", so drop-off is visible step by step.
+**Phase done (15 Sept):** `deposit_submitted` sits between "Messaged us" and "Deposit verified" in the `/stats` funnel (5.1). The first real member submission arrived through the form on 11 Sept.
 
 ---
 
