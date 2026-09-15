@@ -5,6 +5,7 @@ import { canGrantRetrial } from "@/lib/trial/admin";
 import type { AccountStatus } from "@/lib/trial/status";
 import { tierFor, tierLabel, type TierSnapshot } from "@/lib/tiers";
 import { DepositQueue, type QueueRow } from "./DepositQueue";
+import { depositRef } from "@/lib/depositRef";
 import { HotLeads, type HotLead } from "./HotLeads";
 import {
   grantLifetime,
@@ -247,6 +248,7 @@ export default async function AdminPage({
         account: p.trading_account_number as string,
         tradingview: (p.tradingview_username as string | null) ?? null,
         telegram: (p.telegram_username as string | null) ?? null,
+        ref: depositRef(p.user_id as string),
         createdAt: p.created_at as string,
         proofUrl: signed?.signedUrl ?? null,
         isTopUp: prof?.account_status === "member_active",
