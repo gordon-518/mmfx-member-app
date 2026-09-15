@@ -70,10 +70,13 @@ alter table public.support_events   enable row level security;
 revoke all on public.support_settings, public.support_chats, public.support_events from anon, authenticated;
 grant select on public.support_settings, public.support_chats, public.support_events to authenticated;
 
+drop policy if exists "support_settings_select_admin" on public.support_settings;
 create policy "support_settings_select_admin" on public.support_settings
   for select to authenticated using ( public.is_admin() );
+drop policy if exists "support_chats_select_admin" on public.support_chats;
 create policy "support_chats_select_admin" on public.support_chats
   for select to authenticated using ( public.is_admin() );
+drop policy if exists "support_events_select_admin" on public.support_events;
 create policy "support_events_select_admin" on public.support_events
   for select to authenticated using ( public.is_admin() );
 

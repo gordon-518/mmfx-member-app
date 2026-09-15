@@ -54,6 +54,27 @@ try {
   await client.query("rollback");
   ok("a non-admin sees no settings row", seen === 0, `rows=${seen}`);
 
+  await client.query("begin");
+  const admin = (await client.query("select id from public.profiles where is_admin limit 1")).rows[0];
+  if (!admin) {
+    ok("no admin profile to test with", false);
+  } else {
+    await client.query("set local role authenticated");
+    await client.query(
+      "select set_config('request.jwt.claims', json_build_object('sub', $1::uuid, 'role', 'authenticated')::text, true)",
+      [admin.id]
+    );
+    const n = (await client.query("select count(*)::int n from public.support_settings")).rows[0].n;
+    ok("an admin can read support_settings", n === 1);
+    try {
+      await client.query("select count(*)::int from public.support_events");
+      ok("an admin can read support_events", true);
+    } catch {
+      ok("an admin can read support_events", false);
+    }
+  }
+  await client.query("rollback");
+
   const job = (await client.query("select schedule from cron.job where jobname = 'support-events-purge'")).rows[0];
   ok("purge job scheduled daily", job?.schedule === "30 0 * * *");
 } catch (e) {

@@ -175,6 +175,66 @@ One row per Singapore-time calendar day, written by the daily-stats cron (`/api/
 
 ---
 
+## Tables: `support_settings`, `support_chats`, `support_events`
+
+The Telegram support agent's state. `support_settings` is the on/off switch and facts editable in `/admin/support`; `support_chats` is one row per SendPulse contact, the agent's per-chat state; `support_events` is the log. Defined in `20260915000010_support_agent.sql`.
+
+**RLS:** admins may `SELECT` on all three; anon has nothing; all writes are service-role only.
+
+**Writers:** the support-agent webhook route (`/api/support/webhook`, via `src/lib/support/run.ts`), and the `/admin/support` server actions (after an `is_admin` check).
+
+### `support_settings` (single row, `id = 1`)
+
+| Column | Type | Nullable | Notes |
+|---|---|---|---|
+| `id` | `smallint` | no | PK, `check (id = 1)`. |
+| `enabled` | `boolean` | no | The on/off switch. Default `false`. |
+| `bonus_code` | `text` | no | Default `'TeamMM001'`. |
+| `bonus_code_expires` | `date` | no | Default `2026-12-15`. |
+| `official_accounts` | `jsonb` | no | Array of `{handle, label}` the agent may point members to. |
+| `office_hours` | `text` | no | Free text, e.g. "during Singapore office hours". |
+| `trade_cadence` | `text` | no | Free text, e.g. "around 2–3 trades a day". |
+| `notes` | `text` | no | Free text, editable in `/admin/support`. Default `''`. |
+| `approved_flows` | `jsonb` | no | Array of `{label, link, use_when}` — sign-up/flow links the agent may share. |
+| `updated_by` | `uuid` | yes | FK `profiles(id)`, on delete set null. |
+| `updated_at` | `timestamptz` | no | `now()`. |
+
+### `support_chats` (one row per SendPulse contact)
+
+| Column | Type | Nullable | Notes |
+|---|---|---|---|
+| `contact_id` | `text` | no | PK. The SendPulse contact id. |
+| `is_business` | `boolean` | no | Default `false`. |
+| `telegram_username` | `text` | yes | The contact's Telegram handle, if known. |
+| `matched_user_id` | `uuid` | yes | FK `profiles(id)`, on delete set null, when the contact is matched to a member. |
+| `state` | `text` | no | `auto`, `quiet` or `needs_amelia`. Default `'auto'`. |
+| `quiet_until` | `timestamptz` | yes | The agent stays silent on this chat until this time. |
+| `handoff_reason` | `text` | yes | Why the chat was handed off to Amelia. |
+| `last_member_msg_at` / `last_agent_reply_at` | `timestamptz` | yes | Last inbound / outbound message times. |
+| `updated_at` | `timestamptz` | no | `now()`. |
+
+### `support_events` (the log)
+
+| Column | Type | Nullable | Notes |
+|---|---|---|---|
+| `id` | `bigint` identity | no | PK. |
+| `contact_id` | `text` | no | The SendPulse contact id (not a FK to `support_chats`). |
+| `kind` | `text` | no | `incoming`, `reply`, `handoff`, `skip`, `error` or `amelia_reply`. |
+| `dedupe_key` | `text` | yes | Unique. Prevents double-processing the same inbound webhook event. |
+| `member_text` | `text` | yes | The member's message text. **Holds PII — purged after 90 days.** |
+| `topic` | `text` | yes | Classified topic, when applicable. |
+| `confidence` | `numeric(3,2)` | yes | Model confidence for the reply/classification. |
+| `reply_text` | `text` | yes | The agent's reply text, when it replied. |
+| `skip_reason` | `text` | yes | Why the agent didn't reply. |
+| `guard_failures` | `jsonb` | yes | Which guardrails blocked a reply, if any. |
+| `model` | `text` | yes | The model used for this event. |
+| `latency_ms` | `integer` | yes | Time taken to produce the reply. |
+| `created_at` | `timestamptz` | no | `now()`. |
+
+**Retention:** `support_events` holds member message text and is purged after 90 days by the pg_cron job `support-events-purge` (`30 0 * * *`).
+
+---
+
 ## State Machine
 
 ```
