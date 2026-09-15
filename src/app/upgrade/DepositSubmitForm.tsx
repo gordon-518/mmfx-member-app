@@ -72,6 +72,18 @@ export function DepositSubmitForm({
           <input name="amount" type="number" min="50" step="0.01" required placeholder="50 or more" className={FIELD} />
         </label>
         <label className="space-y-1.5">
+          <span className={LABEL}>Telegram username</span>
+          <input
+            name="telegram"
+            required
+            pattern="@?[A-Za-z0-9_]{5,32}"
+            title="Your Telegram @handle: 5 to 32 letters, numbers or underscores"
+            placeholder="@yourhandle"
+            autoComplete="off"
+            className={FIELD}
+          />
+        </label>
+        <label className="space-y-1.5">
           <span className={LABEL}>
             TradingView username <span className="font-normal text-faint">(optional)</span>
           </span>
