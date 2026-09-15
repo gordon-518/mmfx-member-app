@@ -6,9 +6,9 @@ import type { MemberTier } from "@/lib/tiers";
 const as = (tier: MemberTier, isAdmin = false): Viewer => ({ tier, isAdmin });
 const open = (v: Viewer) => FEATURE_KEYS.filter((k) => canAccess(k, v)).sort();
 
-const FREE = ["calendar", "course", "daily-analysis", "know-your-style", "news"];
+const FREE = ["calendar", "course", "daily-analysis", "know-your-style", "news", "signals"];
 const FOUNDATION = [...FREE, "indicators", "library", "strategies"].sort();
-const DESK = [...FOUNDATION, "fundamental-desk", "live-classes", "signals"].sort();
+const DESK = [...FOUNDATION, "fundamental-desk", "live-classes"].sort();
 
 describe("feature access map — the plan's tier feature matrix", () => {
   it("covers every feature key with a minimum tier and an href", () => {
@@ -18,7 +18,7 @@ describe("feature access map — the plan's tier feature matrix", () => {
     }
   });
 
-  it("Free: calendar, news, Know Your Style, Daily Analysis, course (Module 1)", () => {
+  it("Free: calendar, news, Know Your Style, Daily Analysis, the signals channel, course (Module 1)", () => {
     expect(open(as("free"))).toEqual(FREE);
   });
 
@@ -26,7 +26,7 @@ describe("feature access map — the plan's tier feature matrix", () => {
     expect(open(as("foundation"))).toEqual(FOUNDATION);
   });
 
-  it("Desk adds signals, live classes and the Fundamental Desk", () => {
+  it("Desk adds live classes and the Fundamental Desk", () => {
     expect(open(as("desk"))).toEqual(DESK);
   });
 

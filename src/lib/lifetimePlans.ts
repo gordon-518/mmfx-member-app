@@ -19,7 +19,7 @@ export const LIFETIME_PLANS: Readonly<Record<LifetimePlan, LifetimePlanInfo>> = 
     priceUsd: 588,
     pitch: "The whole desk, for life",
     includes: [
-      "Signals, and the private Team MM channel",
+      "The private Team MM channel: the desk's calls",
       "Live classes and the Fundamental Desk",
       "10 TradingView indicators and the strategy scripts",
       "The MM Library, 4 eBooks",
