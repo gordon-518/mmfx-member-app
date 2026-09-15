@@ -218,7 +218,7 @@ export default async function AdminPage({
   // behind a one-hour signed URL (admin SELECT on the private bucket).
   const { data: pendingData } = await supabase
     .from("deposit_submissions")
-    .select("id, user_id, amount, broker, trading_account_number, tradingview_username, proof_path, created_at")
+    .select("id, user_id, amount, broker, trading_account_number, tradingview_username, telegram_username, proof_path, created_at")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(100);
@@ -246,6 +246,7 @@ export default async function AdminPage({
         broker: p.broker as string,
         account: p.trading_account_number as string,
         tradingview: (p.tradingview_username as string | null) ?? null,
+        telegram: (p.telegram_username as string | null) ?? null,
         createdAt: p.created_at as string,
         proofUrl: signed?.signedUrl ?? null,
         isTopUp: prof?.account_status === "member_active",

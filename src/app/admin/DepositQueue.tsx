@@ -14,6 +14,7 @@ export interface QueueRow {
   broker: string;
   account: string;
   tradingview: string | null;
+  telegram: string | null;
   createdAt: string;
   proofUrl: string | null;
   isTopUp: boolean;
@@ -47,6 +48,16 @@ export function DepositQueue({ rows, hiddenFilters }: { rows: QueueRow[]; hidden
                 {r.isTopUp ? "top-up" : "first deposit"} · {r.broker} · account{" "}
                 <span className="font-mono text-ink">{r.account}</span>
                 {r.tradingview ? ` · TV @${r.tradingview}` : ""}
+              </p>
+              <p className="mt-1 text-subtle">
+                Telegram:{" "}
+                {r.telegram ? (
+                  <a href={`https://t.me/${r.telegram}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-orange hover:text-accent-ink">
+                    @{r.telegram} ↗
+                  </a>
+                ) : (
+                  <span className="text-faint">not given (submitted before it was required)</span>
+                )}
               </p>
               <p className="mt-1">
                 {r.proofUrl ? (

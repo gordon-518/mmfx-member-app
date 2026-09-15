@@ -57,7 +57,13 @@ export async function submitDeposit(
   const account = String(formData.get("account") ?? "").trim();
   const amount = Number(formData.get("amount"));
   const tradingview = String(formData.get("tradingview") ?? "").trim();
+  const telegram = String(formData.get("telegram") ?? "").trim().replace(/^@/, "");
   const proof = formData.get("proof");
+
+  // Required (15 Sep), checked before the upload so a typo doesn't cost an upload.
+  if (!/^[A-Za-z0-9_]{5,32}$/.test(telegram)) {
+    return { error: "Enter your Telegram username (the @handle, 5 to 32 letters, numbers or underscores)." };
+  }
 
   if (!(proof instanceof File) || proof.size === 0) {
     return { error: "Upload a screenshot of your deposit." };
@@ -83,10 +89,11 @@ export async function submitDeposit(
     p_amount: amount,
     p_tradingview_username: tradingview || null,
     p_proof_path: path,
+    p_telegram_username: telegram,
   });
   if (error) {
     // fn_submit_deposit raises member-facing messages; anything else is generic.
-    const known = /broker|account number|minimum deposit|TradingView|screenshot|waiting for review/i.test(error.message);
+    const known = /broker|account number|minimum deposit|TradingView|Telegram|screenshot|waiting for review/i.test(error.message);
     if (!known) console.error("[deposit-submit] rpc failed:", error.message);
     return { error: known ? error.message : "Something went wrong. Try again, or message us." };
   }
@@ -94,7 +101,7 @@ export async function submitDeposit(
   // conversion-fix 5.3 — tell the admin a submission is waiting. Best-effort:
   // sendTelegram never throws, and a failed DM doesn't fail the submission.
   const tg = await sendTelegram(
-    `💰 <b>New deposit submission</b>\n${escapeHtml(user.email ?? user.id)}: $${amount.toLocaleString("en-US")} · ${escapeHtml(broker)}\nReview: https://app.marketmakersfx.net/admin`
+    `💰 <b>New deposit submission</b>\n${escapeHtml(user.email ?? user.id)}: $${amount.toLocaleString("en-US")} · ${escapeHtml(broker)}\nTelegram: @${escapeHtml(telegram)}\nReview: https://app.marketmakersfx.net/admin`
   );
   if (!tg.ok) console.error("[deposit-submit] admin Telegram DM failed:", tg.detail);
 

@@ -86,13 +86,14 @@ In-app deposit submissions (conversion-fix 5.1 and 5.4). A user submits from `/u
 | `trading_account_number` | `text` | no | Digits, 4 to 20. |
 | `amount` | `numeric(12,2)` | no | At least 50. |
 | `tradingview_username` | `text` | yes | Optional @handle. |
+| `telegram_username` | `text` | yes | The member's Telegram @handle without the @, 5–32 letters, numbers or underscores. **Required on new submissions** (`20260915000005`); null only on the one submission from before it was required. |
 | `proof_path` | `text` | no | Object name in `deposit-proofs`: `<user_id>/<file>`. |
 | `status` | `text` | no | `pending` (default), `verified` or `rejected`. At most one `pending` per user (partial unique index). |
 | `reject_reason` | `text` | yes | Shown to the user on `/upgrade`. |
 | `reviewed_by` / `reviewed_at` | `uuid` / `timestamptz` | yes | Set by the review RPC (5.2). |
 | `created_at` | `timestamptz` | no | `now()`. |
 
-**RLS:** users `SELECT` their own rows, and admins `SELECT` all. There's no direct insert or update. **Writer:** `fn_submit_deposit(p_broker, p_trading_account_number, p_amount, p_tradingview_username, p_proof_path)` (`authenticated`). It validates broker, account number, a $50 minimum and the TradingView handle; checks that the proof exists **in the caller's own folder**; allows one pending submission at a time; and logs `deposit_submitted {amount, broker}`.
+**RLS:** users `SELECT` their own rows, and admins `SELECT` all. There's no direct insert or update. **Writer:** `fn_submit_deposit(p_broker, p_trading_account_number, p_amount, p_tradingview_username, p_proof_path, p_telegram_username)` (`authenticated`). It validates broker, account number, a $50 minimum and the TradingView handle; checks that the proof exists **in the caller's own folder**; allows one pending submission at a time; and logs `deposit_submitted {amount, broker}`.
 
 **Reviewer:** `fn_review_deposit_submission(p_id, p_action 'verify'|'reject', p_reason, p_ib_confirmed)` (admin-only, `20260910000009`). The submission must still be `pending`, and the row is locked so it can't be reviewed twice. **Verify** runs `fn_verify_deposit` with the submission's broker and amount, so every Phase 3 rule applies, including the IB check, the ledger, top-ups and the double-submit guard. It also saves the submitted account number when the profile has none. **Reject** needs a reason, which the member sees. Both stamp `reviewed_by` and `reviewed_at`.
 
