@@ -15,6 +15,8 @@ export interface QueueRow {
   account: string;
   tradingview: string | null;
   telegram: string | null;
+  /** The code the member was asked to send @MM_3000, to match their DM. */
+  ref: string;
   createdAt: string;
   proofUrl: string | null;
   isTopUp: boolean;
@@ -58,6 +60,8 @@ export function DepositQueue({ rows, hiddenFilters }: { rows: QueueRow[]; hidden
                 ) : (
                   <span className="text-faint">not given (submitted before it was required)</span>
                 )}
+                {" · "}ref <span className="font-mono font-semibold text-ink">{r.ref}</span>
+                <span className="text-faint"> (in their DM to @MM_3000)</span>
               </p>
               <p className="mt-1">
                 {r.proofUrl ? (

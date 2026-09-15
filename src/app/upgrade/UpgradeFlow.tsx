@@ -6,6 +6,7 @@ import {
   UserPlusIcon, WalletIcon, ChatIcon, CheckIcon, SwapIcon, SparkIcon, TelegramIcon, WhatsAppIcon,
 } from "@/components/icons";
 import { logUpgradeClick } from "./actions";
+import { ADMIN_TELEGRAM_URL } from "@/lib/depositRef";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 export type Region = "octa" | "dupoin" | "contact";
@@ -20,7 +21,7 @@ const SWITCH_REASON = "They are assisting me in my trading with signals and anal
 const WHATSAPP_URL =
   "https://wa.me/6588035858?text=Hi%20MMFX%2C%20requesting%20upgrade.%20Broker%3A%20%5BOcta%2FDupoin%5D%20Account%23%3A%20%5Bnumber%5D%20Tier%3A%20%5BTeam%20MM%2FMentorship%5D";
 const TELEGRAM_URL = "https://t.me/m/QBXboWUEMWRl";
-const TELEGRAM_SWITCH = "https://t.me/MM_3000";
+const TELEGRAM_SWITCH = ADMIN_TELEGRAM_URL;
 // US/UK contact path — these visitors can't open a partnered broker account, so
 // the WhatsApp message + Telegram thread are dedicated to arranging access.
 const CONTACT_WHATSAPP_URL =

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendTelegram, escapeHtml } from "@/lib/telegram";
 import { isClientEvent, sanitizeClientProps } from "@/lib/eventNames";
+import { depositRef } from "@/lib/depositRef";
 
 // Funnel clicks on /upgrade (conversion-fix 1.3): broker links and the
 // WhatsApp / Telegram contact buttons. Called fire-and-forget from the browser
@@ -101,7 +102,7 @@ export async function submitDeposit(
   // conversion-fix 5.3 — tell the admin a submission is waiting. Best-effort:
   // sendTelegram never throws, and a failed DM doesn't fail the submission.
   const tg = await sendTelegram(
-    `💰 <b>New deposit submission</b>\n${escapeHtml(user.email ?? user.id)}: $${amount.toLocaleString("en-US")} · ${escapeHtml(broker)}\nTelegram: @${escapeHtml(telegram)}\nReview: https://app.marketmakersfx.net/admin`
+    `💰 <b>New deposit submission</b>\n${escapeHtml(user.email ?? user.id)}: $${amount.toLocaleString("en-US")} · ${escapeHtml(broker)}\nTelegram: @${escapeHtml(telegram)} · ref ${depositRef(user.id)}\nReview: https://app.marketmakersfx.net/admin`
   );
   if (!tg.ok) console.error("[deposit-submit] admin Telegram DM failed:", tg.detail);
 

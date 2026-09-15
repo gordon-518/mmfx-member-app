@@ -14,6 +14,7 @@ import { LifetimePlans } from "./LifetimePlans";
 import { isLifetimePlan, LIFETIME_PLANS } from "@/lib/lifetimePlans";
 import { createClient } from "@/lib/supabase/server";
 import { nextTierFor, tierLabel } from "@/lib/tiers";
+import { ADMIN_TELEGRAM_HANDLE, ADMIN_TELEGRAM_URL, adminDmMessage, depositRef } from "@/lib/depositRef";
 
 // Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
 // a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
@@ -101,6 +102,8 @@ export default async function UpgradePage({
 
   // conversion-fix 5.1 — the latest deposit submission decides whether the
   // form or its review status shows.
+  // The code the member sends @MM_3000 so the admin can match the DM.
+  const refCode = access.profile ? depositRef(access.profile.id) : null;
   let latestSubmission: {
     status: "pending" | "verified" | "rejected";
     amount: number | string;
@@ -314,9 +317,25 @@ export default async function UpgradePage({
               </p>
               <div className="mt-6">
                 {latestSubmission?.status === "pending" ? (
-                  <p className="rounded-xl border border-orange/25 bg-accent-soft/40 px-4 py-3 text-[14px] text-ink">
-                    {`Your $${Number(latestSubmission.amount).toLocaleString("en-US")} deposit is waiting for review. We'll switch your access on as soon as it's verified.`}
-                  </p>
+                  <div className="rounded-xl border border-orange/25 bg-accent-soft/40 px-4 py-3 text-[14px] text-ink">
+                    <p>
+                      {`Your $${Number(latestSubmission.amount).toLocaleString("en-US")} deposit is waiting for review. We'll switch your access on as soon as it's verified.`}
+                    </p>
+                    {refCode && (
+                      <p className="mt-2 text-[13px] text-subtle">
+                        Haven&apos;t messaged us yet? Our admin can&apos;t message you first, so send{" "}
+                        <a
+                          href={`${ADMIN_TELEGRAM_URL}?text=${encodeURIComponent(adminDmMessage(refCode))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-orange hover:text-accent-ink"
+                        >
+                          @{ADMIN_TELEGRAM_HANDLE} ↗
+                        </a>{" "}
+                        your reference <span className="font-mono font-semibold text-ink">{refCode}</span> on Telegram.
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <>
                     {latestSubmission?.status === "rejected" && (
@@ -330,6 +349,7 @@ export default async function UpgradePage({
                       defaultBroker={region === "dupoin" ? "dupoin" : "octa"}
                       tradingview={access.profile?.tradingview_username ?? null}
                       isTopUp={isPaid}
+                      refCode={refCode ?? ""}
                     />
                   </>
                 )}
