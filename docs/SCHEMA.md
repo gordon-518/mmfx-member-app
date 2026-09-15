@@ -134,6 +134,14 @@ Funnel event log (conversion-fix 1.3). RLS on; admins may SELECT; nobody writes 
 
 **Readers.** `fn_my_onboarding()` — `authenticated`, own row only (Phase 4). Returns `{tv, analysis, kys, lesson1, desk}` for the caller's five-step checklist, each read from where the step happens: `tradingview_username` saved (not `tv_connected_at`, which starts 10 Sep), a Daily Analysis `feature_view`, `kys_completed_at`, the lesson-1 `onboarding_step_done`, and an `upgrade_viewed`. Users can't read `app_events` directly. `fn_admin_funnel_stats(p_days)` — admin-only aggregate for `/stats`: activation rate, upgrade-funnel step counts, conversion split. Aggregates in the database because `app_events` outgrows PostgREST's 1000-row page cap within days.
 
+**Measurement read (Phase 7):** `fn_admin_measurement()` (admin-only, `20260915000001`) returns the plan's four views in one JSON object:
+- entry-tier cohorts with 90-day cumulative deposits (only members whose 90 days are up count in the averages)
+- Free-to-paid conversion for Daily Analysis viewers versus non-viewers, among users who dropped to Free since 10 Sep
+- 30-day conversion for the 7-day trial era against the 14-day era (matured signups only)
+- TradingView and activation within 48h for each signup week
+
+Grandfathered members are excluded throughout.
+
 ---
 
 ## Table: `growth_daily`
