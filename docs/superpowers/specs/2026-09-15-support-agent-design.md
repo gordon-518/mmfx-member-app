@@ -27,7 +27,7 @@ The 15 Sept study of 102,634 messages found 6,362 manual inbox replies, 62% of t
 | Launch | **Live on deploy.** Safety comes from handoff rules, code guardrails, caps and an on/off switch. |
 | Amelia's-account chats (@MM_3000, Telegram Business) | **Included.** Every reply there starts with `MMFX Assistant:`. |
 | Architecture | **Agent inside the member app**, not SendPulse's built-in AI and not a hybrid. |
-| SendPulse flows | **Keep the entry, system, questionnaire and broadcast flows; turn off the catch-all.** The agent answers questions, and can send or start approved flows. |
+| SendPulse flows | **Keep the entry, system, questionnaire and broadcast flows; turn off the catch-all.** The agent answers questions and can send approved flow links (starting flows directly is a follow-up). |
 
 ## Fact sheet
 
@@ -80,7 +80,7 @@ Every kept flow that explains joining should end by pointing to `/upgrade` ($50 
 
 **How the agent uses flows**, the way Amelia does by hand:
 - **Send a flow link** in a reply. The member taps it, the bot opens and the flow runs with its buttons. Only links on the approved list can be sent (guardrail 4).
-- **Start a flow directly** with `POST /telegram/flows/run`, the same as "send flow" in the inbox. This works in bot chats only: SendPulse can't show buttons or quick replies in Telegram Business chats, so in @MM_3000 chats the agent sends the link instead.
+- **Starting a flow directly** with `POST /telegram/flows/run` (the same as "send flow" in the inbox) is **a follow-up, not in this build**. The flow link covers Gordon's use today, and SendPulse can't show buttons in Telegram Business chats anyway, so links are the right default there.
 - Both are managed in `/admin/support` as `approved_flows`: label, flow ID and/or link, and when to use it. Only flows Gordon marks as current are listed.
 - **The flow link Gordon sends by hand is the bot itself: `https://t.me/marketmakers18bot`.** Tapping it opens @marketmakers18bot, where the Welcome and Join/SignUp flows take over. `approved_flows` is seeded with it. In @MM_3000 chats it's how the agent moves someone who wants to join into the bot, alongside `/upgrade`.
 
@@ -224,7 +224,7 @@ If a check fails, the agent redrafts once, passing the failure reasons. If the r
 
 ## Staying out of the way
 
-- **Flow answers win.** See Architecture, step 2. A fast pre-filter also skips exact matches to active SendPulse trigger keywords, fetched from `/telegram/triggers` and cached for 10 minutes.
+- **Flow answers win.** See Architecture, step 2. Keyword triggers are covered by the same check, so there's no separate keyword pre-filter.
 - **Amelia replies herself.** An `outgoing_message` the agent didn't send sets `state = 'quiet'` for 60 minutes.
 - **Caps.** At most 6 agent replies per chat per rolling hour, and 1,500 Claude calls per Singapore day, redrafts included. Past either cap, the agent hands off.
 - **No loops.** Only `incoming_message` triggers work. The agent records its own sends, so their `outgoing_message` echoes are ignored.
