@@ -5,12 +5,15 @@ import type { ContactInfo, ThreadMessage } from "./types";
 // Uses SENDPULSE_API_ID / SENDPULSE_API_SECRET (already set for email).
 //
 // Contract (relied on by the orchestrator in run.ts): writes never throw —
-// `true` only on confirmed success, `false` otherwise. Reads throw on
-// failure, so a failed thread read never looks like an empty one; the one
-// exception is `getContact`, which returns `null` for a non-200 "not
-// found" lookup but still throws on a network/timeout/auth error. Every
-// fetch has a timeout, and a POST is never retried after a 5xx — it may
-// already have gone out, and a retry risks a duplicate reply to the member.
+// `true` only on confirmed success, `false` otherwise. `false` means not
+// sent OR unknown (a timeout or 5xx may still have delivered it): callers
+// must never re-send on false. Reads throw on failure, so a failed thread
+// read never looks like an empty one; the one exception is `getContact`,
+// which returns `null` for a 400/404 "not found" lookup but throws for
+// any other failure (network/timeout/auth, or an unexpected non-200
+// status). Every fetch has a timeout, and a POST is never retried after a
+// 5xx — it may already have gone out, and a retry risks a duplicate reply
+// to the member.
 
 const BASE = "https://api.sendpulse.com";
 const FETCH_TIMEOUT_MS = 10_000;
@@ -26,9 +29,10 @@ export function __resetTokenForTests() {
 
 interface TokenResponse { access_token?: string; expires_in?: number }
 
-async function getToken(force = false): Promise<string> {
-  if (!force && token && Date.now() < token.expiresAt) return token.value;
-  // Concurrent (or forced-while-in-flight) callers share one refresh.
+async function getToken(): Promise<string> {
+  if (token && Date.now() < token.expiresAt) return token.value;
+  // Concurrent callers (including one triggered by a 401 clearing the
+  // cache while a refresh is already in flight) share one refresh.
   if (pending) return pending;
   pending = (async () => {
     const id = process.env.SENDPULSE_API_ID;
@@ -63,11 +67,18 @@ async function sp(
   const method = init.method ?? "GET";
   const r = await fetch(`${BASE}${path}`, {
     method,
-    headers: { Authorization: `Bearer ${await getToken(retry.auth === true)}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${await getToken()}`, "Content-Type": "application/json" },
     body: init.body ? JSON.stringify(init.body) : undefined,
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
-  if (r.status === 401 && !retry.auth) return sp(path, init, { ...retry, auth: true });
+  // Force a refresh only on the attempt immediately after a 401: clear the
+  // cached token so the recursive call's getToken() has to fetch a new one,
+  // rather than carrying a "force" flag that would re-fetch on every later
+  // 429/5xx retry too.
+  if (r.status === 401 && !retry.auth) {
+    token = null;
+    return sp(path, init, { ...retry, auth: true });
+  }
   // A 429 means the request was never processed — safe to retry for any method.
   if (r.status === 429 && !retry.rateLimit) {
     await new Promise((res) => setTimeout(res, RETRY_DELAY_MS));
@@ -95,13 +106,20 @@ interface RawMessage {
 
 interface MessagesEnvelope { data?: RawMessage[] }
 
+// True for a non-empty attachments array, or a non-null object with at
+// least one key. Excludes `{}` and other truthy-but-empty values.
+function hasAttachments(a: unknown): boolean {
+  if (Array.isArray(a)) return a.length > 0;
+  if (a !== null && typeof a === "object") return Object.keys(a).length > 0;
+  return false;
+}
+
 function toMessage(m: RawMessage): ThreadMessage {
   const d = m.data ?? {};
   let text = typeof d.text === "string" ? d.text : typeof d.caption === "string" ? d.caption : "";
   // No text/caption but a photo, document or other attachment (deposit
   // screenshots are common here) — flag it so it isn't read as blank.
-  const hasAttachment = (Array.isArray(m.attachments) ? m.attachments.length > 0 : Boolean(m.attachments)) ||
-    Boolean(d.photo) || Boolean(d.document);
+  const hasAttachment = hasAttachments(m.attachments) || Boolean(d.photo) || Boolean(d.document);
   if (!text && hasAttachment) text = "[attachment]";
   return {
     id: String(m.id),
@@ -138,11 +156,15 @@ interface ContactEnvelope { data?: RawContact }
 
 export async function getContact(contactId: string): Promise<ContactInfo | null> {
   const { status, json } = await sp(`/telegram/contacts/get?id=${encodeURIComponent(contactId)}`);
+  // 400/404 mean "no such contact" — genuinely not found. Any other
+  // non-200 is an outage or similar and must not be mistaken for that.
+  if (status === 400 || status === 404) return null;
+  if (status !== 200) throw new Error(`SendPulse getContact failed: ${status}`);
   const c = (json as ContactEnvelope)?.data;
-  if (status !== 200 || !c) return null;
+  if (!c) return null;
   const cd = c.channel_data ?? {};
   return {
-    id: String(c.id),
+    id: typeof c.id === "string" || typeof c.id === "number" ? String(c.id) : contactId,
     username: typeof cd.username === "string" ? cd.username : null,
     firstName: typeof cd.first_name === "string" ? cd.first_name : "",
     isBusiness: Boolean(c.business_connection),

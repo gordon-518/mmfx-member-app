@@ -79,12 +79,50 @@ describe("getMessages", () => {
     expect(msg.text).toBe("[attachment]");
   });
 
+  it("does not treat an empty attachments object as an attachment", async () => {
+    mockFetch((url) => {
+      if (isToken(url)) return tokenOk();
+      return json({ data: [
+        { id: "m1", direction: 1, created_at: "2026-09-15T10:00:00Z", attachments: {}, data: {} },
+      ] });
+    });
+    const [msg] = await getMessages("c1");
+    expect(msg.text).toBe("");
+  });
+
   it("rejects (never resolves empty) after exhausting the one retry on a 500", async () => {
     vi.useFakeTimers();
-    mockFetch((url) => (isToken(url) ? tokenOk() : json({}, 500)));
+    let apiCalls = 0;
+    mockFetch((url) => {
+      if (isToken(url)) return tokenOk();
+      apiCalls++;
+      return json({}, 500);
+    });
     const result = expect(getMessages("c1")).rejects.toThrow("500");
     await vi.advanceTimersByTimeAsync(1000);
     await result;
+    expect(apiCalls).toBe(2);
+  });
+
+  it("retries once after a 500 and resolves with the data", async () => {
+    vi.useFakeTimers();
+    let apiCalls = 0;
+    mockFetch((url) => {
+      if (isToken(url)) return tokenOk();
+      apiCalls++;
+      return apiCalls === 1
+        ? json({}, 500)
+        : json({ data: [{ id: "m1", direction: 1, created_at: "2026-09-15T10:00:00Z", data: { text: "hi" } }] });
+    });
+    const result = expect(getMessages("c1")).resolves.toMatchObject([{ id: "m1", text: "hi" }]);
+    await vi.advanceTimersByTimeAsync(1000);
+    await result;
+    expect(apiCalls).toBe(2);
+  });
+
+  it("throws when a 200 response has non-array data", async () => {
+    mockFetch((url) => (isToken(url) ? tokenOk() : json({ data: { oops: true } })));
+    await expect(getMessages("c1")).rejects.toThrow("200");
   });
 
   it("rejects naming the missing credential, without throwing an unrelated error", async () => {
@@ -95,6 +133,58 @@ describe("getMessages", () => {
     } finally {
       process.env.SENDPULSE_API_ID = "id";
     }
+  });
+
+  it("gives every API fetch a real AbortSignal", async () => {
+    mockFetch((url) => (isToken(url) ? tokenOk() : json({ data: [] })));
+    await getMessages("c1");
+    expect(calls[1].init!.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("makes exactly one token fetch for two concurrent reads on a cold cache", async () => {
+    let tokenCalls = 0;
+    mockFetch((url) => {
+      if (isToken(url)) {
+        tokenCalls++;
+        return tokenOk();
+      }
+      return json({ data: [] });
+    });
+    await Promise.all([getMessages("c1"), getMessages("c2")]);
+    expect(tokenCalls).toBe(1);
+  });
+
+  it("never leaks the API secret into an auth-failure error message", async () => {
+    mockFetch((url) => (isToken(url) ? json({}, 401) : json({}, 200)));
+    let message = "";
+    try {
+      await getMessages("c1");
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).not.toContain("secret");
+  });
+
+  it("makes exactly 2 token fetches (not 4) for 401 -> 429 -> 500 -> 200 on a GET", async () => {
+    vi.useFakeTimers();
+    let tokenCalls = 0;
+    let apiCalls = 0;
+    const apiStatuses = [401, 429, 500, 200];
+    mockFetch((url) => {
+      if (isToken(url)) {
+        tokenCalls++;
+        return json({ access_token: `T${tokenCalls}`, expires_in: 3600 });
+      }
+      const status = apiStatuses[apiCalls];
+      apiCalls++;
+      return status === 200 ? json({ data: [] }, 200) : json({}, status);
+    });
+    const result = expect(getMessages("c1")).resolves.toEqual([]);
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+    await result;
+    expect(apiCalls).toBe(4);
+    expect(tokenCalls).toBe(2);
   });
 });
 
@@ -116,6 +206,19 @@ describe("getContact", () => {
       return json({ data: { id: "c2", channel_data: {}, tags: [{ name: "" }, "", "intent_signals", { name: "exp_mid" }] } });
     });
     await expect(getContact("c2")).resolves.toMatchObject({ tags: ["intent_signals", "exp_mid"], username: null, firstName: "" });
+  });
+
+  it("returns null for a 404 (genuinely not found)", async () => {
+    mockFetch((url) => (isToken(url) ? tokenOk() : json({}, 404)));
+    await expect(getContact("c1")).resolves.toBeNull();
+  });
+
+  it("throws (does not return null) after exhausting the one retry on a 500", async () => {
+    vi.useFakeTimers();
+    mockFetch((url) => (isToken(url) ? tokenOk() : json({}, 500)));
+    const result = expect(getContact("c1")).rejects.toThrow("500");
+    await vi.advanceTimersByTimeAsync(1000);
+    await result;
   });
 });
 
