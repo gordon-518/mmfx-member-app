@@ -65,6 +65,25 @@ export function tierFor(p: TierSnapshot, now: Date = new Date()): MemberTier {
   return accessTier(p, now) === "Full" ? "trial" : "free";
 }
 
+/**
+ * The tier that decides ACCESS right now. It's tierFor(), except that a
+ * member who deposited while their trial was still running keeps the trial's
+ * Desk-equivalent access until the clock ends, then drops to what their
+ * deposits earned (Gordon, 15 Sep: fair to early depositors). fn_verify_deposit
+ * keeps a running clock for exactly this. Labels and upgrade maths use
+ * tierFor() (what they've earned); gates use this.
+ */
+export function accessTierFor(p: TierSnapshot, now: Date = new Date()): MemberTier {
+  const earned = tierFor(p, now);
+  if (p.account_status === "member_active" && p.trial_ends_at != null) {
+    const end = new Date(p.trial_ends_at).getTime();
+    if (!Number.isNaN(end) && now.getTime() < end && TIER_RANK[earned] < TIER_RANK.trial) {
+      return "trial";
+    }
+  }
+  return earned;
+}
+
 const PAID_ORDER: readonly PaidTier[] = ["foundation", "desk", "team"];
 
 /**

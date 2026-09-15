@@ -5,6 +5,7 @@ import {
   tierLabel,
   tierUnlockLabel,
   nextTierFor,
+  accessTierFor,
   TIER_THRESHOLDS,
   TIER_RANK,
   type TierSnapshot,
@@ -125,5 +126,25 @@ describe("nextTierFor — the top-up to the next tier", () => {
   it("treats a bad total as nothing deposited", () => {
     expect(nextTierFor(Number.NaN)).toEqual({ next: "foundation", topUp: 50 });
     expect(nextTierFor(-20)).toEqual({ next: "foundation", topUp: 50 });
+  });
+});
+
+describe("accessTierFor — early depositors keep the trial until it ends", () => {
+  const withClock = (amount: number, ends: string | null) => ({ ...member(amount), trial_ends_at: ends });
+
+  it("a $50 member whose trial is still running keeps full (trial) access", () => {
+    expect(accessTierFor(withClock(50, LATER), NOW)).toBe("trial");
+  });
+  it("once the trial clock passes, access is the earned tier", () => {
+    expect(accessTierFor(withClock(50, EARLIER), NOW)).toBe("foundation");
+  });
+  it("a Desk or Team member is never pulled down to trial level", () => {
+    expect(accessTierFor(withClock(250, LATER), NOW)).toBe("desk");
+    expect(accessTierFor(withClock(600, LATER), NOW)).toBe("team");
+  });
+  it("matches tierFor when there's no clock", () => {
+    expect(accessTierFor(member(50), NOW)).toBe("foundation");
+    expect(accessTierFor({ account_status: "trial_active", trial_ends_at: LATER, deposit_amount: null, grandfathered: false }, NOW)).toBe("trial");
+    expect(accessTierFor({ account_status: "trial_expired", trial_ends_at: EARLIER, deposit_amount: null, grandfathered: false }, NOW)).toBe("free");
   });
 });
