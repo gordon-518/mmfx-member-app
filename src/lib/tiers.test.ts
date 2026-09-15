@@ -67,6 +67,12 @@ describe("tierFor", () => {
     expect(tierFor(member(60, true), NOW)).toBe("team");
   });
 
+  it("a US/UK lifetime member is Team MM with no deposit (Phase 6)", () => {
+    expect(tierFor({ ...member(null), lifetime_plan: "team" }, NOW)).toBe("team");
+    expect(tierFor({ ...member(null), lifetime_plan: "team_mentorship" }, NOW)).toBe("team");
+    expect(tierFor({ account_status: "member_expired", trial_ends_at: null, deposit_amount: null, grandfathered: false, lifetime_plan: "team" }, NOW)).toBe("free");
+  });
+
   it("a member set by hand with no qualifying deposit gets Foundation, not locked out", () => {
     expect(tierFor(member(null), NOW)).toBe("foundation");
     expect(tierFor(member(49.99), NOW)).toBe("foundation");

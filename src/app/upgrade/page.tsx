@@ -1,18 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import type { ComponentType, SVGProps } from "react";
 import { getAccess } from "@/lib/access";
 import { logEventAfter } from "@/lib/events";
 import { Wordmark } from "@/components/AppShell";
 import { UpgradeFlow, type Region } from "./UpgradeFlow";
 import { TierCards } from "./TierCards";
 import { DepositSubmitForm } from "./DepositSubmitForm";
+import { LifetimePlans } from "./LifetimePlans";
+import { isLifetimePlan, LIFETIME_PLANS } from "@/lib/lifetimePlans";
 import { createClient } from "@/lib/supabase/server";
 import { nextTierFor, tierLabel } from "@/lib/tiers";
-import {
-  IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon, LiveIcon, SignalsIcon, DeskIcon, LockIcon,
-} from "@/components/icons";
 
 // Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
 // a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
@@ -47,22 +45,12 @@ function regionFor(country: string): Region {
 // Copy here stays compliance-safe (no profit/return language; risk footer kept
 // verbatim). The original word-heavy prose was condensed into a visual manifest
 // + the step pathway per Gordon's brief.
-type Icon = ComponentType<SVGProps<SVGSVGElement>>;
-const LOCKED_ITEMS: { label: string; icon: Icon }[] = [
-  { label: "TradingView indicators", icon: IndicatorsIcon },
-  { label: "Backtestable strategies", icon: StrategiesIcon },
-  { label: "The MM System & playbooks", icon: LibraryIcon },
-  { label: "The full course (Module 1 stays free)", icon: CourseIcon },
-  { label: "Live classes with the desk", icon: LiveIcon },
-  { label: "Daily signals", icon: SignalsIcon },
-  { label: "The Fundamental Desk", icon: DeskIcon },
-];
 
 // Broker regions: the deposit-you-own model (no fee). US/UK: a paid one-time
 // lifetime membership (the brokers can't host them) — so the copy must differ,
 // or it would falsely claim "no fee" to people who do pay.
 const ASSURANCES_BROKER = ["No subscription", "No card on file", "No fee", "The deposit stays yours"];
-const ASSURANCES_CONTACT = ["One-time payment", "Lifetime access", "No recurring fees", "Details on Telegram"];
+const ASSURANCES_CONTACT = ["One-time payment", "Lifetime access", "No recurring fees", "No broker account needed"];
 
 export default async function UpgradePage({
   searchParams,
@@ -91,6 +79,8 @@ export default async function UpgradePage({
   const cumulative = Number(access.profile?.deposit_amount ?? 0) || 0;
   const isPaid = memberTier === "foundation" || memberTier === "desk" || memberTier === "team";
   const next = isPaid ? nextTierFor(cumulative) : null;
+  // Phase 6 — a US/UK lifetime member's plan.
+  const lifetimePlan = isLifetimePlan(access.profile?.lifetime_plan) ? access.profile.lifetime_plan : null;
 
   // conversion-fix 5.1 — the latest deposit submission decides whether the
   // form or its review status shows (RLS: a user reads only their own).
@@ -142,7 +132,9 @@ export default async function UpgradePage({
           Market Makers FX
         </p>
         <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
-          {memberTier === "team"
+          {lifetimePlan === "team"
+            ? "You have Team MM. The full Mentorship is one message away."
+            : memberTier === "team"
             ? "You have the whole desk."
             : isPaid && next
               ? `You're on ${tierLabel(memberTier)}. Top up $${next.topUp.toLocaleString("en-US")} to unlock ${tierLabel(next.next)}.`
@@ -151,7 +143,11 @@ export default async function UpgradePage({
                 : "Keep your whole desk after the trial."}
         </h1>
         <p className="mt-5 text-[16px] leading-relaxed text-subtle">
-          {memberTier === "team"
+          {lifetimePlan
+            ? lifetimePlan === "team"
+              ? `Your ${LIFETIME_PLANS.team.name} plan covers everything except the full course. Add the Mentorship whenever you're ready.`
+              : `Your ${LIFETIME_PLANS.team_mentorship.name} plan covers everything, for life.`
+            : memberTier === "team"
             ? "Team MM is the top tier: nothing left to unlock."
             : isPaid
               ? `You've deposited $${cumulative.toLocaleString("en-US")} so far, and it stays yours. Tiers count everything you've deposited, never your balance, so a drawdown never locks you out.`
@@ -162,24 +158,11 @@ export default async function UpgradePage({
 
         {isContact ? (
           <>
-            {/* What's locked — visual manifest */}
+            {/* Phase 6 — the US/UK lifetime plans */}
             <p className="mt-10 text-[11px] font-semibold uppercase tracking-wider text-faint">
-              {onFree ? "What's locked on Free" : "What locks when the trial ends"}
+              Lifetime plans · pay once, keep it for life
             </p>
-            <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {LOCKED_ITEMS.map((item) => (
-                <li
-                  key={item.label}
-                  className="relative flex items-center gap-3 rounded-xl border border-line bg-card/70 px-4 py-3"
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-paper text-faint">
-                    <item.icon className="h-[18px] w-[18px]" />
-                  </span>
-                  <span className="min-w-0 text-[13.5px] font-medium text-subtle">{item.label}</span>
-                  <LockIcon className="absolute right-3 top-3 h-3.5 w-3.5 text-faint/60" />
-                </li>
-              ))}
-            </ul>
+            <LifetimePlans currentPlan={lifetimePlan} />
           </>
         ) : (
           <>

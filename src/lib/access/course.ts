@@ -24,6 +24,8 @@ export function canWatchLesson(
   modules: readonly ModuleRange[],
   viewer: Viewer
 ): boolean {
+  // Team MM Access (US/UK, Phase 6) is Team MM without the Mentorship.
+  if (viewer.noMentorship) return isLessonFree(lessonNumber, modules);
   // "library" stands in for Foundation: the full course opens at Foundation.
   return canAccess("library", viewer) || isLessonFree(lessonNumber, modules);
 }

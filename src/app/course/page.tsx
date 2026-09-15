@@ -50,7 +50,9 @@ export default async function CoursePage() {
           <div className="rise mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange/25 bg-accent-soft/40 px-5 py-3.5">
             <p className="text-[13.5px] leading-relaxed text-ink">
               <span className="font-semibold">Module 1 is open on your plan.</span>{" "}
-              The other {lockedCount} lessons unlock when you fund your account.
+              {viewer.noMentorship
+                ? `The other ${lockedCount} lessons are in the Team MM + Mentorship plan.`
+                : `The other ${lockedCount} lessons unlock when you fund your account.`}
             </p>
             <Link
               href="/upgrade"

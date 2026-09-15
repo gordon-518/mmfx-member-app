@@ -14,6 +14,7 @@ import { logEventAfter } from "@/lib/events";
 import { tierFor, tierLabel, type MemberTier, type TierSnapshot } from "@/lib/tiers";
 import { sendEmail } from "@/lib/sendpulse";
 import { depositVerifiedEmail, depositRejectedEmail } from "@/lib/depositEmails";
+import { isLifetimePlan, LIFETIME_PLANS, lifetimePrice } from "@/lib/lifetimePlans";
 // One entitlement rule shared with the nightly cron (conversion-fix 3.4).
 const TV_ACTIVE = TV_ENTITLED_STATUSES;
 
@@ -516,6 +517,66 @@ export async function reviewSubmission(formData: FormData) {
     ok: isFirstDeposit
       ? `Verified — ${targetEmail} is now a ${tierLabel(tierAfter)} member ($${cumulative})`
       : `Top-up verified — ${targetEmail}: $${cumulative} cumulative, ${tierLabel(tierAfter)}`,
+    target: targetEmail,
+  });
+}
+
+// ─── conversion-fix Phase 6 — US/UK lifetime plans ───────────────────────────
+// After the trader pays (arranged over WhatsApp/Telegram), the admin grants
+// the plan here. fn_admin_grant_lifetime makes them member_active on the plan
+// and never downgrades Mentorship. This is a real one-time payment, so CAPI
+// Purchase fires at the plan price when the grant turns a non-member into a
+// member (not on an upgrade, and not for someone who was already a member).
+
+export async function grantLifetime(formData: FormData) {
+  const targetUserId = String(formData.get("target_user_id") ?? "");
+  const targetEmail = String(formData.get("target_email") ?? "");
+  const plan = String(formData.get("plan") ?? "");
+  const filters = filterParams(formData);
+
+  if (!targetUserId) backTo({ ...filters, error: "Missing target user", target: targetEmail });
+  if (!isLifetimePlan(plan)) backTo({ ...filters, error: "Choose a lifetime plan", target: targetEmail });
+
+  const supabase = await requireAdmin(filters, targetEmail);
+
+  const { data: before } = await supabase
+    .from("profiles")
+    .select("account_status, trial_ends_at, deposit_amount, grandfathered, lifetime_plan")
+    .eq("id", targetUserId)
+    .single();
+
+  const { data: after, error } = await supabase.rpc("fn_admin_grant_lifetime", {
+    target_user_id: targetUserId,
+    p_plan: plan,
+  });
+  if (error) backTo({ ...filters, error: error.message, target: targetEmail });
+
+  await syncTV(supabase, targetUserId);
+
+  const tierBefore = before ? tierFor(before as unknown as TierSnapshot) : "free";
+  const tierAfter = after ? tierFor(after as unknown as TierSnapshot) : "team";
+  if (tierAfter !== tierBefore) {
+    logEventAfter(targetUserId, "tier_changed", { from: tierBefore, to: tierAfter });
+  }
+
+  if (before && before.account_status !== "member_active") {
+    try {
+      await sendCapiEvent({
+        eventName: "Purchase",
+        actionSource: "website",
+        eventSourceUrl: "https://app.marketmakersfx.net/upgrade",
+        user: { email: targetEmail, externalId: targetUserId },
+        customData: { value: LIFETIME_PLANS[plan].priceUsd, currency: "USD", content_name: `lifetime_${plan}` },
+      });
+    } catch (e) {
+      console.error("[meta-capi] lifetime Purchase failed:", e);
+    }
+  }
+
+  revalidatePath("/admin");
+  backTo({
+    ...filters,
+    ok: `Lifetime plan granted — ${targetEmail}: ${LIFETIME_PLANS[plan].name} (${lifetimePrice(plan)})`,
     target: targetEmail,
   });
 }

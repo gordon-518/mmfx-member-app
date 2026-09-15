@@ -33,6 +33,8 @@ export interface AccessProfile {
   deposit_amount: number | string | null;
   /** Softr-era member: always Team MM (conversion-fix 3.1). */
   grandfathered: boolean;
+  /** US/UK lifetime plan (Phase 6): team | team_mentorship. */
+  lifetime_plan: string | null;
 }
 
 export type Access =
