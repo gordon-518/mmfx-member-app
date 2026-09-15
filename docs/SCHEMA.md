@@ -86,7 +86,7 @@ In-app deposit submissions (conversion-fix 5.1 and 5.4). A user submits from `/u
 | `trading_account_number` | `text` | no | Digits, 4 to 20. |
 | `amount` | `numeric(12,2)` | no | At least 50. |
 | `tradingview_username` | `text` | yes | Optional @handle. |
-| `telegram_username` | `text` | yes | The member's Telegram @handle without the @, 5–32 letters, numbers or underscores. **Required on new submissions** (`20260915000005`); null only on the one submission from before it was required. |
+| `telegram_username` | `text` | yes | The member's Telegram @handle without the @, 5–32 letters, numbers or underscores. **Required on new submissions** (`20260915000005`; the old 5-argument `fn_submit_deposit` was dropped in `20260915000006` once the new app was live); null only on the one submission from before it was required. |
 | `proof_path` | `text` | no | Object name in `deposit-proofs`: `<user_id>/<file>`. |
 | `status` | `text` | no | `pending` (default), `verified` or `rejected`. At most one `pending` per user (partial unique index). |
 | `reject_reason` | `text` | yes | Shown to the user on `/upgrade`. |
