@@ -56,7 +56,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     key: "desk",
     day: 5,
     title: "See what Desk adds",
-    blurb: "Signals, live classes and the Fundamental Desk: the tier that takes the calls.",
+    blurb: "Live classes and the Fundamental Desk: learn the system live, with the macro read behind it.",
     href: "/upgrade",
     stage: "Your next tier",
   },
@@ -110,14 +110,14 @@ export function onboardingProgress(state: OnboardingState): OnboardingProgress {
  * earns. Unknown or missing archetypes get the general line.
  */
 const DESK_FOR: Readonly<Record<string, string>> = {
-  "The Analysis Paralyser": "You over-think the entry. Desk's signals hand you the call and the levels, so you can act on a plan.",
-  "The Emotional Revenge Trader": "Desk puts a rule-based call and a live class between you and the next revenge trade.",
-  "The Reckless Gambler": "Desk's calls come with a stop on every one. Structure first, size second.",
-  "The Signal Dependent": "Desk gives you the calls, and live classes to learn why each one was taken.",
-  "The Indicator Stacker": "Desk swaps a chart full of indicators for one read and one call, with the reasoning.",
-  "The System Hopper": "Desk is one system, traded live: the same rules every day.",
-  "The Brand New Beginner": "Desk lets you watch the calls and the live classes while you learn the system.",
-  "The News Trader": "The Fundamental Desk reads the macro for you, and Desk's calls are timed around it.",
+  "The Analysis Paralyser": "You over-think the entry. Desk's live classes show how the desk reads a setup and commits to a plan.",
+  "The Emotional Revenge Trader": "Desk puts a live class and a rule-based macro read between you and the next revenge trade.",
+  "The Reckless Gambler": "Desk's live classes put structure first: where the stop goes, then the size.",
+  "The Signal Dependent": "Desk's live classes teach why each trade is taken, so you're not just copying calls.",
+  "The Indicator Stacker": "Desk swaps a chart full of indicators for one live read, with the reasoning behind it.",
+  "The System Hopper": "Desk is one system, traded live in class: the same rules every day.",
+  "The Brand New Beginner": "Desk lets you watch the system traded live in class while you learn it.",
+  "The News Trader": "The Fundamental Desk reads the macro behind every move, in plain English.",
 };
 
 export function deskPitchFor(archetype: string | null | undefined): string {

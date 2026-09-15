@@ -78,11 +78,13 @@ These are settled. Don't reopen them in the fixing chat.
 | MM Library (4 eBooks) | `/library`, `/api/ebooks/[slug]` | — | ✓ | ✓ | ✓ |
 | 10 TradingView indicators | `/indicators` + TV grant automation | — | ✓ | ✓ | ✓ |
 | Strategy scripts | `/strategies` | — | ✓ | ✓ | ✓ |
-| Signals | `/signals` | — | — | ✓ | ✓ |
+| Signals channel (public Telegram) | `/signals` | ✓ | ✓ | ✓ | ✓ |
 | Live Classes | `/live-classes` | — | — | ✓ | ✓ |
 | Fundamental Desk | `/bots/fundamental` | — | — | ✓ | ✓ |
 | AI Trading Assistant | `/journal`, `/journal/*`, `/api/reports/[id]` | — | — | — | ✓ |
-| Team MM channel | `/team-mm` | — | — | — | ✓ |
+| Team MM channel (the desk's calls) | `/team-mm` | — | — | — | ✓ |
+
+**Corrected 15 Sept (Gordon):** "signals from the desk" and the private Team MM channel are the same thing, and the public Telegram signals channel is already free. So `/signals` is open on every plan, Desk is Live Classes plus the Fundamental Desk, and the desk's calls are Team MM.
 
 ### Decisions resolved 10 Sept
 

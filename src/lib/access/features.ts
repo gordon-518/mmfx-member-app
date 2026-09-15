@@ -22,7 +22,9 @@ export const FEATURE_MIN_TIER: Readonly<Record<FeatureKey, FeatureMinTier>> = {
   library: "foundation",
   indicators: "foundation",
   strategies: "foundation",
-  signals: "desk",
+  // The public Telegram signals channel is free; the desk's calls are the
+  // private Team MM channel (team-mm below). Corrected 15 Sep (Gordon).
+  signals: "free",
   "live-classes": "desk",
   "fundamental-desk": "desk",
   "ai-trading-assistant": "team",

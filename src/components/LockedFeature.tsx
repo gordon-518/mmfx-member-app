@@ -23,12 +23,6 @@ interface LockedCopy {
 }
 
 const COPY: Partial<Record<FeatureKey, LockedCopy>> = {
-  signals: {
-    eyebrow: "Desk · Signals",
-    title: "Signals",
-    pitch: "Trade calls from the desk on XAU/USD, each with the levels and the reasoning behind it.",
-    points: ["Entry, stop and targets on every call", "The thesis behind the trade", "Posted as the desk takes them"],
-  },
   indicators: {
     eyebrow: "Tools · TradingView",
     title: "Indicators",
@@ -80,6 +74,7 @@ const COPY: Partial<Record<FeatureKey, LockedCopy>> = {
 
 const FREE_LINKS: { label: string; feature: FeatureKey }[] = [
   { label: "Daily Analysis", feature: "daily-analysis" },
+  { label: "Signals channel", feature: "signals" },
   { label: "Economic Calendar", feature: "calendar" },
   { label: "News", feature: "news" },
   { label: "Know Your Style", feature: "know-your-style" },

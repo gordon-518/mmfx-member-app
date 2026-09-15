@@ -152,7 +152,7 @@ export default async function UpgradePage({
             : isPaid
               ? `You've deposited $${cumulative.toLocaleString("en-US")} so far, and it stays yours. Tiers count everything you've deposited, never your balance, so a drawdown never locks you out.`
               : onFree
-                ? "Your trial has ended, so you're on the Free plan. Daily Analysis, the calendar, news, Know Your Style and Module 1 of the course stay open. The rest is locked, not gone."
+                ? "Your trial has ended, so you're on the Free plan. Daily Analysis, the signals channel, the calendar, news, Know Your Style and Module 1 of the course stay open. The rest is locked, not gone."
                 : "Right now everything is unlocked. Fund your account and it stays that way when your trial ends."}
         </p>
 

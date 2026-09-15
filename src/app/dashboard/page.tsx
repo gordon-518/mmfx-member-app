@@ -165,7 +165,7 @@ export default async function DashboardPage() {
       key: "upgrade",
       eyebrow: "Free plan",
       title: "Unlock the rest of your desk",
-      body: "Signals, the indicator suite, the full course and the library open when you fund your account.",
+      body: "The indicator suite, the full course, the library and live classes open when you fund your account.",
       cta: { label: "See what unlocks", href: "/upgrade" },
       image: { src: "/dashboard/spotlight-course.jpg", alt: "" },
     });

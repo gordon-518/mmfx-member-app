@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from "react";
 import {
-  CourseIcon, LibraryIcon, IndicatorsIcon, StrategiesIcon, SignalsIcon, LiveIcon, DeskIcon,
+  CourseIcon, LibraryIcon, IndicatorsIcon, StrategiesIcon, LiveIcon, DeskIcon,
   JournalIcon, TelegramIcon, LockIcon,
 } from "@/components/icons";
 import { TIER_RANK, TIER_THRESHOLDS, tierLabel, type MemberTier, type PaidTier } from "@/lib/tiers";
@@ -25,21 +25,20 @@ const TIERS: { tier: PaidTier; pitch: string; items: { label: string; icon: Icon
   },
   {
     tier: "desk",
-    pitch: "Take the calls",
+    pitch: "Learn it live, with the macro read",
     items: [
-      { label: "Signals from the desk", icon: SignalsIcon },
       { label: "Live classes", icon: LiveIcon },
       { label: "The Fundamental Desk", icon: DeskIcon },
     ],
-    note: "We don't send calls to an account that can't survive them.",
   },
   {
     tier: "team",
-    pitch: "The full desk",
+    pitch: "Take the desk's calls",
     items: [
+      { label: "The private Team MM channel: the desk's calls", icon: TelegramIcon },
       { label: "The AI Trading Assistant", icon: JournalIcon },
-      { label: "The private Team MM channel", icon: TelegramIcon },
     ],
+    note: "We don't send calls to an account that can't survive them.",
   },
 ];
 

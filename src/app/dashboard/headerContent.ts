@@ -71,7 +71,7 @@ export function headerContent(
       return {
         eyebrow: "Free plan",
         title: "You're on Free",
-        body: "Daily Analysis, the calendar, news, Know Your Style and Module 1 stay open. Fund your account to unlock the rest.",
+        body: "Daily Analysis, the signals channel, the calendar, news, Know Your Style and Module 1 stay open. Fund your account to unlock the rest.",
         cta: { href: "/upgrade", label: "See what unlocks", kind: "push" },
       };
     case "re_trial_expired":
