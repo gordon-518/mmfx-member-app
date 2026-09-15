@@ -94,6 +94,8 @@ In-app deposit submissions (conversion-fix 5.1 and 5.4). A user submits from `/u
 
 **Reviewer:** `fn_review_deposit_submission(p_id, p_action 'verify'|'reject', p_reason, p_ib_confirmed)` (admin-only, `20260910000009`). The submission must still be `pending`, and the row is locked so it can't be reviewed twice. **Verify** runs `fn_verify_deposit` with the submission's broker and amount, so every Phase 3 rule applies, including the IB check, the ledger, top-ups and the double-submit guard. It also saves the submitted account number when the profile has none. **Reject** needs a reason, which the member sees. Both stamp `reviewed_by` and `reviewed_at`.
 
+**Hot leads:** `fn_admin_hot_leads(p_limit)` (admin-only, `20260910000010`, conversion-fix 5.5). Returns users who saved a TradingView username, viewed Daily Analysis, were active on 3 or more distinct days (a proxy for sessions, which aren't recorded), and viewed `/upgrade`, but have no `deposit_submissions` row and aren't `member_active`. Most recently active first.
+
 **Storage bucket `deposit-proofs` (private):** a user may `INSERT` only under `<auth.uid()>/` and has no update or delete, so a proof can't be swapped after submission. Only admins may `SELECT`. Verified as the real roles in a rolled-back transaction.
 
 ---

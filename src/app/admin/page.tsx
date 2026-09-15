@@ -5,6 +5,7 @@ import { canGrantRetrial } from "@/lib/trial/admin";
 import type { AccountStatus } from "@/lib/trial/status";
 import { tierFor, tierLabel, type TierSnapshot } from "@/lib/tiers";
 import { DepositQueue, type QueueRow } from "./DepositQueue";
+import { HotLeads, type HotLead } from "./HotLeads";
 import {
   grantRetrial,
   runSendpulseSync,
@@ -250,6 +251,10 @@ export default async function AdminPage({
     })
   );
 
+  // conversion-fix 5.5 — hot leads for manual follow-up (admin-only RPC).
+  const { data: hotLeadData } = await supabase.rpc("fn_admin_hot_leads", { p_limit: 200 });
+  const hotLeads = (hotLeadData ?? []) as HotLead[];
+
   // Admin-managed content (admin sees all rows via the is_admin policy).
   const { data: analysisData } = await supabase
     .from("daily_analysis")
@@ -334,6 +339,7 @@ export default async function AdminPage({
 
         {/* conversion-fix 5.2 — the deposit review queue, the main work item. */}
         <DepositQueue rows={queueRows} hiddenFilters={hiddenFilters} />
+        <HotLeads leads={hotLeads} />
 
         {/* TradingView session — manual refresh fallback for when the app's
             programmatic login is CAPTCHA-blocked. */}
