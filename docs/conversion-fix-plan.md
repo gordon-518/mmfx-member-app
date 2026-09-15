@@ -360,7 +360,7 @@ Instrumentation comes first on purpose: every later phase is a change you'll wan
   | Day 4 | Lesson 1 watched | "Golden Mindset: lesson 1" | `/course` |
   | Day 5 | Tier page seen | "What Desk adds, for your style" | `/upgrade` |
 
-  **Blocker before it can be built:** SendPulse doesn't know a contact's checklist yet. The nightly `sendpulseSync` needs an `onboarding` variable per contact (e.g. `tv,analysis`), which means adding a batch version of `fn_my_onboarding` for the service role. That's a small follow-up task.
+  **Unblocked (15 Sept, `20260915000002_onboarding_batch.sql`, applied to prod):** `fn_onboarding_states()` (service role only; it matches `fn_my_onboarding`) feeds the nightly `sendpulseSync`. Each contact now carries `onboarding` (e.g. `tv,analysis` or `none`) and `onboarding_done` (0–5). Build each trigger in SendPulse as "`onboarding` doesn't contain `<step>`" plus days since signup. On 15 Sept: 3,528 contacts at 0 steps, 414 at 1, 40 at 2, 9 at 3. **What's left is the email content and automations in SendPulse (Gordon).**
 
 - [x] **4.4 Group the nav by trader stage.** Use the same three stages as the roadmap, so a new user isn't faced with every feature at once.
   **Landed:** the AppShell nav is `NAV_SECTIONS`. Start here and Dashboard stay at the top, followed by Read the market, Execute, Manage and Foundations, with the same spine as the roadmap and dashboard rails. Lock badges and tier hints work as before, and Admin stays last.

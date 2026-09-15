@@ -31,8 +31,17 @@ export async function syncSendpulseAudiences(): Promise<SendpulseSyncResult> {
 
   const { data: users, error } = await admin
     .from("profiles")
-    .select("email, full_name, account_status, trial_ends_at, deposit_amount, grandfathered");
+    .select("id, email, full_name, account_status, trial_ends_at, deposit_amount, grandfathered");
   if (error) return { ...empty, error: error.message };
+
+  // conversion-fix 4.3 — every contact's onboarding progress, in one query, so
+  // SendPulse can trigger "step N not done by day N" emails. Service role only.
+  // A failed read skips the variables rather than failing the whole sync.
+  const { data: onboardingRows, error: onboardingError } = await admin.rpc("fn_onboarding_states");
+  if (onboardingError) console.error("[sendpulse-sync] onboarding read failed:", onboardingError.message);
+  const onboardingByUser = new Map(
+    ((onboardingRows ?? []) as { user_id: string; steps: string; done: number }[]).map((r) => [r.user_id, r])
+  );
 
   const now = Date.now();
   const counts: Record<string, number> = { member: 0, trial: 0, expired: 0, removed: 0 };
@@ -59,6 +68,12 @@ export async function syncSendpulseAudiences(): Promise<SendpulseSyncResult> {
       },
       new Date(now)
     );
+    const onb = onboardingByUser.get(u.id as string);
+    if (onb) {
+      // "tv,analysis,…" or "none", plus the count, for SendPulse segments.
+      variables.onboarding = onb.steps || "none";
+      variables.onboarding_done = String(onb.done);
+    }
     if (u.full_name) variables.Name = u.full_name as string;
     if (trialEndsAt) variables.trial_ends_at = trialEndsAt.slice(0, 10);
     contacts.push({ email, variables });
