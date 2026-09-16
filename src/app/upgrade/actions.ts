@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { sendTelegram, escapeHtml } from "@/lib/telegram";
+import { sendAdminTelegram } from "@/lib/telegram";
+import { sendAdminAlert } from "@/lib/notify";
+import { buildDepositAlert } from "@/lib/depositAlert";
 import { isClientEvent, sanitizeClientProps } from "@/lib/eventNames";
 import { depositRef } from "@/lib/depositRef";
 
@@ -99,12 +101,26 @@ export async function submitDeposit(
     return { error: known ? error.message : "Something went wrong. Try again, or message us." };
   }
 
-  // conversion-fix 5.3 — tell the admin a submission is waiting. Best-effort:
-  // sendTelegram never throws, and a failed DM doesn't fail the submission.
-  const tg = await sendTelegram(
-    `💰 <b>New deposit submission</b>\n${escapeHtml(user.email ?? user.id)}: $${amount.toLocaleString("en-US")} · ${escapeHtml(broker)}\nTelegram: @${escapeHtml(telegram)} · ref ${depositRef(user.id)}\nReview: https://app.marketmakersfx.net/admin`
-  );
-  if (!tg.ok) console.error("[deposit-submit] admin Telegram DM failed:", tg.detail);
+  // conversion-fix 5.3 — tell the admin a submission is waiting. Both channels
+  // (17 Sep): Telegram to the alert bot (@MMbrainerbot on the VPS) AND email,
+  // so a silent Telegram failure can no longer hide a waiting deposit. The
+  // trading account number is in both, to check the broker back office.
+  // Best-effort: neither send throws, and neither can fail the submission.
+  const alert = buildDepositAlert({
+    email: user.email ?? user.id,
+    amount,
+    broker,
+    account,
+    tradingview: tradingview || null,
+    telegram,
+    ref: depositRef(user.id),
+  });
+  const [tg, mail] = await Promise.all([
+    sendAdminTelegram(alert.html),
+    sendAdminAlert(alert.subject, alert.text),
+  ]);
+  if (!tg.ok) console.error("[deposit-submit] admin Telegram alert failed:", tg.detail);
+  if (!mail.ok) console.error("[deposit-submit] admin email alert failed:", mail.detail);
 
   revalidatePath("/upgrade");
   return { ok: true, amount };
