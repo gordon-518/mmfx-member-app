@@ -300,6 +300,220 @@ describe("checkDraft", () => {
   it("still allows an amount the member wrote themselves", () => {
     expect(checkDraft("Your $198 counts toward Foundation.", ctx(["I have $198 in my account"]))).toEqual([]);
   });
+
+  // R1: IB merge blind spot (regression) — two adjacent numbers must never
+  // merge into one over-long token and get silently dropped.
+  describe("IB merge blind spot", () => {
+    it("blocks a competing IB even when a correct one sits right next to it", () => {
+      expect(checkDraft("Our IB is 47807426, 5928887 is not ours.", ctx())).toEqual([expect.stringContaining("5928887")]);
+    });
+    it("blocks two adjacent account numbers, not just one merged token", () => {
+      const result = checkDraft("Accounts 1234567, 2345678 are both linked.", ctx());
+      expect(result).toHaveLength(1);
+      expect(result[0]).toContain("1234567");
+      expect(result[0]).toContain("2345678");
+    });
+    it("does not falsely block a member's own account when a second number sits next to it in their message", () => {
+      expect(
+        checkDraft("Your account 1234567 is linked.", ctx(["my accounts are 1234567, 2345678"]))
+      ).toEqual([]);
+    });
+    it("stays clean on ordinary amounts, dates and phone numbers", () => {
+      expect(checkDraft("$1,588", ctx())).toEqual([]);
+      expect(checkDraft("2026-12-15", ctx())).toEqual([]);
+      expect(checkDraft("USD 1,588.00", ctx())).toEqual([]);
+      expect(checkDraft("Call us on +60 12 345 6789", ctx())).toEqual([]);
+      expect(checkDraft("WhatsApp 60123456789", ctx(["WhatsApp 60123456789"]))).toEqual([]);
+    });
+  });
+
+  // R2: handle regression — a non-whitespace character before "@" must not
+  // disable the handle check.
+  describe("handle regression: non-whitespace before @", () => {
+    it.each([
+      "Message (@scammer) now.",
+      'Message "@scammer" now.',
+      "Ask Amelia,@scammer for help.",
+    ])("blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("@scammer")]);
+    });
+    it.each([
+      "Hubungi 支援@example.com",
+      "support@marketmakersfx.net",
+      "name.surname@example.com",
+      "Message @MM_3000",
+      "Amelia (@MM_3000) can help",
+    ])("still passes %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([]);
+    });
+  });
+
+  // R3: CODE_RE must not read a capitalised ordinary word as a code.
+  describe("CODE_RE: ordinary capitalised words are not codes", () => {
+    it.each(["Use the code Amelia sent you.", "Paste the code Telegram sent you."])("passes %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([]);
+    });
+    it.each(["SUMMER2026", "XYZ99", "WELCOME"])("still blocks a code shape %s", (code) => {
+      expect(checkDraft(`Use code ${code}.`, ctx())).toEqual([expect.stringContaining("bonus")]);
+    });
+    it("still allows the current bonus code", () => {
+      expect(checkDraft("Use code TeamMM001.", ctx())).toEqual([]);
+    });
+    it("still allows a reference code", () => {
+      expect(checkDraft("Your reference code MM-3F9A2C is noted.", ctx())).toEqual([]);
+    });
+  });
+
+  // R4: PROFIT_RE false blocks — soft words need money/rate context.
+  describe("PROFIT_RE: soft words need money or rate context", () => {
+    it.each([
+      "You can earn your Foundation tier with a $50 top-up.",
+      "Your gains and losses stay in your own account.",
+      "We can't promise any income.",
+      "Once you have earned Foundation you keep it.",
+    ])("passes %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([]);
+    });
+    it.each([
+      "You'll earn more.",
+      "extra income monthly",
+      "10% a month is realistic",
+      "win every trade",
+      "gains of 5%",
+      "ROI is strong",
+      "passive income",
+      "Profits are guaranteed",
+      "Let's start printing together!",
+    ])("still blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("profit")]);
+    });
+  });
+
+  // R5: the "soon" veto is scoped to "as soon as", and the veto window is
+  // clause-scoped so an earlier clause's veto word doesn't leak in.
+  describe("claim veto: 'soon' scoping and clause boundaries", () => {
+    it.each([
+      "Access opens soon, and your deposit is approved.",
+      "You'll hear from us soon — your deposit is approved.",
+      "soon your deposit is approved",
+      "Once more, your deposit is approved.",
+      "I will check: your deposit is approved.",
+    ])("blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("deposit")]);
+    });
+    it("passes the fact sheet's own 'as soon as' phrasing", () => {
+      expect(checkDraft("Team MM opens as soon as the deposit is approved.", ctx())).toEqual([]);
+    });
+    it("still allows the other negated/conditional approval phrasings", () => {
+      expect(checkDraft("Your top-up hasn't been approved yet.", ctx())).toEqual([]);
+      expect(checkDraft("Your deposit is not approved yet.", ctx())).toEqual([]);
+      expect(checkDraft("Your submission is pending, not verified yet.", ctx())).toEqual([]);
+      expect(
+        checkDraft("The team will check your submission and email you once it's approved.", ctx())
+      ).toEqual([]);
+    });
+    it("still blocks a bare approved claim, and passes it once verified", () => {
+      expect(checkDraft("Your deposit is approved.", ctx())).toEqual([expect.stringContaining("deposit")]);
+      const verified: MemberContext = {
+        userId: "u", matchedBy: "ref", tier: "foundation", trialEndsAt: null,
+        submission: { status: "verified", rejectReason: null, createdAt: "2026-09-14" },
+      };
+      expect(checkDraft("Your deposit is approved.", ctx([], verified))).toEqual([]);
+    });
+    it("still blocks a promise that someone else will approve it", () => {
+      expect(checkDraft("Amelia will approve your deposit today.", ctx())).toEqual([expect.stringContaining("promise")]);
+    });
+  });
+
+  // R6: the member-digit exemption must not whitewash the competing IB when
+  // the draft itself presents the number as an IB/partner code.
+  describe("member-digit exemption does not cover an IB-presented number", () => {
+    it("blocks a competing IB even when the member pasted the same number as their IB", () => {
+      expect(
+        checkDraft("Your IB is 5928887 as you said.", ctx(["my ib is 5928887"]))
+      ).toEqual([expect.stringContaining("5928887")]);
+    });
+    it("still allows a member's own account number when not framed as an IB", () => {
+      expect(checkDraft("Your trading account 2167136 is linked.", ctx(["my account 2167136"]))).toEqual([]);
+    });
+  });
+
+  // R7: dot/dash separated IB numbers, masking dates and decimals first.
+  describe("dot/dash separated IB numbers", () => {
+    it.each(["IB 592-8887", "Use 5.928.887 as IB."])("blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("IB")]);
+    });
+    it.each(["2026-12-15", "$1,588", "USD 1,588.00"])("stays clean on %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([]);
+    });
+  });
+
+  // R8: path-less bad domains — a bare host with no trailing path must
+  // still be caught.
+  describe("bare-host link scan", () => {
+    it.each(["Go to evil-signals.com now.", "www.evil.com"])("blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("link")]);
+    });
+    it.each(["Node.js is used behind the scenes.", "Confirm your amount, e.g. $50."])(
+      "does not false-positive on %s",
+      (text) => {
+        expect(checkDraft(text, ctx()).filter((r) => r.startsWith("link"))).toEqual([]);
+      }
+    );
+  });
+
+  // R9: further profit phrasing the old regex missed.
+  describe("further profit phrasing", () => {
+    it.each([
+      "you will make 5% weekly",
+      "Your account can double in a month.",
+      "Members often 10x their account.",
+    ])("blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("profit")]);
+    });
+  });
+
+  // R10: a new rule for the fact sheet's own "never tell anyone their money
+  // is safe or protected" instruction — nothing currently enforces it.
+  describe("money/funds 'safe' claim", () => {
+    it("blocks a money-is-safe claim", () => {
+      const result = checkDraft("Your money is safe with us.", ctx());
+      expect(result).toEqual([expect.stringContaining("safe")]);
+    });
+    it("does not fire on the fact sheet's own instruction not to say it", () => {
+      expect(
+        checkDraft("Never tell anyone their money is safe or protected.", ctx())
+      ).toEqual([]);
+    });
+  });
+
+  // R11 (M2 continued): reason ordering — compliance reasons survive the cap
+  // even in a kitchen-sink draft full of other small violations.
+  describe("reason ordering: compliance reasons survive the cap", () => {
+    it("keeps profit, deposit-claim and promise reasons even with 5+ other violations", () => {
+      const draft =
+        "Use IB 5928887 or 592 8887. Pay USD999 or RM250. Use code WELCOME99. " +
+        "Go to evil-signals.com/pay now. Message @randomguy or @randomguy again. " +
+        "We guarantee profits! Your deposit is approved. Amelia will approve it today.";
+      const result = checkDraft(draft, ctx());
+      expect(result.length).toBeLessThanOrEqual(6);
+      expect(new Set(result).size).toBe(result.length);
+      expect(result.some((r) => r.includes("profit"))).toBe(true);
+      expect(result.some((r) => r.includes("deposit is received or approved"))).toBe(true);
+      expect(result.some((r) => r.includes("promise"))).toBe(true);
+    });
+  });
+
+  // R12: APPROVAL_PROMISE_RE widened to present-continuous, with a negation
+  // veto for general statements that aren't a promise about this member.
+  describe("wider approval-promise detection", () => {
+    it("blocks present-continuous 'is approving'", () => {
+      expect(checkDraft("Amelia is approving it now.", ctx())).toEqual([expect.stringContaining("promise")]);
+    });
+    it("does not block a negated general statement", () => {
+      expect(checkDraft("Nobody will approve a deposit without a screenshot.", ctx())).toEqual([]);
+    });
+  });
 });
 
 describe("mustHandOff", () => {
@@ -323,5 +537,28 @@ describe("mustHandOff", () => {
     expect(mustHandOff("I made the payment yesterday", "other")).toMatch(/payment/);
     expect(mustHandOff("my transfer is done", "other")).toMatch(/payment/);
     expect(mustHandOff("close my account", "other")).toMatch(/deletion/);
+  });
+
+  // R13: Malay phrases scoped to a nearby money word, so routine non-money
+  // questions using the same words aren't misrouted to a human.
+  describe("Malay phrases scoped to a nearby money word", () => {
+    it("does not hand off a routine access question", () => {
+      expect(mustHandOff("kenapa akses saya belum masuk?", "access")).toBeNull();
+    });
+    it("does not hand off withdrawing a question", () => {
+      expect(mustHandOff("saya nak tarik balik soalan tadi", "other")).toBeNull();
+    });
+    it("does not hand off a routine repayment-timing question", () => {
+      expect(mustHandOff("boleh saya bayar balik bulan depan?", "other")).toBeNull();
+    });
+    it("leaves a normal join question alone", () => {
+      expect(mustHandOff("macam mana nak bayar?", "join")).toBeNull();
+    });
+    it("still hands off when a money word is nearby", () => {
+      expect(mustHandOff("deposit saya belum masuk", "other")).toMatch(/funds/);
+      expect(mustHandOff("saya sudah bayar semalam", "other")).toMatch(/payment/);
+      expect(mustHandOff("duit saya hilang", "other")).toMatch(/funds/);
+      expect(mustHandOff("我要提款", "other")).toMatch(/withdraw/);
+    });
   });
 });
