@@ -77,6 +77,36 @@ describe("decide", () => {
     const res = await decide({ facts, thread: thread({ text: "hi" }), contact, member: null }, c);
     expect(res.decision).toBeNull();
     expect(res.refused).toBe(false);
+    expect(res.error).toBe("output did not match the decision schema");
+  });
+
+  it("returns decision null for a reply decision with an empty reply", async () => {
+    const { c } = client(ok({ action: "reply", topic: "plans", confidence: 0.9, reply: "", reason: "x" }));
+    const res = await decide({ facts, thread: thread({ text: "hi" }), contact, member: null }, c);
+    expect(res.decision).toBeNull();
+    expect(res.error).toBe("output did not match the decision schema");
+  });
+
+  it("returns decision null for a reply decision with a whitespace-only reply", async () => {
+    const { c } = client(ok({ action: "reply", topic: "plans", confidence: 0.9, reply: "   ", reason: "x" }));
+    const res = await decide({ facts, thread: thread({ text: "hi" }), contact, member: null }, c);
+    expect(res.decision).toBeNull();
+    expect(res.error).toBe("output did not match the decision schema");
+  });
+
+  it("still parses a handoff decision with an empty reply", async () => {
+    const handoff = { action: "handoff", topic: "money", confidence: 0.4, reply: "", reason: "needs human" };
+    const { c } = client(ok(handoff));
+    const res = await decide({ facts, thread: thread({ text: "hi" }), contact, member: null }, c);
+    expect(res.decision).toEqual(handoff);
+  });
+
+  it("returns a truncation error when stop_reason is 'max_tokens'", async () => {
+    const { c } = client({ stop_reason: "max_tokens", model: "claude-opus-5", content: [{ type: "text", text: "" }] });
+    const res = await decide({ facts, thread: thread({ text: "hi" }), contact, member: null }, c);
+    expect(res.decision).toBeNull();
+    expect(res.refused).toBe(false);
+    expect(res.error).toBe("model output was truncated");
   });
 
   it("returns decision null with an error message when the API call throws", async () => {
@@ -157,16 +187,19 @@ describe("buildUserContent", () => {
   });
 
   it("never states tier, trial or deposit status for an unattested reference-code-only match", () => {
+    // Uses a "pending" submission (rather than an arbitrary status) so the
+    // not.toContain("pending") assertion below is actually meaningful: it
+    // fails if this line ever starts leaking the real status.
     const member: MemberContext = {
       userId: "u1", matchedBy: "ref", tier: "desk", trialEndsAt: "2026-10-01",
-      submission: { status: "verified", rejectReason: null, createdAt: "2026-09-01T00:00:00Z" },
+      submission: { status: "pending", rejectReason: null, createdAt: "2026-09-01T00:00:00Z" },
       attested: false,
     };
     const content = buildUserContent({ thread: thread({ text: "hi" }), contact, member });
     expect(content).not.toContain(tierLabel(member.tier));
     expect(content).not.toContain("pending");
-    expect(content).not.toContain("verified");
     expect(content).not.toContain("2026-10-01");
+    expect(content).not.toContain("matches an account");
     expect(content).toContain("upgrade");
   });
 });
@@ -188,6 +221,18 @@ describe("redactForModel", () => {
     expect(redactForModel("my code is MM-3F9A2C")).toBe("my code is MM-3F9A2C");
   });
 
+  it("keeps an all-digit reference code intact (about 6% of codes are all-digit)", () => {
+    expect(redactForModel("my code is MM-123456")).toBe("my code is MM-123456");
+  });
+
+  it("keeps the reference code and redacts a phone number and an account number in the same message", () => {
+    const text = "my code is MM-123456, call +65 9123 4567, account 2167136";
+    const redacted = redactForModel(text);
+    expect(redacted).toContain("MM-123456");
+    expect(redacted).not.toContain("9123 4567");
+    expect(redacted).not.toContain("2167136");
+  });
+
   it("keeps a small dollar amount intact", () => {
     expect(redactForModel("I paid $198")).toBe("I paid $198");
   });
@@ -204,11 +249,13 @@ describe("redactForModel", () => {
     expect(redacted).not.toContain("2167136");
   });
 
-  it("does not corrupt text when a literal DATE0-like placeholder appears (no dates actually masked)", () => {
-    const input = "my code is DATE0 later";
-    const result = redactForModel(input);
-    expect(result).toBe(input);
-    expect(result).not.toContain("undefined");
+  it("strips an embedded NUL byte so it can't collide with the sentinel and duplicate a date", () => {
+    // Verified bug: before redactForModel stripped NUL bytes from the
+    // input, a literal "\x00<digit>\x00"-shaped run in member text could be
+    // mistaken for the masking sentinel and swapped for a saved date,
+    // duplicating it. Stripping NUL up front makes that impossible.
+    const input = "\x000\x00 and my trial ends 2026-09-15";
+    expect(redactForModel(input)).toBe("0 and my trial ends 2026-09-15");
   });
 
   it("preserves multiple dates in one message", () => {
@@ -216,12 +263,9 @@ describe("redactForModel", () => {
     expect(redactForModel(input)).toBe(input);
   });
 
-  it("keeps the original text intact when placeholder index has no corresponding date", () => {
-    // This tests the robustness of the ?? fallback
-    const result = redactForModel("weird text");
-    expect(result).toContain("weird");
-    expect(result).toContain("text");
-    expect(result).not.toContain("undefined");
+  it("resolves multiple masked tokens (dates and a reference code) back to their originals by index", () => {
+    const input = "trial ends 2026-09-15, renewal 2026-10-01, my code is MM-3F9A2C";
+    expect(redactForModel(input)).toBe(input);
   });
 });
 

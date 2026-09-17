@@ -208,10 +208,10 @@ describe("findMember", () => {
       expect(result?.attested).toBe(true);
     });
 
-    it("is true when the ref and the handle agree (matchedBy stays 'ref')", async () => {
+    it("is true when the ref and the handle agree (matchedBy becomes 'handle', the stronger signal)", async () => {
       const db = makeFakeDb({ rpcResult: "u1", handleRows: [{ user_id: "u1" }], profile });
       const result = await findMember(db, { texts: ["My reference is MM-abcdef"], telegramUsername: "someone" });
-      expect(result?.matchedBy).toBe("ref");
+      expect(result?.matchedBy).toBe("handle");
       expect(result?.attested).toBe(true);
     });
 

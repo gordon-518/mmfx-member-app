@@ -5,13 +5,22 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { tierLabel } from "@/lib/tiers";
 import { TOPICS, type ContactInfo, type Decision, type FactSheet, type MemberContext, type ThreadMessage } from "./types";
 
-export const DecisionSchema = z.object({
-  action: z.enum(["reply", "handoff"]),
-  topic: z.enum(TOPICS),
-  confidence: z.number().min(0).max(1),
-  reply: z.string(),
-  reason: z.string(),
-});
+export const DecisionSchema = z
+  .object({
+    action: z.enum(["reply", "handoff"]),
+    topic: z.enum(TOPICS),
+    confidence: z.number().min(0).max(1),
+    reply: z.string(),
+    reason: z.string(),
+  })
+  // A "reply" decision with a blank (or whitespace-only) reply would have
+  // the orchestrator send an empty Telegram message. "handoff" keeps
+  // reply: "" as valid — it's never sent.
+  .superRefine((data, ctx) => {
+    if (data.action === "reply" && data.reply.trim() === "") {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "reply must not be blank when action is \"reply\"", path: ["reply"] });
+    }
+  });
 
 export const MODEL = process.env.SUPPORT_AGENT_MODEL || "claude-opus-5";
 
@@ -30,7 +39,7 @@ What you may say:
 - Talk about a member's own tier or deposit only when a MEMBER block is present. Never say a deposit is received, approved or verified unless the MEMBER block says the latest submission is verified.
 - Only state a member's tier, trial or deposit status when the MEMBER block shows the identity is confirmed. If it isn't confirmed, don't state any of those — point them to the upgrade page, where they're signed in and can see it themselves.
 - If the MEMBER block says the latest submission is rejected, hand off — Amelia explains why. Never guess or invent a reason.
-- If the member sent a reference code (MM- plus 6 characters), acknowledge it: note the code, tell them to submit the deposit details on the upgrade page if their top-up is already in (or to top up first if not), and say the team checks it and emails them when it's approved.
+- If the member sent a reference code (MM- plus 6 characters), just say you've noted it — never say it was received, confirmed, verified or approved. Then tell them to submit the deposit details on the upgrade page if their top-up is already in (or to top up first if not), and that the team checks it and emails them.
 - If someone wants to join or sign up, point them to the upgrade page, or to an approved flow link where the FACTS say to.
 
 When to hand off (action "handoff", reply ""):
@@ -44,32 +53,47 @@ export function buildSystem(facts: FactSheet): string {
   return `${RULES}\n\nFACTS\n${facts.text}`;
 }
 
-// Protects ISO dates ("2026-09-15") from the phone/account-number scrubs
-// below by swapping them for a placeholder with no digits in it, then
-// restoring them once the other replacements have run. Anything else with
-// 8+ digits and date-shaped separators (dashes) would otherwise read as a
-// phone or account number and get redacted right along with real ones.
+// Protects ISO dates ("2026-09-15") and MM- reference codes ("MM-123456")
+// from the phone/account-number scrubs below by swapping each for a
+// placeholder with no digits in it, then restoring them once the other
+// replacements have run. A deposit reference code is "MM-" plus 6 hex
+// chars — about 6% are all-digit ("MM-123456") and would otherwise read as
+// an account number and get redacted right along with real ones. Likewise
+// anything else with 8+ digits and date-shaped separators (dashes) would
+// read as a phone or account number.
 //
-// Uses a NUL byte sentinel (cannot appear in Telegram text) to ensure the
-// placeholder cannot collide with real member text like "my code is DATE0 later".
+// Uses a NUL byte sentinel. Real Telegram text can't contain one, and
+// redactForModel strips any NUL from the input before masking anything
+// (see below), so the placeholder truly cannot collide with member text —
+// by construction, not by luck.
 const DATE_RE = /\b\d{4}-\d{2}-\d{2}\b/g;
-const MARK = "\x00"; // NUL byte sentinel: impossible in Telegram text
+const REF_CODE_RE = /\bMM-[0-9a-f]{6}\b/gi;
+const MARK = "\x00"; // NUL byte sentinel: stripped from all input below, so it can never appear in member text
+
+/** Masks every match of `re` in `text` with a `${MARK}<index>${MARK}` token, recording the original at that index in `store`. */
+function maskWithSentinel(text: string, re: RegExp, store: string[]): string {
+  return text.replace(re, (m) => {
+    const token = `${MARK}${store.length}${MARK}`;
+    store.push(m);
+    return token;
+  });
+}
 
 /** Strip emails, phone numbers and account-style numbers before text reaches the model (spec: privacy). */
 export function redactForModel(text: string): string {
-  const dates: string[] = [];
-  const withDatesMasked = text.replace(DATE_RE, (m) => {
-    const token = `${MARK}${dates.length}${MARK}`;
-    dates.push(m);
-    return token;
-  });
-  const redacted = withDatesMasked
+  // A NUL byte cannot occur in real Telegram text; stripping it here makes
+  // the sentinel above impossible — not just unlikely — to collide with
+  // member text.
+  const clean = text.replace(/\x00/g, "");
+  const saved: string[] = [];
+  const masked = maskWithSentinel(maskWithSentinel(clean, DATE_RE, saved), REF_CODE_RE, saved);
+  const redacted = masked
     .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]")
     .replace(/\+?\d[\d\s-]{7,}\d/g, "[number]")
     .replace(/\b\d{6,12}\b/g, "[number]");
   return redacted.replace(
     new RegExp(`${MARK}(\\d+)${MARK}`, "g"),
-    (_m, i: string) => dates[Number(i)] ?? _m
+    (_m, i: string) => saved[Number(i)] ?? _m
   );
 }
 
@@ -86,7 +110,7 @@ export function buildUserContent(args: {
     ? "MEMBER: not identified. Don't state any member-specific status."
     : member.attested
       ? `MEMBER: identified by ${member.matchedBy === "ref" ? "reference code" : "Telegram username"}; tier: ${tierLabel(member.tier)}; trial ends: ${member.trialEndsAt ?? "n/a"}; latest deposit submission: ${member.submission ? member.submission.status : "none"}`
-      : "MEMBER: a reference code matches an account on file, but the Telegram account isn't confirmed here. You may confirm the code was noted and give the next step from the FACTS. Don't state their tier, trial or deposit status — point them to the upgrade page, where they're signed in and can see it.";
+      : "MEMBER: a reference code was mentioned, but the Telegram account sending this isn't confirmed here. You may say the code was noted, but never say whether it matched anything. Don't state their tier, trial or deposit status — point them to the upgrade page, where they're signed in and can see it.";
   return [
     `CHAT: ${contact.isBusiness ? "sent to Admin Amelia's account (@MM_3000)" : "chat with the MMFX bot"}. First name: ${contact.firstName || "unknown"}. Tags: ${contact.tags.join(", ") || "none"}.`,
     memberLine,
@@ -119,9 +143,15 @@ export async function decide(
       messages: [{ role: "user", content: buildUserContent(args) }],
     });
     if (res.stop_reason === "refusal") return { decision: null, refused: true, model: res.model };
+    if (res.stop_reason === "max_tokens") {
+      return { decision: null, refused: false, model: res.model, error: "model output was truncated" };
+    }
     const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
     const parsed = DecisionSchema.safeParse(JSON.parse(text));
-    return { decision: parsed.success ? parsed.data : null, refused: false, model: res.model };
+    if (!parsed.success) {
+      return { decision: null, refused: false, model: res.model, error: "output did not match the decision schema" };
+    }
+    return { decision: parsed.data, refused: false, model: res.model };
   } catch (e) {
     return { decision: null, refused: false, model: MODEL, error: e instanceof Error ? e.message : String(e) };
   }

@@ -77,7 +77,11 @@ export async function findMember(
   const byHandle = opts.telegramUsername ? await userByHandle(db, opts.telegramUsername) : null;
   if (byRef && byHandle && byRef !== byHandle) return null;
   const userId = byRef ?? byHandle;
-  const matchedBy: MemberContext["matchedBy"] = byRef ? "ref" : "handle";
+  // The handle is platform-attested (it IS the account in this
+  // conversation) and the stronger signal, so it wins whenever it
+  // resolves — even when the ref agrees with it. "ref" is reserved for a
+  // ref-only match, where there's no handle resolution to prefer.
+  const matchedBy: MemberContext["matchedBy"] = byHandle ? "handle" : "ref";
   if (!userId) return null;
 
   const { data: p, error: pErr } = await db.from("profiles")
