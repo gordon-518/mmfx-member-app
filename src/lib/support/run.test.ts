@@ -17,8 +17,11 @@ import { sendTelegram } from "@/lib/telegram";
 import {
   runBurst, handleOutgoing, defaultPing, PREFIX, RUN_BUDGET_MS, REDRAFT_TIMEOUT_MS,
   FIRST_DECIDE_MIN_BUDGET_MS, MAX_REPLIES_PER_HOUR, MAX_CALLS_PER_DAY, ECHO_WINDOW_MS,
+  HANDOFF_TAIL_MS, ROUTE_MAX_DURATION_MS,
   type RunDeps, type BurstTrigger,
 } from "./run";
+// The route's own declared ceiling, imported so the two can't drift apart.
+import { maxDuration } from "@/app/api/support/webhook/route";
 import type { ChatRow, EventRow, LogResult } from "./store";
 import type { ContactInfo, Decision, SupportSettings, ThreadMessage } from "./types";
 
@@ -56,6 +59,10 @@ function setup(opts: {
    * a test advance a settable fake clock, or mutate chat state (e.g. Amelia
    * taking over mid-draft), as if drafting took a long time. */
   duringDecide?: (setChat: (row: ChatRow | null) => void) => void;
+  /** Makes store.saveChat throw for the patches this returns true for, so a
+   * test can prove a failed chat write never loses the alert to a human and
+   * never turns a delivered reply into an error outcome. */
+  failSaveChat?: (patch: Partial<ChatRow> & { contact_id: string }) => boolean;
 }) {
   const events: EventRow[] = [];
   const usedDedupeKeys = new Set<string>();
@@ -80,7 +87,10 @@ function setup(opts: {
     store: {
       getSettings: async () => (opts.settings === undefined ? settings : opts.settings),
       getChat: async () => chat,
-      saveChat: async (p) => { chat = { ...(chat ?? { contact_id: p.contact_id, state: "auto" }), ...p }; },
+      saveChat: async (p) => {
+        if (opts.failSaveChat?.(p)) throw new Error("saveChat failed");
+        chat = { ...(chat ?? { contact_id: p.contact_id, state: "auto" }), ...p };
+      },
       countRepliesSince: async () => opts.repliesInLastHour ?? events.filter((e) => e.kind === "reply").length,
       countModelCallsSince: async () => opts.modelCallsToday ?? 0,
       recentAgentTexts: async () => events.map((e) => e.reply_text).filter((t): t is string => Boolean(t)),
@@ -344,23 +354,114 @@ describe("runBurst", () => {
   });
 
   // --- (minor 7) A media message whose claim collides must still reach a human
-  describe("media duplicate claim escalates to Amelia (minor 7)", () => {
-    it("hands a duplicate-claimed media message to Amelia instead of silently dropping it", async () => {
+  describe("a duplicate claim escalates only on a stale read", () => {
+    it("skips silently when two photos arrive in a row: one reply, no handoff, no ping", async () => {
+      // Two photos back to back produce two webhooks and two runs, both
+      // resolving to the SAME newest message and computing the same claim
+      // key. memberText already aggregates consecutive incoming messages, so
+      // the winner's answer covered both — the loser must not tell the member
+      // "I've passed this to Admin Amelia", lock the chat for 24h and ping
+      // her for nothing.
       const thread = [msg("p1", "in", "[attachment]", "2026-09-15T04:00:00Z")];
       const s = setup({ thread, decisions: [reply("Got it, thanks!"), reply("Got it, thanks!")] });
       const trigger: BurstTrigger = { at: "2026-09-15T04:00:00Z", text: "" };
       await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "reply" });
-      // Reset to auto so the second run reaches the claim itself, isolating
-      // the duplicate-claim behaviour from the needs_amelia/quiet guards.
-      await s.deps.store.saveChat({ contact_id: "c1", state: "auto" });
       s.sp.send.mockClear(); s.sp.setTag.mockClear();
-      // A second, distinct photo that (via the one-sided time tolerance for
-      // media triggers) resolves to the SAME already-claimed message.
-      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "handoff", reason: "duplicate claim (media)" });
+      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "skip", reason: "already answered" });
+      expect(s.sp.send).not.toHaveBeenCalled();
+      expect(s.sp.setTag).not.toHaveBeenCalled();
+      expect(s.deps.ping).not.toHaveBeenCalled();
+      expect(s.chat?.state).not.toBe("needs_amelia");
+    });
+
+    it("hands a stale-read message to Amelia so a human sees it", async () => {
+      // A genuine stale read: the trigger is meaningfully NEWER than the
+      // thread's latest message, so the read is lagging and this message was
+      // never answered by whoever won the key.
+      const thread = [msg("p1", "in", "[attachment]", "2026-09-15T04:00:00Z")];
+      const s = setup({ thread, decisions: [reply("Got it, thanks!"), reply("Got it, thanks!")] });
+      const trigger: BurstTrigger = { at: "2026-09-15T04:01:00Z", text: "" };
+      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "reply" });
+      s.sp.send.mockClear(); s.sp.setTag.mockClear();
+      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "handoff", reason: "duplicate claim (stale read)" });
       expect(s.sp.send).toHaveBeenCalledWith("c1", expect.stringContaining("passed this to Admin Amelia"));
       expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
       expect(s.chat?.state).toBe("needs_amelia");
     });
+  });
+
+  describe("a failed chat write never loses the alert or the reply", () => {
+    it("still pings a human when the emergency state write fails", async () => {
+      // The likeliest reason for being in the emergency path at all is a
+      // database outage — the same outage that breaks this write. Alerting a
+      // human must not depend on it.
+      const s = setup({
+        thread: [msg("1", "in", "hi")],
+        getMessagesImpl: async () => { throw new Error("SendPulse down"); },
+        failSaveChat: () => true,
+      });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "error" });
+      expect(s.deps.ping).toHaveBeenCalled();
+      expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+    });
+
+    it("still reports a delivered reply when the bookkeeping write fails", async () => {
+      // last_agent_reply_at is cosmetic and is written after the member
+      // already has the message: a failure must not tag the chat, pause
+      // automation for 24h and ping Amelia over a delivered answer.
+      const s = setup({
+        thread: [msg("1", "in", "hi")],
+        decisions: [reply("Foundation starts at $50.")],
+        failSaveChat: (p) => p.last_agent_reply_at !== undefined || p.last_member_msg_at !== undefined,
+      });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      expect(s.sp.send).toHaveBeenCalledWith("c1", "Foundation starts at $50.");
+      expect(s.events.some((e) => e.kind === "error")).toBe(false);
+      expect(s.deps.ping).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a missing timestamp never loses Amelia's quiet period", () => {
+    it("quiets the chat for an outgoing message whose timestamp is empty", async () => {
+      // sendpulse.ts maps a missing created_at to "": new Date("") is an
+      // Invalid Date whose toISOString() throws, which used to be caught and
+      // returned "ignored" — losing the quiet period and letting the agent
+      // reply over Amelia.
+      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", "")] });
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+      expect(s.chat?.state).toBe("quiet");
+    });
+
+    it("falls back to the tag and a ping when the quiet write fails", async () => {
+      // The amelia_reply claim is already spent, so SendPulse's retry would
+      // return "duplicate" and never set quiet — the period would be lost
+      // permanently. Fail closed instead.
+      const s = setup({
+        thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", "2026-09-15T04:00:20Z")],
+        failSaveChat: () => true,
+      });
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+      expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+      expect(s.deps.ping).toHaveBeenCalled();
+    });
+  });
+
+  it("hands off a draft the model isn't confident about", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "is XAU good today?")],
+      decisions: [reply("Probably.", { confidence: 0.4 })],
+    });
+    await expect(runBurst("c1", trig("is XAU good today?"), s.deps)).resolves.toMatchObject({ kind: "handoff" });
+    expect(s.sp.send).toHaveBeenCalledWith("c1", expect.stringContaining("passed this to Admin Amelia"));
+  });
+
+  it("replies again once a quiet period has expired", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "hi")],
+      decisions: [reply("Foundation starts at $50.")],
+      chat: { contact_id: "c1", state: "quiet", quiet_until: "2026-09-15T03:00:00Z" },
+    });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "reply" });
   });
 
   // --- (item 4) Amelia must never be talked over during the debounce --------
@@ -670,6 +771,20 @@ describe("runBurst", () => {
         await runBurst("c1", trig("hi"), s.deps);
         expect(s.decide).toHaveBeenCalledTimes(expectDecide ? 1 : 0);
       }
+    });
+
+    it("keeps the worst-case run inside the route's maxDuration", async () => {
+      // The behavioural tests above pin the gate; this pins the arithmetic
+      // the gate is sized against, so raising any constant past what the
+      // webhook route allows fails here instead of being killed in
+      // production mid-handoff. Worst case: the first draft starts with
+      // FIRST_DECIDE_MIN_BUDGET_MS left, runs the 35s default, a redraft
+      // runs REDRAFT_TIMEOUT_MS, then the handoff tail.
+      const firstDraftStart = RUN_BUDGET_MS - FIRST_DECIDE_MIN_BUDGET_MS;
+      const worstCase = firstDraftStart + 35_000 + REDRAFT_TIMEOUT_MS + HANDOFF_TAIL_MS;
+      expect(worstCase).toBeLessThanOrEqual(ROUTE_MAX_DURATION_MS);
+      // And the route must actually ask for that ceiling.
+      expect(ROUTE_MAX_DURATION_MS).toBe(maxDuration * 1000);
     });
   });
 });
