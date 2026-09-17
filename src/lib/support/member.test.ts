@@ -98,6 +98,7 @@ describe("findMember", () => {
       tier: "desk",
       trialEndsAt: null,
       submission: { status: "pending", rejectReason: null, createdAt: "2026-09-15T01:00:00Z" },
+      attested: false,
     });
   });
 
@@ -115,6 +116,7 @@ describe("findMember", () => {
       tier: "desk",
       trialEndsAt: null,
       submission: null,
+      attested: true,
     });
   });
 
@@ -186,5 +188,64 @@ describe("findMember", () => {
   it("rejects rather than swallowing a failing profile read", async () => {
     const db = makeFakeDb({ rpcResult: "u1", profileError: { message: "boom" } });
     await expect(findMember(db, { texts: ["MM-abcdef"], telegramUsername: null })).rejects.toThrow();
+  });
+
+  it("rejects rather than swallowing a failing handle lookup", async () => {
+    const db = makeFakeDb({ rpcResult: null, handleError: { message: "boom" } });
+    await expect(findMember(db, { texts: [], telegramUsername: "someone" })).rejects.toThrow();
+  });
+
+  it("rejects rather than swallowing a failing submission read", async () => {
+    const db = makeFakeDb({ rpcResult: "u1", profile, submissionError: { message: "boom" } });
+    await expect(findMember(db, { texts: ["MM-abcdef"], telegramUsername: null })).rejects.toThrow();
+  });
+
+  describe("attested flag", () => {
+    it("is true when matched by handle only", async () => {
+      const db = makeFakeDb({ rpcResult: null, handleRows: [{ user_id: "u2" }], profile });
+      const result = await findMember(db, { texts: ["no code here"], telegramUsername: "handle_guy" });
+      expect(result?.matchedBy).toBe("handle");
+      expect(result?.attested).toBe(true);
+    });
+
+    it("is true when the ref and the handle agree (matchedBy stays 'ref')", async () => {
+      const db = makeFakeDb({ rpcResult: "u1", handleRows: [{ user_id: "u1" }], profile });
+      const result = await findMember(db, { texts: ["My reference is MM-abcdef"], telegramUsername: "someone" });
+      expect(result?.matchedBy).toBe("ref");
+      expect(result?.attested).toBe(true);
+    });
+
+    it("is false when matched by reference code alone (no handle resolves)", async () => {
+      const db = makeFakeDb({ rpcResult: "u1", profile });
+      const result = await findMember(db, { texts: ["My reference is MM-abcdef"], telegramUsername: null });
+      expect(result?.matchedBy).toBe("ref");
+      expect(result?.attested).toBe(false);
+    });
+  });
+
+  describe("edge-case handles", () => {
+    it("falls back to a resolvable handle when the thread has two distinct (ambiguous) ref codes", async () => {
+      const db = makeFakeDb({ handleRows: [{ user_id: "u9" }], profile });
+      const result = await findMember(db, { texts: ["MM-111111", "actually MM-AAAAAA"], telegramUsername: "someone" });
+      expect(result?.userId).toBe("u9");
+      expect(result?.matchedBy).toBe("handle");
+      expect(result?.attested).toBe(true);
+    });
+
+    it("does not match anyone on a whitespace-only handle", async () => {
+      const calls: IlikeCall[] = [];
+      const db = makeFakeDb({ handleRows: [] }, calls);
+      const result = await findMember(db, { texts: [], telegramUsername: "   " });
+      expect(calls).toEqual([{ column: "telegram_username", pattern: "   " }]);
+      expect(result).toBeNull();
+    });
+
+    it("does not match anyone on a pure-wildcard handle ('___')", async () => {
+      const calls: IlikeCall[] = [];
+      const db = makeFakeDb({ handleRows: [] }, calls);
+      const result = await findMember(db, { texts: [], telegramUsername: "___" });
+      expect(calls).toEqual([{ column: "telegram_username", pattern: "\\_\\_\\_" }]);
+      expect(result).toBeNull();
+    });
   });
 });

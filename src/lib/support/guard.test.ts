@@ -43,8 +43,18 @@ describe("checkDraft", () => {
   it("blocks a deposit-approved claim without a verified submission", () => {
     expect(checkDraft("Your deposit is approved.", ctx())).toEqual([expect.stringContaining("deposit")]);
     const verified: MemberContext = { userId: "u", matchedBy: "ref", tier: "foundation", trialEndsAt: null,
-      submission: { status: "verified", rejectReason: null, createdAt: "2026-09-14" } };
+      submission: { status: "verified", rejectReason: null, createdAt: "2026-09-14" }, attested: true };
     expect(checkDraft("Your deposit is approved.", ctx([], verified))).toEqual([]);
+  });
+
+  // A verified submission alone must not unlock the claim: a reference code
+  // can be forwarded or pasted from someone else's screenshot, so an
+  // unattested match (ref code only, no platform-confirmed Telegram account)
+  // must still be blocked from confirming a deposit.
+  it("still blocks a deposit-approved claim when the submission is verified but the match is unattested", () => {
+    const verifiedUnattested: MemberContext = { userId: "u", matchedBy: "ref", tier: "foundation", trialEndsAt: null,
+      submission: { status: "verified", rejectReason: null, createdAt: "2026-09-14" }, attested: false };
+    expect(checkDraft("Your deposit is approved.", ctx([], verifiedUnattested))).toEqual([expect.stringContaining("deposit")]);
   });
   it("blocks replies over the length limit", () => {
     expect(checkDraft("a".repeat(MAX_REPLY_CHARS + 1), ctx())).toEqual([expect.stringContaining("long")]);
@@ -204,7 +214,7 @@ describe("checkDraft", () => {
     it("blocks a promise that someone will approve it, even with a verified submission", () => {
       const verified: MemberContext = {
         userId: "u", matchedBy: "ref", tier: "foundation", trialEndsAt: null,
-        submission: { status: "verified", rejectReason: null, createdAt: "2026-09-14" },
+        submission: { status: "verified", rejectReason: null, createdAt: "2026-09-14" }, attested: true,
       };
       expect(checkDraft("Amelia will approve your deposit today.", ctx())).toEqual([expect.stringContaining("promise")]);
       expect(checkDraft("Amelia will approve your deposit today.", ctx([], verified))).toEqual([expect.stringContaining("promise")]);
@@ -412,11 +422,11 @@ describe("checkDraft", () => {
         checkDraft("The team will check your submission and email you once it's approved.", ctx())
       ).toEqual([]);
     });
-    it("still blocks a bare approved claim, and passes it once verified", () => {
+    it("still blocks a bare approved claim, and passes it once verified and attested", () => {
       expect(checkDraft("Your deposit is approved.", ctx())).toEqual([expect.stringContaining("deposit")]);
       const verified: MemberContext = {
         userId: "u", matchedBy: "ref", tier: "foundation", trialEndsAt: null,
-        submission: { status: "verified", rejectReason: null, createdAt: "2026-09-14" },
+        submission: { status: "verified", rejectReason: null, createdAt: "2026-09-14" }, attested: true,
       };
       expect(checkDraft("Your deposit is approved.", ctx([], verified))).toEqual([]);
     });

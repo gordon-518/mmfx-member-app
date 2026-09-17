@@ -33,12 +33,15 @@ async function userByRef(db: SupabaseClient, hex: string): Promise<string | null
 }
 
 async function userByHandle(db: SupabaseClient, handle: string): Promise<string | null> {
-  // `_`, `%` and `*` are wildcards in ilike (`*` because PostgREST translates
-  // it to `%` in like/ilike values), and `contact.username` is unvalidated
+  // `_` and `%` are wildcards in ilike, and `contact.username` is unvalidated
   // external input from the SendPulse API — Telegram usernames commonly
   // contain `_`. An unescaped handle could match a DIFFERENT member (e.g.
-  // "Sam_T" would also match "SamXT") and leak their deposit status. Escape
-  // all three before matching.
+  // "Sam_T" would also match "SamXT") and leak their deposit status. `*` is
+  // not a wildcard here — PostgREST translates a literal `*` to `%` in
+  // like/ilike values BEFORE this escaping ever runs, across the whole
+  // pattern with no awareness of the backslash, so escaping it is inert: it
+  // can only ever turn the pattern into something that matches zero rows,
+  // never widen the match. Escaped anyway, for cheap and harmless defense.
   const escaped = handle.replace(/^@+/, "").replace(/[\\%_*]/g, "\\$&");
   const { data, error } = await db.from("deposit_submissions").select("user_id").ilike("telegram_username", escaped);
   if (error) throw new Error("member lookup by handle failed");
@@ -94,5 +97,9 @@ export async function findMember(
     tier: accessTierFor(p as TierSnapshot),
     trialEndsAt: (p as TierSnapshot).trial_ends_at ? String((p as TierSnapshot).trial_ends_at) : null,
     submission: s ? { status: toSubmissionStatus(s.status), rejectReason: s.reject_reason ?? null, createdAt: s.created_at } : null,
+    // Attested only when the platform-attested Telegram username itself
+    // resolved to this member — a self-asserted ref code, even one that
+    // agrees with the handle, never counts on its own (see matchedBy).
+    attested: byHandle !== null,
   };
 }

@@ -40,6 +40,13 @@ export interface MemberContext {
   tier: MemberTier;
   trialEndsAt: string | null;
   submission: { status: "pending" | "verified" | "rejected"; rejectReason: string | null; createdAt: string } | null;
+  /**
+   * True only when the platform-attested Telegram username resolved to this
+   * member. A self-asserted MM- reference code alone is NOT attested: it can be
+   * forwarded or pasted from someone else's screenshot, so it must never unlock
+   * private status.
+   */
+  attested: boolean;
 }
 
 export const TOPICS = [

@@ -28,6 +28,7 @@ What you may say:
 - The member's own words may be quoted, but never invent an amount, date or account number that isn't in the FACTS or the thread.
 - When explaining how to join, give the steps in the order in the FACTS, and never tell anyone to message Admin Amelia before they've topped up.
 - Talk about a member's own tier or deposit only when a MEMBER block is present. Never say a deposit is received, approved or verified unless the MEMBER block says the latest submission is verified.
+- Only state a member's tier, trial or deposit status when the MEMBER block shows the identity is confirmed. If it isn't confirmed, don't state any of those — point them to the upgrade page, where they're signed in and can see it themselves.
 - If the MEMBER block says the latest submission is rejected, hand off — Amelia explains why. Never guess or invent a reason.
 - If the member sent a reference code (MM- plus 6 characters), acknowledge it: note the code, tell them to submit the deposit details on the upgrade page if their top-up is already in (or to top up first if not), and say the team checks it and emails them when it's approved.
 - If someone wants to join or sign up, point them to the upgrade page, or to an approved flow link where the FACTS say to.
@@ -81,9 +82,11 @@ export function buildUserContent(args: {
   const { thread, contact, member, retryReasons } = args;
   const lines = thread.map((m) =>
     `${m.direction === "in" ? "[member]" : m.fromFlow ? "[bot flow]" : "[MMFX]"} ${redactForModel(m.text) || "(no text: media or button)"}`);
-  const memberLine = member
-    ? `MEMBER: identified by ${member.matchedBy === "ref" ? "reference code" : "Telegram username"}; tier: ${tierLabel(member.tier)}; trial ends: ${member.trialEndsAt ?? "n/a"}; latest deposit submission: ${member.submission ? member.submission.status : "none"}`
-    : "MEMBER: not identified. Don't state any member-specific status.";
+  const memberLine = !member
+    ? "MEMBER: not identified. Don't state any member-specific status."
+    : member.attested
+      ? `MEMBER: identified by ${member.matchedBy === "ref" ? "reference code" : "Telegram username"}; tier: ${tierLabel(member.tier)}; trial ends: ${member.trialEndsAt ?? "n/a"}; latest deposit submission: ${member.submission ? member.submission.status : "none"}`
+      : "MEMBER: a reference code matches an account on file, but the Telegram account isn't confirmed here. You may confirm the code was noted and give the next step from the FACTS. Don't state their tier, trial or deposit status — point them to the upgrade page, where they're signed in and can see it.";
   return [
     `CHAT: ${contact.isBusiness ? "sent to Admin Amelia's account (@MM_3000)" : "chat with the MMFX bot"}. First name: ${contact.firstName || "unknown"}. Tags: ${contact.tags.join(", ") || "none"}.`,
     memberLine,

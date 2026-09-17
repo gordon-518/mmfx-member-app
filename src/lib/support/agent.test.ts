@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import Anthropic from "@anthropic-ai/sdk";
 import { decide, buildSystem, buildUserContent, redactForModel, defaultClient, MODEL } from "./agent";
 import { buildFactSheet } from "./facts";
+import { tierLabel } from "@/lib/tiers";
 import type { ContactInfo, MemberContext, SupportSettings, ThreadMessage } from "./types";
 
 const settings: SupportSettings = {
@@ -132,10 +133,11 @@ describe("buildUserContent", () => {
     expect(content).toContain("MEMBER: not identified");
   });
 
-  it("states tier and submission status when a member is matched", () => {
+  it("states tier and submission status when an attested member is matched", () => {
     const member: MemberContext = {
       userId: "u1", matchedBy: "handle", tier: "desk", trialEndsAt: null,
       submission: { status: "pending", rejectReason: null, createdAt: "2026-09-01T00:00:00Z" },
+      attested: true,
     };
     const content = buildUserContent({ thread: thread({ text: "hi" }), contact, member });
     expect(content).toContain("tier: Desk");
@@ -146,11 +148,26 @@ describe("buildUserContent", () => {
     const member: MemberContext = {
       userId: "u1", matchedBy: "ref", tier: "free", trialEndsAt: null,
       submission: { status: "rejected", rejectReason: "fake screenshot, suspected fraud", createdAt: "2026-09-01T00:00:00Z" },
+      attested: true,
     };
     const content = buildUserContent({ thread: thread({ text: "hi" }), contact, member });
     expect(content).toContain("latest deposit submission: rejected");
     expect(content).not.toContain("fake screenshot");
     expect(content).not.toContain("suspected fraud");
+  });
+
+  it("never states tier, trial or deposit status for an unattested reference-code-only match", () => {
+    const member: MemberContext = {
+      userId: "u1", matchedBy: "ref", tier: "desk", trialEndsAt: "2026-10-01",
+      submission: { status: "verified", rejectReason: null, createdAt: "2026-09-01T00:00:00Z" },
+      attested: false,
+    };
+    const content = buildUserContent({ thread: thread({ text: "hi" }), contact, member });
+    expect(content).not.toContain(tierLabel(member.tier));
+    expect(content).not.toContain("pending");
+    expect(content).not.toContain("verified");
+    expect(content).not.toContain("2026-10-01");
+    expect(content).toContain("upgrade");
   });
 });
 

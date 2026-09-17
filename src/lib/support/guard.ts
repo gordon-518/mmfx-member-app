@@ -486,7 +486,11 @@ export function checkDraft(
   const profitMatch = firstMatch(profitCheckText, HARD_PROFIT_RE, SOFT_PROFIT_RE, RATE_RE);
   if (profitMatch) complianceFails.push(`profit or return language: "${profitMatch[0]}"`);
 
-  complianceFails.push(...depositClaimReasons(draft, ctx.member?.submission?.status === "verified"));
+  // A verified submission alone isn't enough: an unattested match (ref code
+  // only, no platform-confirmed Telegram account) must never unlock the
+  // "your deposit is approved" claim for whoever happens to be typing.
+  const verifiedAndAttested = ctx.member?.submission?.status === "verified" && ctx.member?.attested === true;
+  complianceFails.push(...depositClaimReasons(draft, verifiedAndAttested));
 
   if (draft.length > MAX_REPLY_CHARS) otherFails.push(`too long (${draft.length} > ${MAX_REPLY_CHARS})`);
 
