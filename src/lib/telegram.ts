@@ -17,6 +17,8 @@ export interface SendTelegramOptions {
   parseMode?: "HTML" | "MarkdownV2";
   /** Suppress the link preview card. Defaults to true. */
   disablePreview?: boolean;
+  /** Send to this chat instead of TELEGRAM_CHAT_ID (e.g. the support ping chat). */
+  chatId?: string;
 }
 
 export async function sendTelegram(
@@ -24,7 +26,7 @@ export async function sendTelegram(
   opts: SendTelegramOptions = {}
 ): Promise<TelegramResult> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const chatId = opts.chatId ?? process.env.TELEGRAM_CHAT_ID;
   if (!token || !chatId) {
     return { ok: false, detail: "TELEGRAM_BOT_TOKEN/CHAT_ID not configured" };
   }
