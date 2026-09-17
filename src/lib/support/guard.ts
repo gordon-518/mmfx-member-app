@@ -20,8 +20,11 @@ const AMOUNT_NUM = "\\d{1,3}(?:[ ,]\\d{3})*(?:\\.\\d+)?|\\d+(?:\\.\\d+)?";
 // word currencies: members write "USD100"/"RM250" with no space before the
 // digits, and \b can't sit between two word characters (the last currency
 // letter and the first digit) anyway.
+// The suffix form's trailing \b is enough on its own — a leading \b here
+// could never fire between a digit and "u" ("999USD"), which made that
+// no-space shape dead code.
 const AMOUNT_RE = new RegExp(
-  `(\\$|us\\$|s\\$|\\b(?:usd|rm|myr|idr|rp|sgd))\\s?(${AMOUNT_NUM})|(${AMOUNT_NUM})\\s?\\b(?:usd|dollars?)\\b`,
+  `(\\$|us\\$|s\\$|\\b(?:usd|rm|myr|idr|rp|sgd))\\s?(${AMOUNT_NUM})|(${AMOUNT_NUM})\\s?(?:usd|dollars?)\\b`,
   "gi"
 );
 // A contiguous 6-9 digit token, bounded by \b on both sides. Used alongside
@@ -30,6 +33,12 @@ const AMOUNT_RE = new RegExp(
 // so it can't merge two numbers into one over-long token the way the
 // separator-tolerant scan alone can (see ibMatches).
 const IB_PLAIN_RE = /\b\d{6,9}\b/g;
+// "ib5928887" / "IB5928887" — no space before the digits, so a plain \b can
+// never sit between the "b" and the first digit (both are word characters).
+// Handled as its own narrow scan (rather than loosening IB_PLAIN_RE, which
+// would risk matching digits glued to the end of an unrelated word) so it
+// only fires on the specific "ib" prefix.
+const IB_PREFIXED_RE = /\bib(\d{6,9})\b/gi;
 // A single number's digits spread across separators — space, comma, dot or
 // dash — e.g. "592 8887", "5,928,887", "592-8887", "5.928.887". Run only
 // against text that's had dates and decimal amounts masked out first
@@ -45,6 +54,10 @@ const DECIMAL_RE = /\b\d+\.\d{2}\b/g;
 // A number is being presented as an IB/partner number, not just an account
 // number — used to stop the member-wrote-it exemption from whitewashing the
 // competing IB when the draft itself labels the member's own number as one.
+// Checked against a clause-scoped window on both sides of the number (see
+// isIbLabelled) rather than a fixed-size lookback, so "partner code " (13
+// chars) isn't cut off, and a label placed *after* the number ("Use 5928887
+// as your IB number.") is caught too.
 const IB_CONTEXT_RE = /\b(?:ib(?:\s*number)?|partner code)\b/i;
 const BONUS_RE = /\bteam\s?mm\d+\b/gi;
 // Other bonus-code shapes: "code WELCOME50", "coupon XYZ99", "promo WELCOME".
@@ -62,17 +75,76 @@ const URL_RE = /\bhttps?:\/\/[^\s)>\]]+|\b(?:[a-z0-9-]+\.)+[a-z]{2,}\/[^\s)>\]]*
 // misses. TLD list is deliberately conservative (real ones seen in fact-sheet
 // or member-chat links, plus common scam-domain endings) so it doesn't fire
 // on ordinary prose like "Node.js" or "e.g." (neither "js" nor "g" is on it).
+// Several TLD-list entries are ordinary English words ("live", "info") that
+// show up capitalised at a sentence boundary ("Team MM.Live classes...",
+// "That's done.Info on tiers...") — so the TLD half is matched case-
+// SENSITIVELY (no "i" flag; the alternation itself is lowercase-only), while
+// the host-label half stays case-insensitive by spelling out both cases.
 const BARE_HOST_RE =
-  /\b(?:[a-z0-9-]+\.)+(?:com|net|org|me|io|co|my|sg|id|ph|trade|gle|app|info|biz|xyz|online|site|club|vip|shop|live|pro|link|top|fun)\b/gi;
+  /\b(?:[a-zA-Z0-9-]+\.)+(?:com|net|org|me|io|co|my|sg|id|ph|trade|gle|app|info|biz|xyz|online|site|club|vip|shop|live|pro|link|top|fun)\b/g;
 const HANDLE_RE = /(^|[^\w@])@([A-Za-z0-9_]{3,32})/g;
-// Profit/return language. The soft, easily-innocent words ("earn", "gains")
-// only count in money-or-rate context — "earn your Foundation tier" and
-// "earned Foundation" aren't profit claims, but "earn $50"/"earn more" is;
-// "gains and losses" is risk-disclosure language, "gains of 5%" isn't.
-// "double"/"10x" phrasing and adverbial rate phrasing ("5% weekly", no "a"
-// or "per") are additions the old list missed.
-const PROFIT_RE =
-  /\b(guarantee[ds]?|profits?|profitable|returns|printing|make money|risk[- ]free|double(?:s|d|ing)?\s+(?:your|the|it|in)|earn(?:s|ing|ed)?\s+(?:\$|\d|money|income|profits?|more)|income|gains?\s+of\b|capital gains|roi|win(?:ning)?\s+(?:every|all)|compound(?:ing|s)?|\d+x\b)\b|\d+\s?%\s?(?:a\s|per\s)?(?:daily|weekly|monthly|yearly|day|week|month|year)/i;
+// A Unicode "wordish" character (any-script letter, any-script digit, or
+// underscore) — used to tell a real email's local part ("support@…",
+// "支援@…": a letter sits right before the "@") from a bare "@handle" or
+// "@domain.tld" mention (preceded by punctuation, whitespace, or nothing).
+const WORDISH_RE = /[\p{L}\p{N}_]/u;
+// Profit/return language, split into three rules by how much context each
+// word needs:
+//
+// Words that are never acceptable, whatever surrounds them — a direct
+// performance/return claim with no legitimate reading. Includes the Malay
+// and Chinese guaranteed-profit phrasings alongside the English ones.
+const HARD_PROFIT_RE = new RegExp(
+  [
+    "\\b(?:guarantee[ds]?|profits?|profitable|returns|printing|make money|risk[- ]free|roi|passive income)\\b",
+    "\\bcompound(?:ing|s)?\\b",
+    "\\bcapital gains\\b",
+    "\\bconsistent wins?\\b",
+    "\\bwin(?:ning)?\\s+(?:every|all|rate)\\b",
+    // "double their account", "double your account", etc.
+    "\\bdouble(?:s|d|ing)?\\s+(?:your|the|it|in|their|his|her|our)\\b",
+    "\\d+x\\b",
+    "untung besar", // MS: "big profit"
+    "keuntungan dijamin", // MS: "profit guaranteed"
+    "pasti untung", // MS: "definitely profitable"
+    "保证每月盈利", // ZH: "guaranteed monthly profit"
+    "稳赚", // ZH: "sure profit"
+    "赚钱", // ZH: "make money"
+  ].join("|"),
+  "i"
+);
+// Soft, easily-innocent words that only count as profit language with
+// nearby money-or-rate context — "earn your Foundation tier" and "earned
+// Foundation" aren't profit claims, but "earn $50"/"earn more"/"grow your
+// account"/"recover your losses" are; "gains and losses" is risk-disclosure
+// language, "gains of 5%" isn't.
+const SOFT_PROFIT_RE = new RegExp(
+  "\\bgains?\\s+of\\b" +
+    "|\\b(?:earn(?:s|ing|ed)?|gains?|income|grow(?:s|ing)?|recover(?:s|ing|ed)?)\\b" +
+    "\\s+(?:(?:your|the|my|our|their|his|her|its)\\s+)?" +
+    "(?:\\$|\\d|money|income|profits?|more|account|capital|funds?|balance|loss(?:es)?|daily|weekly|monthly|yearly|day|week|month|year)\\b",
+  "i"
+);
+// A percentage or pip count tied to a time period is a return claim
+// regardless of the surrounding words ("10% a month", "500 pips a month",
+// "5% weekly" with no "a"/"per" at all).
+const RATE_RE = new RegExp(
+  "\\d+\\s?%\\s?(?:a|per)?\\s?(?:day|week|month|year|daily|weekly|monthly|yearly)\\b" +
+    "|\\d+\\s?pips?\\s+(?:a|per)\\s+(?:day|week|month)\\b",
+  "i"
+);
+/** The earliest match among several non-global regexes tried against the
+ * same text — combines HARD/SOFT/RATE into the single reason the old
+ * one-regex PROFIT_RE used to produce. */
+function firstMatch(text: string, ...regexes: RegExp[]): RegExpMatchArray | null {
+  let best: RegExpMatchArray | null = null;
+  for (const re of regexes) {
+    const m = text.match(re);
+    if (!m || m.index === undefined) continue;
+    if (best === null || best.index === undefined || m.index < best.index) best = m;
+  }
+  return best;
+}
 // A deposit reference code (depositRef.ts): "MM-" + 6 hex chars, ~6% all digits.
 // Not an IB number and not a bonus code — stripped before those two checks.
 const REF_CODE_RE = /\bMM-[0-9a-f]{6}\b/gi;
@@ -84,9 +156,21 @@ const NEGATED_CLAIM_RE = /\b(?:no|not|never|nothing|can'?t|cannot)\b[^.!?]{0,25}
 // A claim that money/funds/capital/deposits are safe, secure, protected or
 // guaranteed — the fact sheet explicitly bans this ("Never tell anyone their
 // money is safe or protected"). That instruction itself is skipped via
-// MONEY_SAFE_VETO_RE below (it's a rule, not a claim).
-const MONEY_SAFE_RE =
-  /\b(?:money|funds?|capital|deposits?)\b[^.!?]{0,20}\b(?:is|are)\b[^.!?]{0,15}\b(?:safe|secure|protected|guaranteed)\b|\bsafe with us\b/i;
+// MONEY_SAFE_VETO_RE below (it's a rule, not a claim). Covers both the
+// copula shape ("your funds remain safe") and the transitive "keep X safe"
+// shape ("we keep your money secure", where the verb comes first), plus a
+// standalone "no risk to/of" claim and the Malay "duit/wang ... selamat"
+// form.
+const MONEY_SAFE_RE = new RegExp(
+  [
+    "\\b(?:money|funds?|capital|deposits?)\\b[^.!?]{0,20}\\b(?:is|are|stays?|remains?|kept)\\b[^.!?]{0,15}\\b(?:safe|secure|protected|guaranteed)\\b",
+    "\\bkeep\\b[^.!?]{0,20}\\b(?:money|funds?|capital|deposits?)\\b[^.!?]{0,15}\\b(?:safe|secure|protected|guaranteed)\\b",
+    "\\bsafe with us\\b",
+    "\\bno risk (?:to|of)\\b",
+    "\\b(?:duit|wang)\\b[^.!?]{0,20}\\bselamat\\b",
+  ].join("|"),
+  "i"
+);
 const MONEY_SAFE_VETO_RE = /\b(?:never|don'?t|do not|nobody|no one)\b/i;
 
 // --- Deposit-approval claims ------------------------------------------------
@@ -96,7 +180,7 @@ const MONEY_SAFE_VETO_RE = /\b(?:never|don'?t|do not|nobody|no one)\b/i;
 // below be measured from the approval word itself, wherever the deposit word
 // falls relative to it.
 const APPROVAL_WORD_RE = /\b(approved|verified|confirmed|received)\b/gi;
-const DEPOSIT_WORD_RE = /\b(deposit|top-?up|submission)\b/i;
+const DEPOSIT_WORD_RE = /\b(deposit|top-?up|submission|payment|transfer|funds?)\b/i;
 // Words that turn an approval word from a settled-fact claim into something
 // else: a negation ("hasn't been approved"), a condition ("once/when/
 // after/until/if/unless it's approved"), or a future/would tense ("will/
@@ -153,20 +237,27 @@ function maskDatesAndDecimals(text: string): string {
     .replace(DECIMAL_RE, (m) => "#".repeat(m.length));
 }
 
-/** Every 6-9 digit account/IB-shaped number in text, with its index, via the
- * union of a plain contiguous scan and a separator-tolerant scan. The union
- * matters: the separator scan alone would merge two adjacent numbers
- * ("47807426, 5928887") into one over-long token that then fails the 6-9
- * length filter and is silently dropped, missing both. */
-function ibMatches(text: string): { digits: string; index: number }[] {
+/** Every 6-9 digit account/IB-shaped number in text, with its start/end
+ * index, via the union of a plain contiguous scan, a separator-tolerant
+ * scan, and an "ib"-prefixed scan (see IB_PREFIXED_RE) → then exemptions
+ * are applied by the caller. The plain/separator union matters on its own:
+ * the separator scan alone would merge two adjacent numbers ("47807426,
+ * 5928887") into one over-long token that then fails the 6-9 length filter
+ * and is silently dropped, missing both. */
+function ibMatches(text: string): { digits: string; index: number; end: number }[] {
   const masked = maskDatesAndDecimals(text);
   const found = [
     ...[...text.matchAll(IB_PLAIN_RE)].map((m) => ({ token: m[0], index: m.index ?? 0 })),
     ...[...masked.matchAll(IB_SEP_RE)].map((m) => ({ token: m[0], index: m.index ?? 0 })),
   ];
-  return found
-    .map(({ token, index }) => ({ digits: token.replace(/[ ,.-]/g, ""), index }))
+  const scanned = found
+    .map(({ token, index }) => ({ digits: token.replace(/[ ,.-]/g, ""), index, end: index + token.length }))
     .filter(({ digits }) => digits.length >= 6 && digits.length <= 9);
+  const prefixed = [...text.matchAll(IB_PREFIXED_RE)].map((m) => {
+    const index = (m.index ?? 0) + 2; // skip past the "ib" prefix itself
+    return { digits: m[1], index, end: index + m[1].length };
+  });
+  return [...scanned, ...prefixed];
 }
 
 const CLAUSE_BOUNDARY_CHARS = [",", ";", ":", ".", "!", "?", "—", "\n"];
@@ -230,6 +321,17 @@ function allowedHosts(f: FactSheet): Set<string> {
     }
   }
   return hosts;
+}
+
+/** True when the draft itself frames a number as an IB/partner code, either
+ * just before it (within the same clause) or just after it — used to stop
+ * the member-wrote-it exemption from whitewashing a competing IB the draft
+ * relabels as belonging to the member ("Your partner code 5928887 is set.",
+ * "Use 5928887 as your IB number."). */
+function isIbLabelled(text: string, index: number, end: number): boolean {
+  const before = clauseBefore(text, index, 40);
+  const after = text.slice(end, end + 25);
+  return IB_CONTEXT_RE.test(before) || IB_CONTEXT_RE.test(after);
 }
 
 /** A promise that someone will approve the deposit — always blocked unless
@@ -302,14 +404,11 @@ export function checkDraft(
   const memberDigits = new Set(ctx.memberTexts.flatMap((t) => ibMatches(t).map((m) => m.digits)));
   const ibs = ibMatches(draftLessRefCodes)
     .filter((m) => m.digits !== f.allow.ibNumber)
-    .filter((m) => {
-      if (!memberDigits.has(m.digits)) return true;
-      // The member exemption doesn't cover a number the draft itself
-      // presents as an IB/partner code — that's exactly the competing-IB
-      // whitewash this rule exists to catch, even when the member happens
-      // to have pasted that same number as their own account earlier.
-      return IB_CONTEXT_RE.test(draftLessRefCodes.slice(Math.max(0, m.index - 12), m.index));
-    })
+    // The member exemption doesn't cover a number the draft itself presents
+    // as an IB/partner code (see isIbLabelled) — that's exactly the
+    // competing-IB whitewash this rule exists to catch, even when the
+    // member happens to have pasted that same number as their own account.
+    .filter((m) => !memberDigits.has(m.digits) || isIbLabelled(draftLessRefCodes, m.index, m.end))
     .map((m) => m.digits);
   if (ibs.length) {
     otherFails.push(`IB-style number not ours: ${[...new Set(ibs)].join(", ")} (only ${f.allow.ibNumber})`);
@@ -343,7 +442,12 @@ export function checkDraft(
   for (const m of draft.matchAll(BARE_HOST_RE)) {
     const host = m[0];
     const idx = m.index ?? 0;
-    if (draft[idx - 1] === "@") continue; // the domain half of an email address, not a link
+    // The domain half of a real email address ("support@example.com",
+    // "支援@example.com") — not a link — reads as an "@" right before the
+    // host, itself preceded by a wordish (any-script letter/digit) local
+    // part. A handle-shaped mention ("Join @evilsignals.com now") has only
+    // punctuation or whitespace before its "@" and must still be checked.
+    if (draft[idx - 1] === "@" && WORDISH_RE.test(draft[idx - 2] ?? "")) continue;
     const lower = host.toLowerCase();
     if (allowedHostSet.has(lower)) continue;
     if (rawUrls.some((u) => u.toLowerCase().includes(lower))) continue; // already reported above, full link and all
@@ -353,14 +457,12 @@ export function checkDraft(
 
   const handleFails: string[] = [];
   for (const m of draft.matchAll(HANDLE_RE)) {
-    const atIndex = (m.index ?? 0) + m[1].length;
-    const after = draft.slice(atIndex + 1 + m[2].length);
-    // An email address ("support@example.com", "支援@example.com") reads as
-    // a dot or "@" immediately after the candidate handle — skip those.
-    // Anything else that got this far (even "(@scammer)" or "@scammer,")
-    // is a real Telegram-style mention and must be checked against the
-    // allow-list.
-    if (/^[.@][A-Za-z0-9-]/.test(after)) continue;
+    // m[1] is the character immediately before "@" (or "" at the start of
+    // the string), guaranteed by HANDLE_RE itself to never be an ASCII word
+    // character — but it can still be a non-ASCII letter/digit ("支援@…"),
+    // which is what makes it a real email's local part rather than a
+    // handle-shaped mention like "(@scammer)" or "@evilsignals.com".
+    if (WORDISH_RE.test(m[1])) continue;
     if (!f.allow.handles.has(m[2].toLowerCase())) handleFails.push(`@${m[2]}`);
   }
   if (handleFails.length) otherFails.push(`handle not official: ${[...new Set(handleFails)].join(", ")}`);
@@ -378,9 +480,10 @@ export function checkDraft(
 
   // Profit/return language: the verbatim risk footer and negated-claim
   // phrases ("We can't promise any income") are compliance-safe, not
-  // violations.
+  // violations. HARD/SOFT/RATE are three separately-scoped rules (see their
+  // definitions above) combined into one reason via firstMatch.
   const profitCheckText = draft.split(RISK_FOOTER).join("").replace(NEGATED_CLAIM_RE, "");
-  const profitMatch = profitCheckText.match(PROFIT_RE);
+  const profitMatch = firstMatch(profitCheckText, HARD_PROFIT_RE, SOFT_PROFIT_RE, RATE_RE);
   if (profitMatch) complianceFails.push(`profit or return language: "${profitMatch[0]}"`);
 
   complianceFails.push(...depositClaimReasons(draft, ctx.member?.submission?.status === "verified"));
@@ -410,19 +513,24 @@ const ALWAYS_HUMAN: [RegExp, string][] = (() => {
       "withdrawal",
     ],
     [
-      new RegExp(`\\b(refund|chargeback)\\b|退款|bayar balik[^.!?]{0,20}${money}|${money}[^.!?]{0,20}bayar balik`, "i"),
+      new RegExp(
+        `\\b(refund|chargeback|money back)\\b|退款|` +
+          `bayar balik[^.!?]{0,20}${money}|${money}[^.!?]{0,20}bayar balik|` +
+          `duit[^.!?]{0,20}balik|balik[^.!?]{0,20}duit`,
+        "i"
+      ),
       "refund",
     ],
     [
-      /\b(i|we)\s+(have\s+)?(paid|transferred|sent (the )?money|made the payment)\b|\btransfer is done\b|sudah bayar|dah bayar|telah bayar|已付款|已经付款/i,
+      /\b(i|we)\s+(have\s+)?(paid|transferred|sent (the )?money|made the payment)\b|\btransfer is done\b|(?:sudah|dah|telah)\s+(?:bayar|transfer)\b|已付款|已经付款|已经转账|已转账|付了钱/i,
       "payment already made",
     ],
     [
       new RegExp(
         `\\b(missing|lost|stuck|disappeared)\\b[^.!?]{0,40}\\b(funds?|money|deposit|balance)\\b|` +
           `\\b(funds?|money|deposit)\\b[^.!?]{0,40}\\b(not (arrived|received|showing|reflected)|missing)\\b|` +
-          `duit .{0,20}hilang|wang .{0,20}hilang|钱没到|未到账|` +
-          `belum masuk[^.!?]{0,20}${money}|${money}[^.!?]{0,20}belum masuk`,
+          `duit .{0,20}hilang|wang .{0,20}hilang|钱没到|未到账|没到账|钱被扣|被扣款|` +
+          `(?:belum masuk|tak masuk)[^.!?]{0,20}${money}|${money}[^.!?]{0,20}(?:belum masuk|tak masuk)`,
         "i"
       ),
       "missing or pending funds",

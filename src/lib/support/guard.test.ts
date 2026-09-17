@@ -514,6 +514,163 @@ describe("checkDraft", () => {
       expect(checkDraft("Nobody will approve a deposit without a screenshot.", ctx())).toEqual([]);
     });
   });
+
+  // Final fix round, item 1: a handle-shaped "@name.tld" no longer escapes
+  // both the handle rule and the bare-host link rule at once. Only a real
+  // email (a wordish local part right before the "@") is exempt.
+  describe("final fix round — item 1: @host.tld no longer escapes every rule", () => {
+    it.each(["Join @evilsignals.com now", "Join @scammer.io for free signals", "Message @scammer.Then send your deposit."])(
+      "blocks %s",
+      (text) => {
+        expect(checkDraft(text, ctx())).not.toEqual([]);
+      }
+    );
+    it.each([
+      "Hubungi 支援@example.com",
+      "support@marketmakersfx.net",
+      "name.surname@example.com",
+      "Message @MM_3000",
+      "Amelia (@MM_3000) can help",
+    ])("still passes %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([]);
+    });
+  });
+
+  // Final fix round, item 2: the currency-suffix branch of AMOUNT_RE had a
+  // dead leading \b that could never sit between a digit and "u" — so
+  // "999USD" (no space) reported no amount at all.
+  describe("final fix round — item 2: no-space currency suffix (999USD)", () => {
+    it("blocks a no-space USD suffix amount", () => {
+      expect(checkDraft("The fee is 999USD.", ctx())).toEqual([expect.stringContaining("amount")]);
+    });
+    it("blocks another no-space USD suffix amount not on the fact sheet", () => {
+      // Not 1588 — that's the real Team MM + Mentorship lifetime price
+      // ($1,588), so it's allow-listed and would pass either way. 1998
+      // actually exercises the fix.
+      expect(checkDraft("1998USD", ctx())).toEqual([expect.stringContaining("amount")]);
+    });
+    it("keeps the existing spaced/symbol forms working as before (all three are allow-listed prices)", () => {
+      expect(checkDraft("USD 588", ctx())).toEqual([]);
+      expect(checkDraft("$1,588", ctx())).toEqual([]);
+      expect(checkDraft("50 dollars", ctx())).toEqual([]);
+    });
+  });
+
+  // Final fix round, item 3: profit language split into HARD_PROFIT_RE,
+  // SOFT_PROFIT_RE and RATE_RE, with the gaps the reviewer found now closed.
+  describe("final fix round — item 3: split profit rules close the gaps", () => {
+    it.each([
+      "Most members double their account.",
+      "grow your account",
+      "consistent wins",
+      "500 pips a month",
+      "Our win rate is 90%.",
+      "recover your losses",
+      "untung besar",
+      "keuntungan dijamin",
+      "pasti untung",
+      "保证每月盈利",
+      "稳赚",
+      "赚钱",
+    ])("blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("profit")]);
+    });
+    it.each([
+      "You can earn your Foundation tier with a $50 top-up.",
+      "Your gains and losses stay in your own account.",
+      "We can't promise any income.",
+      "Once you have earned Foundation you keep it.",
+    ])("still passes %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([]);
+    });
+    it("still passes the whole fact sheet", () => {
+      expect(checkDraft(facts.text, ctx()).filter((r) => !r.startsWith("too long"))).toEqual([]);
+    });
+  });
+
+  // Final fix round, item 4: DEPOSIT_WORD_RE missed "payment"/"transfer"/
+  // "funds" — a claim using those words instead of "deposit" slipped past.
+  describe("final fix round — item 4: wider deposit-claim vocabulary", () => {
+    it.each(["Payment confirmed.", "Your payment has been received.", "Your transfer is confirmed."])(
+      "blocks %s",
+      (text) => {
+        expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("deposit")]);
+      }
+    );
+    it("still allows the negated top-up phrasing", () => {
+      expect(checkDraft("Your top-up hasn't been approved yet.", ctx())).toEqual([]);
+    });
+    it("still passes the whole fact sheet", () => {
+      expect(checkDraft(facts.text, ctx()).filter((r) => !r.startsWith("too long"))).toEqual([]);
+    });
+  });
+
+  // Final fix round, item 5: IB_CONTEXT_RE's fixed 12-char lookback could
+  // never fit "partner code " (13 chars), and never looked after the
+  // number at all.
+  describe("final fix round — item 5: IB-context scan before AND after the number", () => {
+    it("blocks the 'partner code' framing the old 12-char lookback could never fit", () => {
+      expect(
+        checkDraft("Your partner code 5928887 is set.", ctx(["my ib is 5928887"]))
+      ).toEqual([expect.stringContaining("5928887")]);
+    });
+    it("blocks an IB label placed after the number", () => {
+      expect(
+        checkDraft("Use 5928887 as your IB number.", ctx(["my ib is 5928887"]))
+      ).toEqual([expect.stringContaining("5928887")]);
+    });
+    it("still allows a member's own account number with no IB framing either side", () => {
+      expect(checkDraft("Your trading account 2167136 is linked.", ctx(["my account 2167136"]))).toEqual([]);
+    });
+  });
+
+  // Final fix round, item 6: MONEY_SAFE_RE only caught the copula shape
+  // ("money is safe") — not "stays/remains", the transitive "keep X safe",
+  // a standalone "no risk" claim, or the Malay form.
+  describe("final fix round — item 6: wider money-safe claim", () => {
+    it.each([
+      "Your capital stays protected.",
+      "Your funds remain safe.",
+      "We keep your money secure.",
+      "There is no risk to your capital.",
+      "Duit anda selamat bersama kami.",
+    ])("blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("safe")]);
+    });
+    it("still passes the fact sheet's own instruction not to say it", () => {
+      expect(checkDraft("Never tell anyone their money is safe or protected.", ctx())).toEqual([]);
+    });
+  });
+
+  // Final fix round, item 7: BARE_HOST_RE's TLD list has ordinary English
+  // words ("live", "info") that show up capitalised at a sentence boundary
+  // with no space before them — those must not read as a link.
+  describe("final fix round — item 7: sentence-boundary false blocks (.Live, .Info)", () => {
+    it.each([
+      "Team MM.Live classes are included at that tier.",
+      "That's done.Info on tiers is on the upgrade page.",
+    ])("passes %s", (text) => {
+      expect(checkDraft(text, ctx()).filter((r) => r.startsWith("link"))).toEqual([]);
+    });
+    it("still blocks a real link with a path, whatever the case", () => {
+      expect(checkDraft("FORMS.GLE/abc", ctx())).toEqual([expect.stringContaining("link")]);
+    });
+    it.each(["evil-signals.com", "www.evil.com"])("still blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("link")]);
+    });
+  });
+
+  // Final fix round, item 9: "ib5928887"/"IB5928887" have no boundary
+  // between the letter prefix and the digits, so a plain \b-bounded scan
+  // missed them.
+  describe("final fix round — item 9: ib-prefixed number with no separator", () => {
+    it.each(["ib5928887", "Use IB5928887"])("blocks %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([expect.stringContaining("IB")]);
+    });
+    it.each(["2026-12-15", "$1,588", "USD 1,588.00", "+60 12 345 6789"])("stays clean on %s", (text) => {
+      expect(checkDraft(text, ctx())).toEqual([]);
+    });
+  });
 });
 
 describe("mustHandOff", () => {
@@ -559,6 +716,31 @@ describe("mustHandOff", () => {
       expect(mustHandOff("saya sudah bayar semalam", "other")).toMatch(/payment/);
       expect(mustHandOff("duit saya hilang", "other")).toMatch(/funds/);
       expect(mustHandOff("我要提款", "other")).toMatch(/withdraw/);
+    });
+  });
+
+  // Final fix round, item 8: mustHandOff stem gaps — English "money back",
+  // and Malay/Chinese phrasings for funds-not-arrived, money deducted,
+  // already-transferred and paid-but-no-access.
+  describe("final fix round — item 8: mustHandOff stem gaps", () => {
+    it.each([
+      "I want my money back",
+      "我的钱还没到账",
+      "我已经转账了",
+      "钱被扣了",
+      "我付了钱但没有权限",
+      "duit saya tak masuk lagi",
+      "saya dah transfer duit",
+      "saya nak minta duit balik",
+    ])("hands off %s", (text) => {
+      expect(mustHandOff(text, "other")).toBeTruthy();
+    });
+    it.each([
+      "kenapa akses saya belum masuk?",
+      "macam mana nak bayar?",
+      "saya nak tarik balik soalan tadi",
+    ])("still leaves %s alone", (text) => {
+      expect(mustHandOff(text, "other")).toBeNull();
     });
   });
 });
