@@ -1,11 +1,13 @@
 import "server-only";
+import { resolveTelegramCredentials } from "@/lib/telegramCredentials";
 
 // One path for sending a Telegram DM via the Bot API. Best-effort: every
 // failure resolves to { ok:false } rather than throwing, so callers (e.g. the
 // daily-stats cron) never break their critical path on a messaging hiccup.
 //
-// Reads TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID. Server-only — the bot token must
-// never reach a browser.
+// The bot is chosen by resolveTelegramCredentials: TELEGRAM_* first, then the
+// alert bot ADMIN_ALERT_* (so the 9am stats post works even though production
+// never had TELEGRAM_*). Server-only — the bot token must never reach a browser.
 
 export interface TelegramResult {
   ok: boolean;
@@ -17,6 +19,8 @@ export interface SendTelegramOptions {
   botToken?: string;
   /** Send to a different chat (defaults to TELEGRAM_CHAT_ID). */
   chatId?: string;
+  /** Admin alerts: prefer the alert bot (@MMbrainerbot) over the stats bot. */
+  preferAdminBot?: boolean;
   /** "HTML" (default) or "MarkdownV2". HTML is the most forgiving to build. */
   parseMode?: "HTML" | "MarkdownV2";
   /** Suppress the link preview card. Defaults to true. */
@@ -27,11 +31,15 @@ export async function sendTelegram(
   text: string,
   opts: SendTelegramOptions = {}
 ): Promise<TelegramResult> {
-  const token = opts.botToken || process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = opts.chatId || process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) {
-    return { ok: false, detail: "TELEGRAM_BOT_TOKEN/CHAT_ID not configured" };
+  const creds = resolveTelegramCredentials(process.env, {
+    botToken: opts.botToken,
+    chatId: opts.chatId,
+    preferAdminBot: opts.preferAdminBot,
+  });
+  if (!creds) {
+    return { ok: false, detail: "no Telegram bot configured (TELEGRAM_* or ADMIN_ALERT_*)" };
   }
+  const { token, chatId } = creds;
 
   try {
     const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -59,11 +67,7 @@ export async function sendAdminTelegram(
   text: string,
   opts: SendTelegramOptions = {}
 ): Promise<TelegramResult> {
-  return sendTelegram(text, {
-    ...opts,
-    botToken: process.env.ADMIN_ALERT_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
-    chatId: process.env.ADMIN_ALERT_CHAT_ID || process.env.TELEGRAM_CHAT_ID,
-  });
+  return sendTelegram(text, { ...opts, preferAdminBot: true });
 }
 
 /** Escape the five characters that are special inside Telegram HTML text. */
