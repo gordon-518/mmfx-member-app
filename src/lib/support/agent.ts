@@ -121,16 +121,23 @@ export function buildUserContent(args: {
 }
 
 /** Default client for `decide()`: no SDK-level retry. The webhook route's
- * 120s maxDuration must cover a 20s debounce plus a draft AND a redraft at
- * 35s each — one retry on top of either call could blow that budget, so a
- * failed call is surfaced immediately and the orchestrator hands off. */
-export function defaultClient(): Anthropic {
-  return new Anthropic({ timeout: 35_000, maxRetries: 0 });
+ * maxDuration must cover a 20s debounce plus a draft AND a possible redraft
+ * — one retry on top of either call could blow that budget, so a failed
+ * call is surfaced immediately and the orchestrator hands off. `timeoutMs`
+ * lets a later, more time-pressed call (run.ts's redraft) use a shorter
+ * client timeout than the first draft's default. */
+export function defaultClient(timeoutMs = 35_000): Anthropic {
+  return new Anthropic({ timeout: timeoutMs, maxRetries: 0 });
 }
 
 export async function decide(
-  args: { facts: FactSheet; thread: ThreadMessage[]; contact: ContactInfo; member: MemberContext | null; retryReasons?: string[] },
-  client: Anthropic = defaultClient()
+  args: {
+    facts: FactSheet; thread: ThreadMessage[]; contact: ContactInfo; member: MemberContext | null;
+    retryReasons?: string[];
+    /** Client-side timeout for this call, when no explicit `client` is passed. Defaults to 35s (defaultClient's own default). */
+    timeoutMs?: number;
+  },
+  client: Anthropic = defaultClient(args.timeoutMs)
 ): Promise<{ decision: Decision | null; refused: boolean; model: string; error?: string }> {
   try {
     const res = await client.beta.messages.create({

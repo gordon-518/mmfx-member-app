@@ -138,8 +138,13 @@ export async function getMessages(contactId: string, limit = 15): Promise<Thread
     throw new Error(`SendPulse getMessages failed: ${status}`);
   }
   // One page is enough: SendPulse returns newest-first, well over 15 rows.
+  // The id must be a string or number: toMessage's `String(m.id)` would
+  // otherwise collapse a non-primitive id (e.g. an object) to the literal
+  // "[object Object]" — harmless on its own, but now load-bearing, since
+  // run.ts locks each answered message by its id (see the outcome dedupe
+  // key in run.ts); every such row would collide onto one key.
   return data
-    .filter((m) => m.id !== undefined && m.id !== null && m.id !== "")
+    .filter((m) => (typeof m.id === "string" || typeof m.id === "number") && m.id !== "")
     .slice(0, limit)
     .map(toMessage)
     .reverse();

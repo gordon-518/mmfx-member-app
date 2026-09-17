@@ -1999,7 +1999,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const { runBurst, handleOutgoing, log } = vi.hoisted(() => ({
   runBurst: vi.fn(async () => ({ kind: "reply" })),
   handleOutgoing: vi.fn(async () => "ignored"),
-  log: vi.fn(async () => true),
+  log: vi.fn(async () => ({ status: "ok" })),
 }));
 vi.mock("@/lib/support/run", () => ({ runBurst, handleOutgoing }));
 vi.mock("@/lib/support/store", () => ({ supabaseStore: () => ({ log }) }));
@@ -2014,7 +2014,7 @@ const incoming = { title: "incoming_message", date: 1789460000, contact: { id: "
 
 beforeEach(() => {
   process.env.SUPPORT_WEBHOOK_SECRET = "k";
-  runBurst.mockClear(); handleOutgoing.mockClear(); log.mockReset(); log.mockResolvedValue(true);
+  runBurst.mockClear(); handleOutgoing.mockClear(); log.mockReset(); log.mockResolvedValue({ status: "ok" });
 });
 
 describe("POST /api/support/webhook", () => {
@@ -2027,10 +2027,10 @@ describe("POST /api/support/webhook", () => {
     const res = await POST(req([incoming]));
     expect(res.status).toBe(200);
     expect(log).toHaveBeenCalledWith(expect.objectContaining({ contact_id: "c1", kind: "incoming", member_text: "hi" }));
-    expect(runBurst).toHaveBeenCalledWith("c1", new Date(1789460000 * 1000).toISOString());
+    expect(runBurst).toHaveBeenCalledWith("c1", { at: new Date(1789460000 * 1000).toISOString(), text: "hi" });
   });
   it("drops a duplicate delivery", async () => {
-    log.mockResolvedValueOnce(false);
+    log.mockResolvedValueOnce({ status: "duplicate" });
     await POST(req([incoming]));
     expect(runBurst).not.toHaveBeenCalled();
   });
@@ -2062,8 +2062,11 @@ import { supabaseStore } from "@/lib/support/store";
 import { runBurst, handleOutgoing } from "@/lib/support/run";
 
 export const runtime = "nodejs";
-// 20 s burst wait + up to two Claude calls (35 s timeout each) + SendPulse calls.
-export const maxDuration = 120;
+// 20s debounce + a draft call (up to 35s) + a possible redraft (shorter,
+// REDRAFT_TIMEOUT_MS in run.ts) + the send/handoff tail (a send, and on
+// failure up to four SendPulse writes plus a Telegram ping, each up to 10s)
+// — see run.ts's RUN_BUDGET_MS comment for the worst-case accounting.
+export const maxDuration = 180;
 
 // SendPulse chatbot webhook for @marketmakers18bot (Bot Settings → Webhooks,
 // events incoming_message + outgoing_message). SendPulse doesn't sign webhooks,
@@ -2096,8 +2099,8 @@ export async function POST(req: Request) {
       const text = String(ev.contact.last_message ?? "");
       const at = eventTime(ev.date);
       const dedupe = createHash("sha256").update(`${contactId}|${ev.date ?? ""}|${text}`).digest("hex").slice(0, 32);
-      const fresh = await store.log({ contact_id: contactId, kind: "incoming", dedupe_key: dedupe, member_text: text });
-      if (fresh) after(async () => { await runBurst(contactId, at); });
+      const claimed = await store.log({ contact_id: contactId, kind: "incoming", dedupe_key: dedupe, member_text: text });
+      if (claimed.status === "ok") after(async () => { await runBurst(contactId, { at, text }); });
     } else if (ev.title === "outgoing_message") {
       after(async () => { await handleOutgoing(contactId); });
     }
@@ -2106,13 +2109,17 @@ export async function POST(req: Request) {
 }
 ```
 
-- [ ] **Step 4: Simplify `store.log`**
+- [ ] **Step 4: `store.log` returns a discriminated result, and never silently swallows a real DB error**
 
-In `src/lib/support/store.ts`, replace the body of `log` with:
+`log`'s return value doubles as the outcome lock run.ts uses to stop a member getting the same
+reply twice (see the review round 2026-09-16 fix-up) — so a transient DB error must never be
+mistaken for "already claimed". In `src/lib/support/store.ts`:
 ```ts
     async log(ev) {
       const { error } = await db.from("support_events").insert(ev);
-      return !error; // false on a duplicate dedupe_key (23505) or any insert error
+      if (!error) return { status: "ok" };
+      if (error.code === "23505") return { status: "duplicate" }; // dedupe_key collision
+      throw new Error(`support_events insert failed: ${error.message}`); // any other error: never "duplicate"
     },
 ```
 

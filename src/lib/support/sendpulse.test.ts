@@ -68,6 +68,19 @@ describe("getMessages", () => {
     expect(msgs.map((m) => m.id)).toEqual(["m2"]);
   });
 
+  it("drops a row whose id is a non-primitive (would otherwise collapse via String())", async () => {
+    mockFetch((url) => {
+      if (isToken(url)) return tokenOk();
+      return json({ data: [
+        { id: "m1", direction: 1, created_at: "2026-09-15T10:00:00Z", data: { text: "keeps" } },
+        { id: { weird: true }, direction: 1, created_at: "2026-09-15T10:00:01Z", data: { text: "dropped" } },
+        { id: ["also", "weird"], direction: 1, created_at: "2026-09-15T10:00:02Z", data: { text: "dropped too" } },
+      ] });
+    });
+    const msgs = await getMessages("c1");
+    expect(msgs.map((m) => m.id)).toEqual(["m1"]);
+  });
+
   it("renders a caption-less photo message as [attachment]", async () => {
     mockFetch((url) => {
       if (isToken(url)) return tokenOk();
