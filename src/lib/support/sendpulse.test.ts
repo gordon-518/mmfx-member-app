@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getMessages, getContact, send, setTag, __resetTokenForTests } from "./sendpulse";
+import { getMessages, getContact, send, setTag, deletePauseAutomation, __resetTokenForTests } from "./sendpulse";
 
 type Call = { url: string; init?: RequestInit };
 let calls: Call[];
@@ -295,5 +295,25 @@ describe("send", () => {
     } finally {
       process.env.SENDPULSE_API_ID = "id";
     }
+  });
+});
+
+describe("deletePauseAutomation", () => {
+  it("resolves to true on a confirmed 200 success", async () => {
+    mockFetch((url) => {
+      if (isToken(url)) return tokenOk();
+      return json({ success: true });
+    });
+    await expect(deletePauseAutomation("c1")).resolves.toBe(true);
+    const body = JSON.parse(String(calls[1].init!.body));
+    expect(body).toEqual({ contact_id: "c1" });
+  });
+
+  it("resolves to false on a 500, without throwing", async () => {
+    mockFetch((url) => {
+      if (isToken(url)) return tokenOk();
+      return json({}, 500);
+    });
+    await expect(deletePauseAutomation("c1")).resolves.toBe(false);
   });
 });

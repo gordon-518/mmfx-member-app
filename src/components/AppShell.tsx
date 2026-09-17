@@ -11,7 +11,7 @@ import { canAccess, featureForHref, FEATURE_MIN_TIER, type Viewer } from "@/lib/
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
   AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon, TelegramIcon,
-  MenuIcon, CloseIcon, SparkIcon, JournalIcon, UserPlusIcon, LockIcon,
+  MenuIcon, CloseIcon, SparkIcon, JournalIcon, UserPlusIcon, LockIcon, ChatIcon,
 } from "./icons";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -70,6 +70,7 @@ const ADMIN_NAV: NavItem[] = [
   { label: "Growth Stats", href: "/stats", icon: AnalysisIcon },
   { label: "Members", href: "/admin", icon: UserPlusIcon },
   { label: "Channel Performance", href: "/admin/channel", icon: TelegramIcon },
+  { label: "Support Agent", href: "/admin/support", icon: ChatIcon },
   { label: "IB Reconciliation", href: "/journal/ib", icon: JournalIcon },
 ];
 

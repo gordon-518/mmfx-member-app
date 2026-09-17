@@ -196,6 +196,8 @@ export const deleteTag = (contactId: string, tag: string) =>
   post("/telegram/contacts/deleteTag", { contact_id: contactId, tag });
 export const setPauseAutomation = (contactId: string, minutes: number) =>
   post("/telegram/contacts/setPauseAutomation", { contact_id: contactId, minutes });
+export const deletePauseAutomation = (contactId: string) =>
+  post("/telegram/contacts/deletePauseAutomation", { contact_id: contactId });
 export const openChat = (contactId: string) =>
   post("/telegram/contacts/openChat", { contact_id: contactId });
 export const runFlow = (contactId: string, flowId: string) =>
