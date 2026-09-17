@@ -42,6 +42,12 @@ export type LogResult = { status: "ok" } | { status: "duplicate" };
 export interface SupportStore {
   getSettings(): Promise<SupportSettings | null>;
   getChat(contactId: string): Promise<ChatRow | null>;
+  /** Upsert into support_chats. Throws on a failed write (matching the
+   * module's read-throws style — see getChat/getSettings) rather than
+   * swallowing the error: a silently-failed write during a handoff would
+   * leave the member and Amelia thinking the chat is in needs_amelia when no
+   * row actually says so (item 2). Callers that must not abort on a failed
+   * chat-state write (see run.ts's `handoff`) catch this explicitly. */
   saveChat(patch: Partial<ChatRow> & { contact_id: string }): Promise<void>;
   countRepliesSince(contactId: string, sinceIso: string): Promise<number>;
   countModelCallsSince(sinceIso: string): Promise<number>;
@@ -53,7 +59,14 @@ export interface SupportStore {
   log(ev: EventRow): Promise<LogResult>;
   /** Best-effort: mark an already-logged reply/handoff row as confirmed-sent
    * by its dedupe_key. Never throws — a failure here must not turn a
-   * successful send into a thrown error. */
+   * successful send into a thrown error.
+   *
+   * TODO(task-10): `delivered_at` is written here but nothing reads it yet —
+   * a run killed between the claim (store.log) and this call leaves the
+   * member unanswered with no alert. Task 10's admin page and Task 11's
+   * daily summary are meant to surface exactly that: `kind in ('reply',
+   * 'handoff') and delivered_at is null and created_at < now() - interval
+   * '5 minutes'`. */
   markDelivered(dedupeKey: string): Promise<void>;
   /** Best-effort: overwrite skip_reason on an already-logged event by its
    * dedupe_key (used to record handoff write-side-effect failures after the
@@ -80,7 +93,11 @@ export function supabaseStore(db: SupabaseClient = adminDb()): SupportStore {
       return (data as ChatRow | null) ?? null;
     },
     async saveChat(patch) {
-      await db.from("support_chats").upsert({ ...patch, updated_at: new Date().toISOString() }, { onConflict: "contact_id" });
+      const { error } = await db.from("support_chats").upsert({ ...patch, updated_at: new Date().toISOString() }, { onConflict: "contact_id" });
+      // Must throw, not swallow: see the SupportStore.saveChat doc comment
+      // (item 2) — a failed handoff write must never look like a completed
+      // one.
+      if (error) throw new Error(`support_chats upsert failed: ${error.message}`);
     },
     async countRepliesSince(contactId, sinceIso) {
       const { count } = await db.from("support_events").select("id", { count: "exact", head: true })

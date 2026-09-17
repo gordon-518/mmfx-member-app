@@ -107,6 +107,20 @@ export interface BurstTrigger {
 
 const minus = (d: Date, ms: number) => new Date(d.getTime() - ms).toISOString();
 const plus = (d: Date, ms: number) => new Date(d.getTime() + ms).toISOString();
+/** Re-check for a chat state change that happened WHILE this run was
+ * drafting, redrafting, or waiting on a cap/budget check — a model call can
+ * take up to ~35s (see RUN_BUDGET_MS), plenty of time for Amelia to answer
+ * and for `handleOutgoing` to set `quiet`/`needs_amelia`. This re-applies
+ * the same two guards checked at the top of `runBurst`, right before the
+ * claim that's about to send something — the only guarantee that matters,
+ * since everything upstream of the claim can go stale. Returns the skip
+ * reason, or null when it's still safe to proceed. */
+async function chatChangedDuringRun(store: SupportStore, contactId: string, now: Date): Promise<string | null> {
+  const chat = await store.getChat(contactId);
+  if (chat?.state === "needs_amelia") return "needs_amelia";
+  if (chat?.state === "quiet" && chat.quiet_until && Date.parse(chat.quiet_until) > now.getTime()) return "quiet";
+  return null;
+}
 /** Collapse whitespace for comparing two message texts that should be the
  * same wording — an untrimmed mismatch (trailing space, a double space)
  * must never flip the agent's own reply into "a person answered". */
@@ -120,8 +134,19 @@ function sgtDayStart(d: Date): string {
 export async function runBurst(
   contactId: string,
   trigger: BurstTrigger,
-  deps: RunDeps = defaultDeps()
+  depsArg?: RunDeps
 ): Promise<RunOutcome> {
+  // `defaultDeps()` calls `adminDb()`, which can throw (missing/misconfigured
+  // env vars). As a default *parameter* expression that throw would happen
+  // outside this function's own try/catch, rejecting straight out of the
+  // caller (the webhook route's `after()`, which nothing else guards) — so
+  // it's constructed here instead, inside a try of its own (item 8).
+  let deps: RunDeps;
+  try {
+    deps = depsArg ?? defaultDeps();
+  } catch (e) {
+    return { kind: "error", reason: e instanceof Error ? e.message : String(e) };
+  }
   const { store, sp } = deps;
   // Measured before anything else so it covers the whole burst, including
   // the debounce sleep below — see RUN_BUDGET_MS.
@@ -191,10 +216,16 @@ export async function runBurst(
 
     const after = thread.slice(lastIn + 1);
     if (after.some((m) => m.fromFlow)) return skip("flow answered");
-    const ours = await store.recentAgentTexts(contactId, minus(now, ECHO_WINDOW_MS));
-    if (after.some((m) => m.direction === "out" && !ours.some((o) => normaliseText(o) === normaliseText(m.text)))) {
-      await store.saveChat({ contact_id: contactId, state: "quiet", quiet_until: plus(now, QUIET_MINUTES * 60_000) });
-      return skip("answered by a person");
+    if (after.length) {
+      // Windowed on the FIRST outgoing message's own timestamp, not the run
+      // clock (item 3) — a late-arriving webhook for the agent's own send
+      // must still find it in the window even if that send happened well
+      // outside ECHO_WINDOW_MS of `now` (this run's own clock).
+      const ours = await store.recentAgentTexts(contactId, minus(new Date(after[0].at), ECHO_WINDOW_MS));
+      if (after.some((m) => m.direction === "out" && !ours.some((o) => normaliseText(o) === normaliseText(m.text)))) {
+        await store.saveChat({ contact_id: contactId, state: "quiet", quiet_until: plus(now, QUIET_MINUTES * 60_000) });
+        return skip("answered by a person");
+      }
     }
 
     let start = lastIn;
@@ -204,14 +235,23 @@ export async function runBurst(
 
     const contact: ContactInfo = (await sp.getContact(contactId))
       ?? { id: contactId, username: null, firstName: "", isBusiness: false, tags: [] };
+    // Belt and braces (item 2): SendPulse's own tag backstops a lost
+    // support_chats row — if a previous handoff's saveChat failed to
+    // persist but its setTag call still landed, the tag alone must still
+    // keep the agent from replying over Amelia.
+    if (contact.tags.includes(TAG)) return skip("needs_amelia (tag)");
     const member = await deps.findMember({ texts: memberTexts, telegramUsername: contact.username });
+    // `state`/`quiet_until` are deliberately NOT written here (item 1) —
+    // `handleOutgoing` and `handoff` are the only writers of chat state. This
+    // call exists only to persist bookkeeping fields alongside whatever
+    // state a concurrent write (Amelia's reply, a handoff) may have set.
     await store.saveChat({
-      contact_id: contactId, state: "auto", quiet_until: null, is_business: contact.isBusiness,
+      contact_id: contactId, is_business: contact.isBusiness,
       telegram_username: contact.username, matched_user_id: member?.userId ?? null,
       last_member_msg_at: latest.at,
     });
 
-    const ctx = { deps, settings, contact, contactId, memberText, dedupeKey };
+    const ctx = { deps, settings, contact, contactId, memberText, dedupeKey, isMedia: triggerText === "" };
     if ((await store.countRepliesSince(contactId, minus(now, 3600_000))) >= MAX_REPLIES_PER_HOUR) {
       return handoff(ctx, "reply cap reached");
     }
@@ -272,6 +312,11 @@ export async function runBurst(
     }
 
     const text = contact.isBusiness ? PREFIX + d.reply : d.reply;
+    // Amelia could have taken the chat while the model was drafting or
+    // redrafting above (item 1) — re-check right before the claim, the last
+    // possible moment before anything is sent.
+    const changedReason = await chatChangedDuringRun(store, contactId, deps.now());
+    if (changedReason) return skip(changedReason);
     // Claim the message immediately before sending (log before send): the
     // insert both doubles as the outcome lock (dedupeKey — see above) and
     // makes the reply visible to recentAgentTexts before SendPulse's
@@ -285,7 +330,17 @@ export async function runBurst(
       // redraft was needed to reach a sendable reply.
       guard_failures: redraftedFrom,
     });
-    if (claim.status === "duplicate") return { kind: "skip", reason: "already answered" };
+    if (claim.status === "duplicate") {
+      if (ctx.isMedia) {
+        // A media trigger's one-sided time tolerance (see `stillLatest`
+        // above) can key `dedupeKey` off an older, already-answered message
+        // — this collision doesn't prove THIS photo (often a deposit
+        // screenshot) was ever actually handled, so escalate under a
+        // distinct key rather than silently dropping it (item 7).
+        return handoff({ ...ctx, dedupeKey: `${dedupeKey}:media-dup`, isMedia: false }, "duplicate claim (media)");
+      }
+      return { kind: "skip", reason: "already answered" };
+    }
     const sent = await sp.send(contactId, text);
     if (!sent) {
       // sendpulse.ts contract: `false` means "not sent OR unknown" — it may
@@ -300,7 +355,9 @@ export async function runBurst(
     }
     await store.markDelivered(dedupeKey);
 
-    await store.saveChat({ contact_id: contactId, state: "auto", quiet_until: null, last_agent_reply_at: now.toISOString() });
+    // `state`/`quiet_until` are deliberately NOT written here either (item
+    // 1) — see the earlier saveChat call above.
+    await store.saveChat({ contact_id: contactId, last_agent_reply_at: now.toISOString() });
     return { kind: "reply" };
   } catch (e) {
     // A thrown read (getMessages/getContact/findMember/getChat/getSettings)
@@ -325,12 +382,16 @@ export async function runBurst(
 }
 
 async function handoff(
-  ctx: { deps: RunDeps; settings: SupportSettings; contact: ContactInfo; contactId: string; memberText: string; dedupeKey: string },
+  ctx: { deps: RunDeps; settings: SupportSettings; contact: ContactInfo; contactId: string; memberText: string; dedupeKey: string; isMedia: boolean },
   reason: string,
   opts: { sendHolding?: boolean; guardFailures?: string[]; model?: string; topic?: string; alreadyClaimed?: boolean } = {}
 ): Promise<RunOutcome> {
-  const { deps, settings, contact, contactId, memberText, dedupeKey } = ctx;
-  const sendHolding = opts.sendHolding !== false;
+  const { deps, settings, contact, contactId, memberText, dedupeKey, isMedia } = ctx;
+  // Derived, not trusted from the caller (item 5): a run that doesn't hold a
+  // fresh claim on `dedupeKey` (alreadyClaimed) must never also notify the
+  // member as if it did — the earlier claim's own outcome (a sent reply, or
+  // another run's handoff) already governs what the member sees.
+  const sendHolding = opts.sendHolding !== false && !opts.alreadyClaimed;
   const holding = `${contact.isBusiness ? PREFIX : ""}Thanks, I've passed this to Admin Amelia. She'll reply here ${settings.office_hours}.`;
   const eventFields = {
     contact_id: contactId, kind: "handoff" as const, member_text: memberText, topic: opts.topic, skip_reason: reason,
@@ -344,13 +405,29 @@ async function handoff(
     // our own row).
     await deps.store.log(eventFields);
   } else {
+    // Amelia could have taken the chat while this run was drafting,
+    // redrafting, or waiting on a cap/budget check (item 1) — re-check
+    // immediately before claiming.
+    const changedReason = await chatChangedDuringRun(deps.store, contactId, deps.now());
+    if (changedReason) return { kind: "skip", reason: changedReason };
     // Claim the same dedupeKey namespace as the reply path above — a run
     // that loses this race (whether the winner replied or also handed off)
     // returns early without sending anything. Logged BEFORE the
     // holding-line send, for the same echo-race reason as the main reply
     // above.
     const claim = await deps.store.log({ ...eventFields, dedupe_key: dedupeKey });
-    if (claim.status === "duplicate") return { kind: "skip", reason: "already answered" };
+    if (claim.status === "duplicate") {
+      if (isMedia) {
+        // A media trigger's one-sided time tolerance (see run.ts's
+        // `stillLatest`) can key `dedupeKey` off an older, already-answered
+        // message — this collision doesn't prove THIS photo was ever
+        // actually handled, so escalate under a distinct key rather than
+        // silently dropping it (item 7). `isMedia: false` bounds this to a
+        // single retry even if the escalation key itself somehow collides.
+        return handoff({ ...ctx, dedupeKey: `${dedupeKey}:media-dup`, isMedia: false }, `${reason} (duplicate claim, media escalation)`);
+      }
+      return { kind: "skip", reason: "already answered" };
+    }
   }
   let sentHolding = true;
   if (sendHolding) {
@@ -360,7 +437,16 @@ async function handoff(
   const tagOk = await deps.sp.setTag(contactId, TAG);
   const pauseOk = await deps.sp.setPauseAutomation(contactId, HANDOFF_PAUSE_MINUTES);
   const openOk = await deps.sp.openChat(contactId);
-  await deps.store.saveChat({ contact_id: contactId, state: "needs_amelia", handoff_reason: reason });
+  // saveChat can now throw on a failed write (store.ts, item 2) — this is
+  // the write that actually puts the chat in needs_amelia, so a failure here
+  // must be recorded on the event below rather than aborting the rest of the
+  // handoff (the tag/pause/ping side effects should still be attempted).
+  let chatSaved = true;
+  try {
+    await deps.store.saveChat({ contact_id: contactId, state: "needs_amelia", handoff_reason: reason });
+  } catch {
+    chatSaved = false;
+  }
   // Member text goes through redactForModel before it reaches Telegram —
   // Telegram sits outside the 90-day support_events purge, so an email or
   // phone number pasted by a member must never linger there indefinitely.
@@ -368,12 +454,14 @@ async function handoff(
     `🙋 <b>Needs Amelia</b> · ${escapeHtml(contact.firstName || "Member")}${contact.username ? ` (@${escapeHtml(contact.username)})` : ""}` +
     `\n"${escapeHtml(redactForModel(memberText).slice(0, 300))}"\n<i>Reason: ${escapeHtml(reason)}</i>`
   );
-  // setTag/setPauseAutomation/openChat/ping results used to be discarded —
-  // a fully failed handoff left only a support_chats row nobody watches.
-  // Record which writes failed (if any) on the event just logged, so a
-  // silently-undelivered ping (or tag/pause/openChat) is visible.
+  // setTag/setPauseAutomation/openChat/ping/saveChat results used to be
+  // discarded — a fully failed handoff left only a support_chats row nobody
+  // watches (or, for saveChat, no row at all — item 2). Record which writes
+  // failed (if any) on the event just logged, so a silently-undelivered
+  // holding line, tag/pause/openChat, chat-state save, or ping is visible.
   const failed = [
-    !tagOk && "setTag", !pauseOk && "setPauseAutomation", !openOk && "openChat", !pingResult.ok && "ping",
+    sendHolding && !sentHolding && "send", !tagOk && "setTag", !pauseOk && "setPauseAutomation", !openOk && "openChat",
+    !chatSaved && "saveChat", !pingResult.ok && "ping",
   ].filter((x): x is string => Boolean(x));
   if (failed.length) {
     await deps.store.patchSkipReason(dedupeKey, `${reason} (write failed: ${failed.join(", ")})`);
@@ -382,7 +470,16 @@ async function handoff(
 }
 
 /** An outgoing message the agent didn't send: a person replied, so go quiet. */
-export async function handleOutgoing(contactId: string, deps: RunDeps = defaultDeps()): Promise<"amelia_reply" | "ignored"> {
+export async function handleOutgoing(contactId: string, depsArg?: RunDeps): Promise<"amelia_reply" | "ignored"> {
+  // See runBurst's identical guard (item 8) — defaultDeps() can throw, and
+  // that must not reject out of the webhook route's after() callback either.
+  // There's no store to log to yet, so this can only report "ignored".
+  let deps: RunDeps;
+  try {
+    deps = depsArg ?? defaultDeps();
+  } catch {
+    return "ignored";
+  }
   try {
     // SendPulse's outgoing_message webhook for the agent's own send can
     // arrive before that reply (or handoff holding line) is logged — wait
@@ -396,16 +493,37 @@ export async function handleOutgoing(contactId: string, deps: RunDeps = defaultD
     // sets a quiet period: the newest (the agent's own echo) matches `ours`
     // and short-circuits before Amelia's earlier reply is ever looked at.
     const lastIn = thread.map((m) => m.direction).lastIndexOf("in");
-    const after = thread.slice(lastIn + 1).filter((m) => m.direction === "out");
+    const after = thread.slice(lastIn + 1).filter((m) => m.direction === "out" && !m.fromFlow);
     if (!after.length) return "ignored";
-    const ours = await deps.store.recentAgentTexts(contactId, minus(deps.now(), ECHO_WINDOW_MS));
-    const personReply = after.find((m) => !m.fromFlow && !ours.some((o) => normaliseText(o) === normaliseText(m.text)));
+    // Scan newest-first, each candidate's echo window judged against its OWN
+    // timestamp (item 3) rather than the run clock — a reply logged well
+    // before this webhook fired (backlog/retry) is still recognised as ours
+    // even when the webhook itself arrives late. Stopping at the first
+    // (newest) genuine non-echo message also means a later, unrelated
+    // webhook never re-flags an older message that was already handled
+    // (item 6) — see the claim below for the belt-and-braces on retries.
+    let personReply: ThreadMessage | undefined;
+    for (let i = after.length - 1; i >= 0; i--) {
+      const m = after[i];
+      const ours = await deps.store.recentAgentTexts(contactId, minus(new Date(m.at), ECHO_WINDOW_MS));
+      if (!ours.some((o) => normaliseText(o) === normaliseText(m.text))) {
+        personReply = m;
+        break;
+      }
+    }
     if (!personReply) return "ignored";
+    // Claim this specific message before acting on it (item 6): a
+    // retried/duplicate webhook for the SAME reply must not re-log the event
+    // or re-extend the quiet period every time it arrives.
+    const claim = await deps.store.log({
+      contact_id: contactId, kind: "amelia_reply", reply_text: personReply.text,
+      dedupe_key: `amelia:${contactId}:${personReply.id}`,
+    });
+    if (claim.status === "duplicate") return "ignored";
     const chat = await deps.store.getChat(contactId);
     if (chat?.state !== "needs_amelia") {
       await deps.store.saveChat({ contact_id: contactId, state: "quiet", quiet_until: plus(deps.now(), QUIET_MINUTES * 60_000) });
     }
-    await deps.store.log({ contact_id: contactId, kind: "amelia_reply", reply_text: personReply.text });
     return "amelia_reply";
   } catch (e) {
     // Must never throw out of the webhook route's after() callback.

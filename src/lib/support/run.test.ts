@@ -5,10 +5,18 @@ vi.mock("@/lib/telegram", async (importOriginal) => {
   return { ...actual, sendTelegram: vi.fn(async () => ({ ok: true, detail: {} })) };
 });
 
+// (minor/item 8) defaultDeps() calls adminDb(), which can throw when
+// misconfigured — used only by the two tests that call runBurst/handleOutgoing
+// without an explicit `deps`, to prove that throw is caught rather than
+// rejecting out of the caller.
+vi.mock("@/lib/channel/db", () => ({
+  adminDb: () => { throw new Error("adminDb misconfigured"); },
+}));
+
 import { sendTelegram } from "@/lib/telegram";
 import {
-  runBurst, handleOutgoing, defaultPing, PREFIX, RUN_BUDGET_MS, REDRAFT_MIN_BUDGET_MS, REDRAFT_TIMEOUT_MS,
-  FIRST_DECIDE_MIN_BUDGET_MS, MAX_REPLIES_PER_HOUR, MAX_CALLS_PER_DAY, WAIT_MS, ECHO_WINDOW_MS,
+  runBurst, handleOutgoing, defaultPing, PREFIX, RUN_BUDGET_MS, REDRAFT_TIMEOUT_MS,
+  FIRST_DECIDE_MIN_BUDGET_MS, MAX_REPLIES_PER_HOUR, MAX_CALLS_PER_DAY, ECHO_WINDOW_MS,
   type RunDeps, type BurstTrigger,
 } from "./run";
 import type { ChatRow, EventRow, LogResult } from "./store";
@@ -45,8 +53,9 @@ function setup(opts: {
    * "during" the debounce (e.g. Amelia taking the chat over). */
   duringSleep?: (setChat: (row: ChatRow | null) => void) => void;
   /** Called from inside the `decide` fake, after popping a decision — lets
-   * a test advance a settable fake clock as if drafting took a long time. */
-  duringDecide?: () => void;
+   * a test advance a settable fake clock, or mutate chat state (e.g. Amelia
+   * taking over mid-draft), as if drafting took a long time. */
+  duringDecide?: (setChat: (row: ChatRow | null) => void) => void;
 }) {
   const events: EventRow[] = [];
   const usedDedupeKeys = new Set<string>();
@@ -62,7 +71,7 @@ function setup(opts: {
   } satisfies Sp;
   const decide = vi.fn<RunDeps["decide"]>(async () => {
     const d = decisions.shift() ?? null;
-    opts.duringDecide?.();
+    opts.duringDecide?.((row) => { chat = row; });
     return { decision: d, refused: false, model: "claude-opus-5" };
   });
   const ping = vi.fn<RunDeps["ping"]>(async () => ({ ok: true }));
@@ -326,6 +335,34 @@ describe("runBurst", () => {
     expect(s.decide).not.toHaveBeenCalled();
   });
 
+  // --- (blocker 2) SendPulse's own tag backstops a lost support_chats row ---
+  it("skips as needs_amelia (tag) when SendPulse's contact already carries the needs-amelia tag, even if support_chats has no row", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi")], contact: { tags: ["needs-amelia"] } });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "needs_amelia (tag)" });
+    expect(s.decide).not.toHaveBeenCalled();
+    expect(s.sp.send).not.toHaveBeenCalled();
+  });
+
+  // --- (minor 7) A media message whose claim collides must still reach a human
+  describe("media duplicate claim escalates to Amelia (minor 7)", () => {
+    it("hands a duplicate-claimed media message to Amelia instead of silently dropping it", async () => {
+      const thread = [msg("p1", "in", "[attachment]", "2026-09-15T04:00:00Z")];
+      const s = setup({ thread, decisions: [reply("Got it, thanks!"), reply("Got it, thanks!")] });
+      const trigger: BurstTrigger = { at: "2026-09-15T04:00:00Z", text: "" };
+      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "reply" });
+      // Reset to auto so the second run reaches the claim itself, isolating
+      // the duplicate-claim behaviour from the needs_amelia/quiet guards.
+      await s.deps.store.saveChat({ contact_id: "c1", state: "auto" });
+      s.sp.send.mockClear(); s.sp.setTag.mockClear();
+      // A second, distinct photo that (via the one-sided time tolerance for
+      // media triggers) resolves to the SAME already-claimed message.
+      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "handoff", reason: "duplicate claim (media)" });
+      expect(s.sp.send).toHaveBeenCalledWith("c1", expect.stringContaining("passed this to Admin Amelia"));
+      expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+      expect(s.chat?.state).toBe("needs_amelia");
+    });
+  });
+
   // --- (item 4) Amelia must never be talked over during the debounce --------
   it("skips and never sends when the chat goes quiet during the debounce (Amelia took over)", async () => {
     const s = setup({
@@ -347,6 +384,57 @@ describe("runBurst", () => {
     await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "needs_amelia" });
     expect(s.sp.send).not.toHaveBeenCalled();
     expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  // --- (blocker 1) Amelia must never be talked over during the MODEL CALL ---
+  // (the debounce-only checks above are not enough: a draft/redraft can
+  // itself take up to ~35s, plenty of time for her to answer mid-call).
+  describe("never talks over Amelia during the model call (blocker 1)", () => {
+    it("sends nothing, and leaves quiet_until intact, when the chat goes quiet DURING the model call", async () => {
+      const s = setup({
+        thread: [msg("1", "in", "how much to join?")],
+        decisions: [reply("Foundation starts at $50.")],
+        duringDecide: (setChat) => setChat({ contact_id: "c1", state: "quiet", quiet_until: "2026-09-15T05:00:00Z" }),
+      });
+      await expect(runBurst("c1", trig("how much to join?"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "quiet" });
+      expect(s.sp.send).not.toHaveBeenCalled();
+      expect(s.chat?.state).toBe("quiet");
+      expect(s.chat?.quiet_until).toBe("2026-09-15T05:00:00Z");
+    });
+
+    it("sends nothing when the chat moves to needs_amelia DURING the model call", async () => {
+      const s = setup({
+        thread: [msg("1", "in", "how much to join?")],
+        decisions: [reply("Foundation starts at $50.")],
+        duringDecide: (setChat) => setChat({ contact_id: "c1", state: "needs_amelia" }),
+      });
+      await expect(runBurst("c1", trig("how much to join?"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "needs_amelia" });
+      expect(s.sp.send).not.toHaveBeenCalled();
+    });
+
+    it("the reply path's own saveChat calls never include state/quiet_until — only handleOutgoing and handoff write those", async () => {
+      const s = setup({ thread: [msg("1", "in", "how much to join?")], decisions: [reply("Foundation starts at $50.")] });
+      const saveChatSpy = vi.spyOn(s.deps.store, "saveChat");
+      await expect(runBurst("c1", trig("how much to join?"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      expect(saveChatSpy).toHaveBeenCalled();
+      for (const call of saveChatSpy.mock.calls) {
+        expect(call[0]).not.toHaveProperty("state");
+        expect(call[0]).not.toHaveProperty("quiet_until");
+      }
+    });
+
+    it("handoff's own claim also re-checks — a chat moved to needs_amelia just before a hard handoff isn't talked over", async () => {
+      const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+      // mustHandOff("money") fires before any model call, so simulate
+      // Amelia's takeover landing during the read that precedes it instead.
+      s.deps.findMember = async () => {
+        await s.deps.store.saveChat({ contact_id: "c1", state: "needs_amelia" });
+        return null;
+      };
+      await expect(runBurst("c1", trig("How do I withdraw my money?"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "needs_amelia" });
+      expect(s.sp.send).not.toHaveBeenCalled();
+      expect(s.sp.setTag).not.toHaveBeenCalled();
+    });
   });
 
   // --- (item 1) The dedupe claim: no member gets the same reply twice -------
@@ -379,14 +467,17 @@ describe("runBurst", () => {
       expect(s.sp.send).toHaveBeenCalledTimes(2);
     });
 
-    it("two photos in a row (empty text, within the media tolerance) still get exactly one reply", async () => {
-      const thread = [msg("p1", "in", "[attachment]", "2026-09-15T04:00:00Z")];
-      const s = setup({ thread, decisions: [reply("Got it, thanks!"), reply("Got it, thanks!")] });
-      const trigger: BurstTrigger = { at: "2026-09-15T04:00:00Z", text: "" };
-      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "reply" });
-      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "skip", reason: "already answered" });
+    it("two non-media messages claiming the same key: the second is skipped, not re-sent", async () => {
+      const s = setup({ thread: [msg("m1", "in", "hi")], decisions: [reply("Hi!"), reply("Hi!")] });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "already answered" });
       expect(s.sp.send).toHaveBeenCalledTimes(1);
     });
+
+    // A media trigger's claim colliding is handled differently — see "media
+    // duplicate claim escalates to Amelia (minor 7)" above: silently
+    // skipping risked never answering and never handing off a photo (often a
+    // deposit screenshot), so that case escalates instead of just skipping.
 
     it("the handoff claim guards the same namespace as the reply claim", async () => {
       // First run claims dedupeKey via the handoff path (a hard handoff, no
@@ -434,6 +525,34 @@ describe("runBurst", () => {
       const ev = s.events.find((e) => e.kind === "handoff");
       expect(ev?.skip_reason).toContain("setTag");
       expect(ev?.skip_reason).toContain("ping");
+    });
+
+    // --- (minor 4) A failed holding-line send is now recorded too -----------
+    it("records a failed holding-line send — it used to be the one handoff write nobody tracked", async () => {
+      const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")], sendResult: false });
+      await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+      const ev = s.events.find((e) => e.kind === "handoff");
+      expect(ev?.skip_reason).toContain("send");
+    });
+
+    // --- (blocker 2) A failed chat-state write is now recorded too ----------
+    it("records a failed chat-state save (support_chats) as a handoff write failure", async () => {
+      const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+      // Only the handoff's OWN state-setting save should fail — the earlier
+      // bookkeeping saveChat call (item 1) carries no `state` field, so it
+      // must keep succeeding; only `state: "needs_amelia"` is the write this
+      // test is about.
+      s.deps.store.saveChat = async (patch) => {
+        if (patch.state === "needs_amelia") throw new Error("support_chats upsert failed: connection reset");
+      };
+      await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+      const ev = s.events.find((e) => e.kind === "handoff");
+      expect(ev?.skip_reason).toContain("saveChat");
+      // The rest of the handoff must still go through — the tag/pause/ping
+      // are what actually get Amelia's attention when the row itself can't
+      // be trusted.
+      expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+      expect(s.deps.ping).toHaveBeenCalled();
     });
   });
 
@@ -495,23 +614,72 @@ describe("runBurst", () => {
     expect(raceResult).toBe("ignored");
   });
 
-  describe("RUN_BUDGET_MS", () => {
-    it("keeps the worst-case burst (debounce + draft + redraft + send/handoff tail) under the route's 180s ceiling", () => {
-      const debounce = WAIT_MS;
-      const firstDecideMax = 35_000; // agent.ts's defaultClient default
-      const tail = 10_000 /* send */ + 4 * 10_000; // on failure: setTag/pause/openChat/ping, each up to 10s
-      expect(debounce + firstDecideMax + REDRAFT_TIMEOUT_MS + tail).toBeLessThan(180_000);
+  // --- (blocker 3) The echo window is keyed to the message's own timestamp,
+  // not the run clock ----------------------------------------------------
+  describe("the 'answered by a person' check is windowed on the message's own time (blocker 3)", () => {
+    it("still recognises its own reply as an echo even when it was logged long before this run", async () => {
+      const outAt = "2026-09-15T03:50:00Z"; // 10 minutes before NOW (T0.5)
+      const s = setup({
+        thread: [msg("1", "in", "hi", T0), msg("2", "out", "Thanks, agent reply", outAt)],
+        decisions: [reply("Hi again!")],
+      });
+      const calls: string[] = [];
+      // Only "sees" the logged reply when the window is computed from the
+      // message's own timestamp (outAt), not from the run clock (NOW) — this
+      // is what actually distinguishes the old, broken windowing from the
+      // fixed one (the default fake ignores sinceIso entirely).
+      s.deps.store.recentAgentTexts = async (_id, sinceIso) => {
+        calls.push(sinceIso);
+        return Date.parse(sinceIso) <= Date.parse(outAt) ? ["Thanks, agent reply"] : [];
+      };
+      await expect(runBurst("c1", trig("hi", T0), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      expect(calls[0]).toBe(new Date(Date.parse(outAt) - ECHO_WINDOW_MS).toISOString());
     });
 
-    it("gates the redraft with a higher floor than the first decide, and a shorter timeout than the default draft call", () => {
-      expect(REDRAFT_MIN_BUDGET_MS).toBeGreaterThan(FIRST_DECIDE_MIN_BUDGET_MS);
-      expect(REDRAFT_TIMEOUT_MS).toBeLessThan(35_000);
-      expect(RUN_BUDGET_MS).toBeGreaterThan(REDRAFT_MIN_BUDGET_MS);
+    it("still detects a genuine person's reply with different text, and goes quiet", async () => {
+      const s = setup({ thread: [msg("1", "in", "hi", T0), msg("2", "out", "Hi, Amelia here!", "2026-09-15T04:00:10Z")] });
+      await expect(runBurst("c1", trig("hi", T0), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "answered by a person" });
+      expect(s.chat?.state).toBe("quiet");
+      expect(s.decide).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- (minor 8) defaultDeps() throwing must not reject runBurst ------------
+  it("reports an error instead of throwing when defaultDeps() (adminDb) fails", async () => {
+    await expect(runBurst("c1", trig("hi"))).resolves.toMatchObject({ kind: "error" });
+  });
+
+  // --- (item 10) A behavioural test in place of arithmetic on constants -----
+  // The previous version of this test only compared RUN_BUDGET_MS,
+  // FIRST_DECIDE_MIN_BUDGET_MS etc. to each other and to a literal 180_000 —
+  // it never ran runBurst, so it could never catch a real regression in the
+  // budget check itself (see the "out of time" tests above for that). What's
+  // actually worth pinning down about these constants is the exact boundary
+  // at which the code they gate flips behaviour.
+  describe("the first-decide budget gate (item 10)", () => {
+    it("still calls decide() with exactly FIRST_DECIDE_MIN_BUDGET_MS of budget left, but hands off with 1ms less", async () => {
+      for (const [remaining, expectDecide] of [[FIRST_DECIDE_MIN_BUDGET_MS, true], [FIRST_DECIDE_MIN_BUDGET_MS - 1, false]] as const) {
+        let clock = NOW.getTime();
+        const now = () => new Date(clock);
+        const s = setup({
+          thread: [msg("1", "in", "hi")],
+          decisions: [reply("Hi!")],
+          now,
+          duringSleep: () => { clock += RUN_BUDGET_MS - remaining; },
+        });
+        await runBurst("c1", trig("hi"), s.deps);
+        expect(s.decide).toHaveBeenCalledTimes(expectDecide ? 1 : 0);
+      }
     });
   });
 });
 
 describe("handleOutgoing", () => {
+  // --- (minor 8) defaultDeps() throwing must not reject handleOutgoing ------
+  it("returns 'ignored' instead of throwing when defaultDeps() (adminDb) fails", async () => {
+    await expect(handleOutgoing("c1")).resolves.toBe("ignored");
+  });
+
   it("goes quiet for an hour when a person replies", async () => {
     const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", "2026-09-15T04:00:20Z")] });
     await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
@@ -559,12 +727,13 @@ describe("handleOutgoing", () => {
       await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
     });
 
-    it("only looks back ECHO_WINDOW_MS (2 minutes), not a longer window, for a matching logged reply", async () => {
-      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Foundation starts at $50.", "2026-09-15T04:00:20Z")] });
+    it("looks back ECHO_WINDOW_MS (2 minutes) from the outgoing message's OWN timestamp, not the run clock (blocker 3)", async () => {
+      const outAt = "2026-09-15T04:00:20Z";
+      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Foundation starts at $50.", outAt)] });
       const recentAgentTexts = vi.fn(async () => []);
       s.deps.store.recentAgentTexts = recentAgentTexts;
       await handleOutgoing("c1", s.deps);
-      expect(recentAgentTexts).toHaveBeenCalledWith("c1", new Date(NOW.getTime() - ECHO_WINDOW_MS).toISOString());
+      expect(recentAgentTexts).toHaveBeenCalledWith("c1", new Date(Date.parse(outAt) - ECHO_WINDOW_MS).toISOString());
       expect(ECHO_WINDOW_MS).toBe(2 * 60_000);
     });
 
@@ -580,5 +749,40 @@ describe("handleOutgoing", () => {
       await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
       expect(s.chat?.state).toBe("quiet");
     });
+  });
+
+  // --- (blocker 3) A late-arriving echo webhook must still be recognised ----
+  describe("the echo window is keyed to the message's own timestamp (blocker 3)", () => {
+    it("recognises a reply logged 10 minutes ago as its own echo when the webhook itself arrives late", async () => {
+      const outAt = "2026-09-15T03:50:00Z"; // 10 minutes before NOW
+      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Thanks, agent reply", outAt)] });
+      // A strict fake that only "sees" the reply when the window is computed
+      // from the message's own timestamp — the default fake ignores sinceIso
+      // entirely, which wouldn't distinguish old vs. new behaviour.
+      s.deps.store.recentAgentTexts = async (_id, sinceIso) =>
+        Date.parse(sinceIso) <= Date.parse(outAt) ? ["Thanks, agent reply"] : [];
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
+      expect(s.chat).toBeNull(); // no quiet period set
+    });
+
+    it("still quiets the chat for a genuine reply with different text under the same strict window", async () => {
+      const outAt = "2026-09-15T04:00:20Z";
+      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", outAt)] });
+      s.deps.store.recentAgentTexts = async (_id, sinceIso) =>
+        Date.parse(sinceIso) <= Date.parse(outAt) ? ["Thanks, agent reply"] : []; // never matches "Hi, Amelia here!"
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+      expect(s.chat?.state).toBe("quiet");
+    });
+  });
+
+  // --- (minor 6) One amelia_reply row (and one quiet period) per reply ------
+  it("logs exactly one amelia_reply row, and doesn't re-extend quiet_until, across repeated webhooks for the same reply", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", "2026-09-15T04:00:20Z")] });
+    await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+    const quietAfterFirst = s.chat?.quiet_until;
+    // A retried/duplicate webhook for the exact same outgoing message.
+    await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
+    expect(s.events.filter((e) => e.kind === "amelia_reply")).toHaveLength(1);
+    expect(s.chat?.quiet_until).toBe(quietAfterFirst);
   });
 });
