@@ -83,7 +83,7 @@ export function DepositSubmitForm({
         <p className={STEP}>Step 1</p>
         <p className="mt-1 text-[14.5px] font-semibold text-ink">Message {ADMIN_DISPLAY_NAME} on Telegram</p>
         <p className="mt-1 text-[13px] leading-relaxed text-subtle">
-          Our admin can&apos;t message you first. Send this so we can reach you about your deposit.
+          Once your top-up is in your trading account, send this so we can reach you about your deposit.
         </p>
         <div className="mt-3 flex flex-col gap-2 rounded-lg border border-line bg-paper px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[13px] text-ink">

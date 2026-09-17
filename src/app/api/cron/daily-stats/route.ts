@@ -4,6 +4,7 @@ import { computeMetrics, type GrowthMetrics } from "@/lib/growth/metrics";
 import { fetchAllGrowthProfiles } from "@/lib/growth/profiles";
 import { buildNarrative, type PriorSnapshot } from "@/lib/growth/narrative";
 import { sendTelegram, escapeHtml } from "@/lib/telegram";
+import { supportLine, supportStats } from "@/lib/support/summary";
 
 // Daily growth-stats snapshot. Triggered at 09:00 SGT (01:00 UTC) by a
 // Supabase pg_cron + pg_net job that POSTs here with the CRON_SECRET bearer.
@@ -37,7 +38,7 @@ function fmtDelta(current: number, prior?: number | null): string {
   return diff > 0 ? ` (▲${diff})` : ` (▼${Math.abs(diff)})`;
 }
 
-function buildTelegram(m: GrowthMetrics, narrative: string | null, yest?: PriorSnapshot | null): string {
+function buildTelegram(m: GrowthMetrics, narrative: string | null, yest?: PriorSnapshot | null, support?: string | null): string {
   const b = m.broker_split;
   const lines = [
     `<b>📈 MMFX growth — ${m.date}</b>`,
@@ -51,6 +52,7 @@ function buildTelegram(m: GrowthMetrics, narrative: string | null, yest?: PriorS
     `<b>TV engagement:</b> ${m.tv_engagement_pct}%`,
     `<b>Brokers:</b> Octa ${b.octa} · Dupoin ${b.dupoin} · Elev8 ${b.elev8}`,
   ];
+  if (support) lines.push("", support);
   if (narrative) {
     lines.push("", `<i>${escapeHtml(narrative)}</i>`);
   }
@@ -97,7 +99,11 @@ async function handle(req: NextRequest) {
     return NextResponse.json({ error: upsertError.message }, { status: 500 });
   }
 
-  const tg = await sendTelegram(buildTelegram(metrics, narrative, yesterday));
+  // The support agent's own line. Never let it break the growth DM: if the
+  // support tables are unreachable, the rest of the message still goes out.
+  const support = await supportStats(db, new Date(Date.now() - 24 * 3600_000)).then(supportLine).catch(() => null);
+
+  const tg = await sendTelegram(buildTelegram(metrics, narrative, yesterday, support));
 
   console.log(
     `[cron/daily-stats] ${metrics.date} — signups ${metrics.signups_today}, ` +
