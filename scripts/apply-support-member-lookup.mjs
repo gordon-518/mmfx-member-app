@@ -23,7 +23,7 @@ try {
   const u = (await client.query("select id from public.profiles order by signup_at desc limit 1")).rows[0].id;
   const hex = u.replace(/-/g, "").slice(0, 6).toUpperCase();
   const got = (await client.query("select public.fn_support_member_by_ref($1) id", [hex])).rows[0].id;
-  ok("resolves a real reference", got === u, `MM-${hex}`);
+  ok("resolves a real reference", got === u);
   const bad = (await client.query("select public.fn_support_member_by_ref($1) id", ["zz'--"])).rows[0].id;
   ok("refuses non-hex input", bad === null);
   const grants = (await client.query(

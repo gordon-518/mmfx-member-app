@@ -3,35 +3,55 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { refFromTexts, findMember } from "./member";
 
 describe("refFromTexts", () => {
-  it("finds the latest reference code, case-insensitively", () => {
+  it("finds the reference code, case-insensitively", () => {
     expect(refFromTexts(["hi", "Hi Amelia, I'm submitting my deposit on the MMFX app. My reference is MM-3f9a2c."])).toBe("3F9A2C");
-    expect(refFromTexts(["MM-111111", "actually MM-AAAAAA"])).toBe("AAAAAA");
     expect(refFromTexts(["no code here", "MM-12345"])).toBeNull();
+  });
+
+  it("resolves the same code repeated across different messages", () => {
+    // A member re-pasting/confirming the same code — not ambiguous.
+    expect(refFromTexts(["My reference is MM-3f9a2c", "yes, MM-3F9A2C, that's the one"])).toBe("3F9A2C");
+  });
+
+  it("refuses two distinct codes in the thread as ambiguous", () => {
+    // Behaviour change: this used to return the LAST match ("AAAAAA"),
+    // treating it as a typo correction. But a typo correction and a
+    // forwarded/pasted second code look identical from here, and the risk
+    // of attaching the chat to the wrong member outweighs the convenience —
+    // so two distinct codes now means "say nothing" rather than "trust the
+    // latest one".
+    expect(refFromTexts(["MM-111111", "actually MM-AAAAAA"])).toBeNull();
   });
 });
 
 // --- A small typed fake for the two chain shapes `findMember` actually uses:
 //   .from(t).select(c).ilike(col, pattern)                         -> terminal
-//   .from(t).select(c).eq(col, v)[.order(...).limit(n)].maybeSingle() -> terminal
+//   .from(t).select(c).eq(col, v)[.order(...).order(...).limit(n)].maybeSingle() -> terminal
 // `select`/`eq`/`order`/`limit` just return the same builder; `ilike` and
-// `maybeSingle` resolve. No `any` — cast once at the boundary.
+// `maybeSingle` resolve to `{ data, error }` so failure paths can be tested.
+// No `any` — cast once at the boundary.
 
 interface IlikeCall { column: string; pattern: string }
+interface FakeError { message: string }
 
 interface FakeBuilder {
   select(columns: string): FakeBuilder;
   eq(column: string, value: string): FakeBuilder;
   order(column: string, opts?: { ascending: boolean }): FakeBuilder;
   limit(n: number): FakeBuilder;
-  ilike(column: string, pattern: string): Promise<{ data: unknown }>;
-  maybeSingle(): Promise<{ data: unknown }>;
+  ilike(column: string, pattern: string): Promise<{ data: unknown; error: FakeError | null }>;
+  maybeSingle(): Promise<{ data: unknown; error: FakeError | null }>;
 }
 
 interface FakeDbConfig {
   rpcResult?: string | null;
+  rpcError?: FakeError | null;
   handleRows?: { user_id: string }[];
+  handleError?: FakeError | null;
   profile?: Record<string, unknown> | null;
+  profileError?: FakeError | null;
   submission?: Record<string, unknown> | null;
+  submissionError?: FakeError | null;
 }
 
 function makeBuilder(table: string, config: FakeDbConfig, ilikeCalls: IlikeCall[]): FakeBuilder {
@@ -42,11 +62,13 @@ function makeBuilder(table: string, config: FakeDbConfig, ilikeCalls: IlikeCall[
     limit: () => builder,
     ilike: (column, pattern) => {
       ilikeCalls.push({ column, pattern });
-      return Promise.resolve({ data: config.handleRows ?? [] });
+      return Promise.resolve({ data: config.handleRows ?? [], error: config.handleError ?? null });
     },
     maybeSingle: () => {
-      const data = table === "profiles" ? config.profile ?? null : config.submission ?? null;
-      return Promise.resolve({ data });
+      if (table === "profiles") {
+        return Promise.resolve({ data: config.profile ?? null, error: config.profileError ?? null });
+      }
+      return Promise.resolve({ data: config.submission ?? null, error: config.submissionError ?? null });
     },
   };
   return builder;
@@ -54,7 +76,7 @@ function makeBuilder(table: string, config: FakeDbConfig, ilikeCalls: IlikeCall[
 
 function makeFakeDb(config: FakeDbConfig, ilikeCalls: IlikeCall[] = []): SupabaseClient {
   const fake = {
-    rpc: () => Promise.resolve({ data: config.rpcResult ?? null }),
+    rpc: () => Promise.resolve({ data: config.rpcResult ?? null, error: config.rpcError ?? null }),
     from: (table: string) => makeBuilder(table, config, ilikeCalls),
   };
   return fake as unknown as SupabaseClient;
@@ -63,7 +85,7 @@ function makeFakeDb(config: FakeDbConfig, ilikeCalls: IlikeCall[] = []): Supabas
 const profile = { account_status: "member_active", trial_ends_at: null, deposit_amount: 250, grandfathered: false, lifetime_plan: null };
 
 describe("findMember", () => {
-  it("matches by reference code first", async () => {
+  it("matches by reference code when the handle doesn't resolve", async () => {
     const db = makeFakeDb({
       rpcResult: "u1",
       profile,
@@ -79,7 +101,7 @@ describe("findMember", () => {
     });
   });
 
-  it("falls back to an exact single Telegram-handle match", async () => {
+  it("falls back to an exact single Telegram-handle match when there is no ref", async () => {
     const db = makeFakeDb({
       rpcResult: null,
       handleRows: [{ user_id: "u2" }, { user_id: "u2" }],
@@ -94,6 +116,18 @@ describe("findMember", () => {
       trialEndsAt: null,
       submission: null,
     });
+  });
+
+  it("refuses when the ref and the platform-attested handle resolve to different members", async () => {
+    // CRITICAL case: a pasted/forwarded reference code must not silently
+    // override the handle SendPulse attests for this conversation.
+    const db = makeFakeDb({
+      rpcResult: "u1",
+      handleRows: [{ user_id: "u2" }],
+      profile,
+    });
+    const result = await findMember(db, { texts: ["My reference is MM-abcdef"], telegramUsername: "someone" });
+    expect(result).toBeNull();
   });
 
   it("refuses an ambiguous handle", async () => {
@@ -112,7 +146,7 @@ describe("findMember", () => {
     expect(result).toBeNull();
   });
 
-  it("escapes ilike wildcards so an underscore or percent can't widen the match", async () => {
+  it("escapes ilike wildcards so an underscore, percent or asterisk can't widen the match", async () => {
     const underscoreCalls: IlikeCall[] = [];
     const dbUnderscore = makeFakeDb({ handleRows: [{ user_id: "u4" }], profile }, underscoreCalls);
     await findMember(dbUnderscore, { texts: [], telegramUsername: "Sam_T" });
@@ -122,6 +156,13 @@ describe("findMember", () => {
     const dbPercent = makeFakeDb({ handleRows: [{ user_id: "u4" }], profile }, percentCalls);
     await findMember(dbPercent, { texts: [], telegramUsername: "Sam%T" });
     expect(percentCalls).toEqual([{ column: "telegram_username", pattern: "Sam\\%T" }]);
+
+    // PostgREST translates `*` to `%` in like/ilike values, and the handle
+    // is unvalidated external input from the SendPulse API.
+    const starCalls: IlikeCall[] = [];
+    const dbStar = makeFakeDb({ handleRows: [{ user_id: "u4" }], profile }, starCalls);
+    await findMember(dbStar, { texts: [], telegramUsername: "Sam*T" });
+    expect(starCalls).toEqual([{ column: "telegram_username", pattern: "Sam\\*T" }]);
   });
 
   it("strips a leading @ from the handle", async () => {
@@ -135,5 +176,15 @@ describe("findMember", () => {
     const db = makeFakeDb({ rpcResult: "u1", profile: null });
     const result = await findMember(db, { texts: ["MM-abcdef"], telegramUsername: null });
     expect(result).toBeNull();
+  });
+
+  it("rejects rather than swallowing a failing ref lookup", async () => {
+    const db = makeFakeDb({ rpcError: { message: "boom" } });
+    await expect(findMember(db, { texts: ["MM-abcdef"], telegramUsername: null })).rejects.toThrow();
+  });
+
+  it("rejects rather than swallowing a failing profile read", async () => {
+    const db = makeFakeDb({ rpcResult: "u1", profileError: { message: "boom" } });
+    await expect(findMember(db, { texts: ["MM-abcdef"], telegramUsername: null })).rejects.toThrow();
   });
 });
