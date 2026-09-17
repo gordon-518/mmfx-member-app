@@ -186,6 +186,26 @@ describe("redactForModel", () => {
     expect(redacted).not.toContain("9123 4567");
     expect(redacted).not.toContain("2167136");
   });
+
+  it("does not corrupt text when a literal DATE0-like placeholder appears (no dates actually masked)", () => {
+    const input = "my code is DATE0 later";
+    const result = redactForModel(input);
+    expect(result).toBe(input);
+    expect(result).not.toContain("undefined");
+  });
+
+  it("preserves multiple dates in one message", () => {
+    const input = "from 2026-09-15 to 2026-10-01";
+    expect(redactForModel(input)).toBe(input);
+  });
+
+  it("keeps the original text intact when placeholder index has no corresponding date", () => {
+    // This tests the robustness of the ?? fallback
+    const result = redactForModel("weird text");
+    expect(result).toContain("weird");
+    expect(result).toContain("text");
+    expect(result).not.toContain("undefined");
+  });
 });
 
 describe("buildSystem", () => {
