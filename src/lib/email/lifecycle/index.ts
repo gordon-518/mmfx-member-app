@@ -10,65 +10,45 @@
 // so no template can forget either.
 //
 // Every step's copy lives in ./templates/<step>.ts, named exactly after the
-// step, default-exported. Steps whose file hasn't landed on this branch are
-// registered as a stub that throws: the registry compiles and the cron keeps
-// running (that one send is logged as failed, like any other send failure),
-// and the real template drops in by changing one line here to
-// `import step from "./templates/<step>"`.
+// step, default-exported. All fourteen are real: there are deliberately no
+// stubs, because a stub that throws inside the cron loop is a render failure
+// that has to be unwound, and the simplest way not to have that problem is not
+// to ship a template that cannot render.
 //
-// Still stubbed here: analysis, kys, tv, lesson1, ladder, day12,
-// upgrade-seen, broker-clicked, member-d3, member-d7, member-dormant,
-// spotlight — they arrive on feat/email-lifecycle-copy.
-//
-// `spotlight` is a special case even once its file lands: its copy is composed
-// and approved in the brain and read from email_spotlights by the cron route,
-// which never asks the registry for it.
+// `spotlight` is the one step whose WORDS come from elsewhere: the brain
+// composes and approves the body, the cron route reads the approved row out of
+// email_spotlights and hands it to the template on the ctx, and the template
+// supplies the envelope around it.
 
 import type { LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "./types";
 import { wrapLifecycle } from "./render";
+import analysis from "./templates/analysis";
+import brokerClicked from "./templates/broker-clicked";
+import day12 from "./templates/day12";
 import digest from "./templates/digest";
+import kys from "./templates/kys";
+import ladder from "./templates/ladder";
+import lesson1 from "./templates/lesson1";
+import memberD3 from "./templates/member-d3";
+import memberD7 from "./templates/member-d7";
+import memberDormant from "./templates/member-dormant";
+import spotlight from "./templates/spotlight";
+import tv from "./templates/tv";
+import upgradeSeen from "./templates/upgrade-seen";
 import welcome from "./templates/welcome";
 
 export type { LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "./types";
 export { COMPLIANCE_LINE, FOOTER_NOTE, wrapLifecycle } from "./render";
 
-/** Placeholder for a step whose template file isn't on this branch yet. */
-function notImplemented(flow: string, step: string): LifecycleTemplate {
-  return () => {
-    throw new Error(
-      `lifecycle template not implemented: ${flow}/${step} ` +
-        `(expected src/lib/email/lifecycle/templates/${step}.ts)`
-    );
-  };
-}
-
 export const FLOWS: Readonly<Record<string, Readonly<Record<string, LifecycleTemplate>>>> = {
   // A. Trial activation (§3A)
-  trial: {
-    welcome,
-    analysis: notImplemented("trial", "analysis"),
-    kys: notImplemented("trial", "kys"),
-    tv: notImplemented("trial", "tv"),
-    lesson1: notImplemented("trial", "lesson1"),
-    ladder: notImplemented("trial", "ladder"),
-    day12: notImplemented("trial", "day12"),
-  },
+  trial: { welcome, analysis, kys, tv, lesson1, ladder, day12 },
   // B. Free-tier nurture (§3B)
-  nurture: {
-    digest,
-    spotlight: notImplemented("nurture", "spotlight"),
-  },
+  nurture: { digest, spotlight },
   // C. Hot-lead rescue (§3C)
-  rescue: {
-    "upgrade-seen": notImplemented("rescue", "upgrade-seen"),
-    "broker-clicked": notImplemented("rescue", "broker-clicked"),
-  },
+  rescue: { "upgrade-seen": upgradeSeen, "broker-clicked": brokerClicked },
   // D. Member activation (§3D)
-  member: {
-    "member-d3": notImplemented("member", "member-d3"),
-    "member-d7": notImplemented("member", "member-d7"),
-    "member-dormant": notImplemented("member", "member-dormant"),
-  },
+  member: { "member-d3": memberD3, "member-d7": memberD7, "member-dormant": memberDormant },
 };
 
 /** The template for a claimed (flow, step), or null if the pair is unknown. */

@@ -176,10 +176,17 @@ describe("registry", () => {
     expect(templateFor("nope", "welcome")).toBeNull();
   });
 
-  it("throws 'not implemented' for a step whose file hasn't landed", () => {
-    const t = templateFor("trial", "kys")!;
-    expect(() => t(ctx())).toThrow(/not implemented: trial\/kys/);
-    expect(() => t(ctx())).toThrow(/templates\/kys\.ts/);
+  it("renders every registered step without throwing", () => {
+    // No stubs: a template that throws inside the cron loop is a render
+    // failure the route has to unwind, so every registered pair must render.
+    for (const [flow, steps] of Object.entries(FLOWS)) {
+      for (const step of Object.keys(steps)) {
+        const mail = renderLifecycle(flow, step, ctx({ audience: "expired", tier: "free" }));
+        expect(mail.subject.length, `${flow}/${step} subject`).toBeGreaterThan(0);
+        expect(mail.html, `${flow}/${step} html`).toContain("MARKET MAKERS FX");
+        expect(mail.text, `${flow}/${step} text`).toContain(COMPLIANCE_LINE);
+      }
+    }
   });
 
   it("registers exactly the fourteen steps the design doc names", () => {
