@@ -28,6 +28,17 @@ function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() ? v.trim() : null;
 }
 
+// The spotlight body is a BODY FRAGMENT: the rail supplies the document, the
+// shell and the footer. Anything that would make it a document of its own, or
+// that executes, is rejected at the door rather than stored and mailed to the
+// whole Free tier. Cheap, and the brain has no reason to send any of it.
+const FORBIDDEN = ["<script", "<style", "<iframe", "<html", "<body", "javascript:"];
+
+function unsafeFragment(html: string): string | null {
+  const lower = html.toLowerCase();
+  return FORBIDDEN.find((f) => lower.includes(f)) ?? null;
+}
+
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -37,6 +48,14 @@ export async function POST(req: NextRequest) {
   const text = str(body.text);
   if (!subject || !html || !text) {
     return NextResponse.json({ error: "subject, html and text are required" }, { status: 400 });
+  }
+
+  const unsafe = unsafeFragment(html);
+  if (unsafe) {
+    return NextResponse.json(
+      { error: `html must be a body fragment; found "${unsafe}"` },
+      { status: 400 }
+    );
   }
 
   const db = serviceClient();
