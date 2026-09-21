@@ -243,7 +243,7 @@ describe("send", () => {
     });
     await expect(send("c1", "hello")).resolves.toBe(true);
     const body = JSON.parse(String(calls[1].init!.body));
-    expect(body).toEqual({ contact_id: "c1", message: { type: "text", text: "hello" } });
+    expect(body).toEqual({ contact_id: "c1", message: { type: "text", text: "hello", parse_mode: "HTML" } });
   });
 
   it("returns false on a 502, without retrying the send", async () => {

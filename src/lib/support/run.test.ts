@@ -125,6 +125,33 @@ function setup(opts: {
   return { deps, sp, decide, ping, sleep, events, get chat() { return chat; } };
 }
 
+describe("Telegram formatting", () => {
+  it("sends valid HTML, and logs exactly what it sent so the echo check still matches", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "min deposit?")],
+      decisions: [reply("Foundation starts at **$50** — open https://app.marketmakersfx.net/upgrade")],
+    });
+    await runBurst("c1", { at: T0, text: "min deposit?" }, s.deps);
+    const sent = s.sp.send.mock.calls[0][1] as string;
+    expect(sent).toContain("<b>$50</b>");
+    expect(sent).not.toContain("**");
+    // The reply row must carry the same string, or handleOutgoing would read
+    // the agent's own echo as a person replying and quiet the chat.
+    expect(s.events.find((e) => e.kind === "reply")?.reply_text).toBe(sent);
+  });
+
+  it("escapes a stray angle bracket rather than sending Telegram broken HTML", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "is 5 < 10?")],
+      decisions: [reply("Yes, 5 < 10 & that's fine")],
+    });
+    await runBurst("c1", { at: T0, text: "is 5 < 10?" }, s.deps);
+    const sent = s.sp.send.mock.calls[0][1] as string;
+    expect(sent).toContain("&lt;");
+    expect(sent).toContain("&amp;");
+  });
+});
+
 describe("runBurst", () => {
   it("replies with the drafted text and logs it", async () => {
     const s = setup({ thread: [msg("1", "in", "How much to join?")], decisions: [reply("Foundation starts at $50: https://app.marketmakersfx.net/upgrade")] });

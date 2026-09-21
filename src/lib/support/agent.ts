@@ -27,7 +27,15 @@ export const MODEL = process.env.SUPPORT_AGENT_MODEL || "claude-opus-5";
 const RULES = `You are the MMFX Assistant. You reply on Telegram to people contacting Market Makers FX (MMFX), a forex and gold trading education community.
 
 How to write:
-- Reply in the member's language. Keep it short (usually under 500 characters), warm and plain. No headings, no markdown. Write links as plain URLs.
+- Reply in the member's language. Warm, plain, and as short as the question deserves — a greeting gets one or two lines, not a pitch. Under 500 characters unless you are genuinely listing steps.
+- SHAPE THE MESSAGE so it can be read on a phone at a glance:
+  - Short paragraphs, one idea each, with a blank line between them. Never one long block.
+  - When you give steps, put each on its own line, numbered "1)" "2)" — never run them together in a sentence.
+  - Put each link on its own line, as a plain URL.
+  - **Bold** the things the member needs to catch: amounts, tier names, the one action you want them to take. Use it 2-4 times at most; bold everywhere reads like shouting.
+  - _Italics_ only for a light aside, at most once.
+  - The only markers you may use are **bold** and _italics_. No headings, no bullet characters, no tables, no HTML tags, no code blocks.
+- Lead with the answer, then the detail. The first line should answer the question on its own.
 - Never say you are Admin Amelia or a person. Don't sign off with a name.
 
 What you may say:
@@ -97,6 +105,33 @@ export function redactForModel(text: string): string {
   );
 }
 
+/**
+ * Contact tags, with contradictions removed.
+ *
+ * Tags accumulate: a member who retakes the questionnaire, or who was tagged
+ * in an old campaign, ends up with several country_*, exp_* or capital_* tags
+ * at once (one live contact carried five different countries). Passing those
+ * through invites the model to pick one and quote, say, the US/UK lifetime
+ * plans to someone in Malaysia. Where a group conflicts, the answer is that we
+ * do not know — the upgrade page detects the country properly.
+ */
+export function describeTags(tags: string[]): string {
+  const groups = ["country", "exp", "capital"];
+  const kept: string[] = [];
+  const unknown: string[] = [];
+  for (const g of groups) {
+    const hits = tags.filter((t) => t.toLowerCase().startsWith(`${g}_`));
+    if (hits.length === 1) kept.push(hits[0]);
+    else if (hits.length > 1) unknown.push(g === "exp" ? "experience" : g);
+  }
+  const rest = tags.filter((t) => !groups.some((g) => t.toLowerCase().startsWith(`${g}_`)));
+  const parts = [...kept, ...rest];
+  const line = parts.length ? parts.join(", ") : "none";
+  return unknown.length
+    ? `${line} (conflicting ${unknown.join(" and ")} tags, so treat those as UNKNOWN — don't infer a country from them)`
+    : line;
+}
+
 export function buildUserContent(args: {
   thread: ThreadMessage[];
   contact: ContactInfo;
@@ -112,7 +147,7 @@ export function buildUserContent(args: {
       ? `MEMBER: identified by ${member.matchedBy === "ref" ? "reference code" : "Telegram username"}; tier: ${tierLabel(member.tier)}; trial ends: ${member.trialEndsAt ?? "n/a"}; latest deposit submission: ${member.submission ? member.submission.status : "none"}`
       : "MEMBER: a reference code was mentioned, but the Telegram account sending this isn't confirmed here. You may say the code was noted, but never say whether it matched anything. Don't state their tier, trial or deposit status — point them to the upgrade page, where they're signed in and can see it.";
   return [
-    `CHAT: ${contact.isBusiness ? "sent to Admin Amelia's account (@MM_3000)" : "chat with the MMFX bot"}. First name: ${contact.firstName || "unknown"}. Tags: ${contact.tags.join(", ") || "none"}.`,
+    `CHAT: ${contact.isBusiness ? "sent to Admin Amelia's account (@MM_3000)" : "chat with the MMFX bot"}. First name: ${contact.firstName || "unknown"}. Tags: ${describeTags(contact.tags)}.`,
     memberLine,
     "THREAD (oldest first; answer the member's latest message):",
     ...lines,
