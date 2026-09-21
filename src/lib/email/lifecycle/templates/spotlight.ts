@@ -39,7 +39,7 @@ const template: LifecycleTemplate = (ctx) => {
   if (!s) {
     const link = url(ctx, "/daily-analysis", "nurture-spotlight");
     const body = [
-      "This week's guide isn't out yet, so here's the thing that's: the desk's read on gold, posted every trading morning.",
+      "This week's guide isn't out yet, so here's what's always there: the desk's read on gold, posted every trading morning.",
       "Where price sat overnight, the levels the desk is watching, and the bias it's working from. It's on your account whether you deposit or not.",
     ];
     return {
