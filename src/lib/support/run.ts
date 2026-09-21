@@ -5,6 +5,7 @@ import * as sendpulse from "./sendpulse";
 import { decide as realDecide, redactForModel } from "./agent";
 import { buildFactSheet } from "./facts";
 import { checkDraft, mustHandOff } from "./guard";
+import { toTelegramHtml } from "./format";
 import { findMember as realFindMember } from "./member";
 import { supabaseStore, type SupportStore } from "./store";
 import type { ContactInfo, MemberContext, SupportSettings, ThreadMessage } from "./types";
@@ -350,7 +351,9 @@ export async function runBurst(
       redraftedFrom = fails;
     }
 
-    const text = contact.isBusiness ? PREFIX + d.reply : d.reply;
+    // Convert once, then log and send the SAME string: handleOutgoing matches
+    // the agent's own echo against what was logged, so they must be identical.
+    const text = toTelegramHtml(contact.isBusiness ? PREFIX + d.reply : d.reply);
     // Amelia could have taken the chat while the model was drafting or
     // redrafting above (item 1) — re-check right before the claim, the last
     // possible moment before anything is sent.
@@ -438,7 +441,7 @@ async function handoff(
   // member as if it did — the earlier claim's own outcome (a sent reply, or
   // another run's handoff) already governs what the member sees.
   const sendHolding = opts.sendHolding !== false && !opts.alreadyClaimed;
-  const holding = `${contact.isBusiness ? PREFIX : ""}Thanks, I've passed this to Admin Amelia. She'll reply here ${settings.office_hours}.`;
+  const holding = toTelegramHtml(`${contact.isBusiness ? PREFIX : ""}Thanks, I've passed this to Admin Amelia. She'll reply here ${settings.office_hours}.`);
   const eventFields = {
     contact_id: contactId, kind: "handoff" as const, member_text: memberText, topic: opts.topic, skip_reason: reason,
     reply_text: sendHolding ? holding : undefined, guard_failures: opts.guardFailures, model: opts.model,

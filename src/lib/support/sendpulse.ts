@@ -188,8 +188,11 @@ async function post(path: string, body: unknown): Promise<boolean> {
   }
 }
 
+// parse_mode lives INSIDE the message object — verified against the live API;
+// without it Telegram shows the tags as literal text. The text must already be
+// valid HTML: build it with toTelegramHtml (format.ts), never by hand.
 export const send = (contactId: string, text: string) =>
-  post("/telegram/contacts/send", { contact_id: contactId, message: { type: "text", text } });
+  post("/telegram/contacts/send", { contact_id: contactId, message: { type: "text", text, parse_mode: "HTML" } });
 export const setTag = (contactId: string, tag: string) =>
   post("/telegram/contacts/setTag", { contact_id: contactId, tags: [tag] });
 export const deleteTag = (contactId: string, tag: string) =>

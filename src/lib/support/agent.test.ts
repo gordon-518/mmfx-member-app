@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import Anthropic from "@anthropic-ai/sdk";
-import { decide, buildSystem, buildUserContent, redactForModel, defaultClient, MODEL } from "./agent";
+import { decide, buildSystem, buildUserContent, describeTags, redactForModel, defaultClient, MODEL } from "./agent";
 import { buildFactSheet } from "./facts";
 import { tierLabel } from "@/lib/tiers";
 import type { ContactInfo, MemberContext, SupportSettings, ThreadMessage } from "./types";
@@ -292,5 +292,43 @@ describe("defaultClient", () => {
 describe("MODEL", () => {
   it("defaults to claude-opus-5", () => {
     expect(MODEL).toBe("claude-opus-5");
+  });
+});
+
+describe("describeTags", () => {
+  it("passes a single tag per group straight through", () => {
+    expect(describeTags(["country_malaysia", "exp_mid", "intent_signals"]))
+      .toBe("country_malaysia, exp_mid, intent_signals");
+  });
+
+  it("refuses to pick a country when the tags contradict each other", () => {
+    // A real contact carried five: retaking the questionnaire adds, never replaces.
+    const out = describeTags(["country_malaysia", "country_UK/USA", "country_singapore", "intent_learn"]);
+    expect(out).not.toContain("country_malaysia");
+    expect(out).not.toContain("country_UK/USA");
+    expect(out).toContain("UNKNOWN");
+    expect(out).toContain("intent_learn");
+  });
+
+  it("flags conflicting experience and capital bands too", () => {
+    const out = describeTags(["exp_beginner", "exp_advanced", "capital_under100", "capital_1000plus"]);
+    expect(out).toContain("experience");
+    expect(out).toContain("capital");
+    expect(out).toContain("UNKNOWN");
+  });
+
+  it("says none when there are no tags", () => {
+    expect(describeTags([])).toBe("none");
+  });
+
+  it("is used by buildUserContent, so a conflicted contact never shows a country", () => {
+    const content = buildUserContent({
+      thread: [{ id: "1", direction: "in", fromFlow: false, text: "hi", at: "2026-09-15T01:00:00Z" }],
+      contact: { id: "c1", username: null, firstName: "GG", isBusiness: false,
+        tags: ["country_malaysia", "country_UK/USA"] },
+      member: null,
+    });
+    expect(content).toContain("UNKNOWN");
+    expect(content).not.toContain("country_UK/USA");
   });
 });
