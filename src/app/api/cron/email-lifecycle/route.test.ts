@@ -7,7 +7,7 @@ const { serviceClientMock, sendEmailMock } = vi.hoisted(() => ({
 vi.mock("@/lib/journal/api", () => ({ serviceClient: serviceClientMock }));
 vi.mock("@/lib/sendpulse", () => ({ sendEmail: sendEmailMock }));
 
-import { POST, contextFor, parseDigestDays, parseSender } from "./route";
+import { POST, contextFor, parseDigestDays, parseSender, parseSpotlightDay } from "./route";
 
 function req(auth = "Bearer testsecret") {
   return new Request("https://app.test/api/cron/email-lifecycle", {
@@ -53,6 +53,7 @@ function claimedRow(over: Row = {}): Row {
 /** Minimal chainable Supabase stub; records the rpc args and every update. */
 function stubDb(claimed: Row[], spotlights: Row[] = []) {
   const updates: { id: unknown; payload: Row }[] = [];
+  const deletes: unknown[] = [];
   const rpcArgs: Row[] = [];
   const api = {
     rpc(_fn: string, args: Row) {
@@ -72,9 +73,18 @@ function stubDb(claimed: Row[], spotlights: Row[] = []) {
             },
           };
         },
+        delete() {
+          return {
+            eq: (_col: string, id: unknown) => {
+              deletes.push(id);
+              return Promise.resolve({ data: null, error: null });
+            },
+          };
+        },
       };
     },
     _updates: updates,
+    _deletes: deletes,
     _rpcArgs: rpcArgs,
   };
   return api;
@@ -88,6 +98,7 @@ beforeEach(() => {
   process.env.EMAIL_LIFECYCLE_ENABLED = "true";
   delete process.env.EMAIL_FROM_MARKETING;
   delete process.env.DIGEST_DAYS;
+  delete process.env.SPOTLIGHT_DAY;
   delete process.env.EMAIL_LIFECYCLE_BATCH;
 });
 
@@ -117,7 +128,7 @@ describe("POST /api/cron/email-lifecycle", () => {
     serviceClientMock.mockReturnValue(db);
 
     const res = await POST(req() as never);
-    expect(await res.json()).toEqual({ claimed: 1, sent: 1, failed: 0 });
+    expect(await res.json()).toEqual({ claimed: 1, sent: 1, failed: 0, released: 0 });
 
     expect(sendEmailMock).toHaveBeenCalledOnce();
     const params = sendEmailMock.mock.calls[0][0];
@@ -144,19 +155,24 @@ describe("POST /api/cron/email-lifecycle", () => {
     serviceClientMock.mockReturnValue(db);
 
     const res = await POST(req() as never);
-    expect(await res.json()).toEqual({ claimed: 1, sent: 0, failed: 1 });
+    expect(await res.json()).toEqual({ claimed: 1, sent: 0, failed: 1, released: 0 });
     expect(sendEmailMock).toHaveBeenCalledOnce();
+    // An attempted send is recorded and never retried; the row stays.
     expect(db._updates[0].payload).toEqual({ ok: false, error: "smtp rejected" });
+    expect(db._deletes).toEqual([]);
   });
 
-  it("records a not-yet-implemented step as failed without sending", async () => {
-    const db = stubDb([claimedRow({ send_id: "s2", step: "kys", dedupe_key: "u1:trial:kys" })]);
+  it("releases the claim when a step never renders, so it can retry", async () => {
+    // Stamping ok = false here would burn the unique dedupe_key forever AND
+    // spend the user's one-per-day slot on an email they never received.
+    const db = stubDb([claimedRow({ send_id: "s2", step: "no-such-step" })]);
     serviceClientMock.mockReturnValue(db);
 
     const res = await POST(req() as never);
-    expect(await res.json()).toEqual({ claimed: 1, sent: 0, failed: 1 });
+    expect(await res.json()).toEqual({ claimed: 1, sent: 0, failed: 0, released: 1 });
     expect(sendEmailMock).not.toHaveBeenCalled();
-    expect(String(db._updates[0].payload.error)).toContain("not implemented: trial/kys");
+    expect(db._updates).toEqual([]);
+    expect(db._deletes).toEqual(["s2"]);
   });
 
   it("sends the brain's approved spotlight body inside the rail's shell", async () => {
@@ -171,7 +187,15 @@ describe("POST /api/cron/email-lifecycle", () => {
           dedupe_key: "u1:nurture:spotlight:sp1",
         }),
       ],
-      [{ id: "sp1", subject: "Liquidity, explained", html: "<p>Body</p>", text: "Body" }]
+      [
+        {
+          id: "sp1",
+          subject: "Liquidity, explained",
+          html: "<p>Body</p>",
+          text: "Body",
+          guide_url: "https://marketmakersfx.net/guides/liquidity",
+        },
+      ]
     );
     serviceClientMock.mockReturnValue(db);
 
@@ -181,6 +205,7 @@ describe("POST /api/cron/email-lifecycle", () => {
     expect(params.html).toContain("<p>Body</p>");
     expect(params.html).toContain("MARKET MAKERS FX");
     expect(params.html).toContain("api/email/unsubscribe?token=tok123");
+    expect(params.html).toContain("https://marketmakersfx.net/guides/liquidity?cid=EML-nurture-spotlight");
     expect(params.text).toContain("Trading involves risk");
   });
 
@@ -193,7 +218,8 @@ describe("POST /api/cron/email-lifecycle", () => {
 
     await POST(req() as never);
     expect(sendEmailMock).not.toHaveBeenCalled();
-    expect(db._updates[0].payload.error).toBe("approved spotlight row not found");
+    expect(db._updates).toEqual([]);
+    expect(db._deletes).toEqual(["s1"]);
   });
 
   it("skips an audience no template speaks to", async () => {
@@ -201,16 +227,25 @@ describe("POST /api/cron/email-lifecycle", () => {
     serviceClientMock.mockReturnValue(db);
     await POST(req() as never);
     expect(sendEmailMock).not.toHaveBeenCalled();
-    expect(String(db._updates[0].payload.error)).toContain("removed");
+    expect(db._updates).toEqual([]);
+    expect(db._deletes).toEqual(["s1"]);
   });
 
   it("passes the batch size and DIGEST_DAYS through to the claim function", async () => {
     process.env.DIGEST_DAYS = "1,2,5";
+    process.env.SPOTLIGHT_DAY = "2";
     process.env.EMAIL_LIFECYCLE_BATCH = "50";
     const db = stubDb([]);
     serviceClientMock.mockReturnValue(db);
     await POST(req() as never);
-    expect(db._rpcArgs[0]).toEqual({ p_limit: 50, p_digest_days: [1, 2, 5] });
+    expect(db._rpcArgs[0]).toEqual({ p_limit: 50, p_digest_days: [1, 2, 5], p_spotlight_day: 2 });
+  });
+
+  it("claims a small default batch, so a killed run strands few rows", async () => {
+    const db = stubDb([]);
+    serviceClientMock.mockReturnValue(db);
+    await POST(req() as never);
+    expect(db._rpcArgs[0]).toEqual({ p_limit: 60, p_digest_days: [1, 3, 5], p_spotlight_day: 4 });
   });
 
   it("returns 500 when the claim itself fails", async () => {
@@ -258,6 +293,17 @@ describe("parseDigestDays", () => {
   });
 });
 
+describe("parseSpotlightDay", () => {
+  it("defaults to Thursday, off the Mon/Wed/Fri digest days", () => {
+    expect(parseSpotlightDay(undefined)).toBe(4);
+    expect(parseSpotlightDay("0")).toBe(4);
+    expect(parseSpotlightDay("eh")).toBe(4);
+  });
+  it("reads a valid ISO day-of-week", () => {
+    expect(parseSpotlightDay("2")).toBe(2);
+  });
+});
+
 describe("contextFor", () => {
   it("derives the tier from the raw inputs with tierFor()", () => {
     const ctx = contextFor(
@@ -279,8 +325,22 @@ describe("contextFor", () => {
     );
   });
 
-  it("drops an analysis row with a bias it doesn't recognise", () => {
-    expect(contextFor(claimedRow({ analysis_bias: "sideways" }) as never)!.todayAnalysis).toBeNull();
+  it("keeps the analysis but drops a bias it doesn't recognise", () => {
+    // daily_analysis.bias is nullable. Dropping the whole read over a missing
+    // bias would have mailed an empty digest to the entire Free tier.
+    const da = contextFor(claimedRow({ analysis_bias: "sideways" }) as never)!.todayAnalysis;
+    expect(da!.title).toBe("Gold holds the 4H range high");
+    expect(da!.bias).toBeNull();
+  });
+
+  it("keeps the analysis when the bias column is null", () => {
+    const da = contextFor(claimedRow({ analysis_bias: null }) as never)!.todayAnalysis;
+    expect(da!.title).toBe("Gold holds the 4H range high");
+    expect(da!.bias).toBeNull();
+  });
+
+  it("has no analysis at all when nothing was published", () => {
+    expect(contextFor(claimedRow({ analysis_title: null }) as never)!.todayAnalysis).toBeNull();
   });
 
   it("returns null for an audience no flow targets", () => {
