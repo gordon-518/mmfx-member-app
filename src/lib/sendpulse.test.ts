@@ -50,6 +50,61 @@ describe("sendEmail", () => {
     );
   });
 
+  it("passes List-Unsubscribe headers through onto the email object", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        calls.push({ url, init });
+        if (url.includes("/oauth/access_token")) {
+          return new Response(JSON.stringify({ access_token: "tok" }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ result: true }), { status: 200 });
+      })
+    );
+
+    await sendEmail({
+      to: { name: "U", email: "u@example.com" },
+      from: { name: "F", email: "f@example.com" },
+      subject: "Hi",
+      html: "<p>Body</p>",
+      headers: {
+        "List-Unsubscribe": "<https://app.test/api/email/unsubscribe?token=t>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+    });
+
+    const smtp = calls.find((c) => c.url.includes("/smtp/emails"));
+    expect(JSON.parse(String(smtp!.init.body)).email.headers).toEqual({
+      "List-Unsubscribe": "<https://app.test/api/email/unsubscribe?token=t>",
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    });
+  });
+
+  it("omits the headers field entirely when a caller passes none", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        calls.push({ url, init });
+        if (url.includes("/oauth/access_token")) {
+          return new Response(JSON.stringify({ access_token: "tok" }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ result: true }), { status: 200 });
+      })
+    );
+
+    await sendEmail({
+      to: { name: "U", email: "u@example.com" },
+      from: { name: "F", email: "f@example.com" },
+      subject: "Hi",
+      html: "<p>Body</p>",
+    });
+
+    const smtp = calls.find((c) => c.url.includes("/smtp/emails"));
+    expect(JSON.parse(String(smtp!.init.body)).email).not.toHaveProperty("headers");
+  });
+
   it("returns ok:false when SendPulse credentials are absent", async () => {
     delete process.env.SENDPULSE_API_ID;
     delete process.env.SENDPULSE_API_SECRET;

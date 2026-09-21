@@ -29,6 +29,12 @@ export interface SendEmailParams {
   html: string;
   text?: string;
   attachments?: EmailAttachment[];
+  /**
+   * Extra SMTP headers on the email object, e.g. List-Unsubscribe and
+   * List-Unsubscribe-Post (RFC 8058). Gmail and Yahoo require both above
+   * ~5k/day. Omitted entirely when absent, so existing callers are unchanged.
+   */
+  headers?: Record<string, string>;
 }
 
 export interface SendResult {
@@ -66,6 +72,9 @@ export async function sendEmail(params: SendEmailParams): Promise<SendResult> {
       html: Buffer.from(params.html, "utf8").toString("base64"),
     };
     if (params.text) email.text = params.text;
+    if (params.headers && Object.keys(params.headers).length) {
+      email.headers = params.headers;
+    }
 
     if (params.attachments?.length) {
       // Binary attachments go as an object keyed by filename → base64 content.
