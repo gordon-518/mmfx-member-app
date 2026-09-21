@@ -186,6 +186,15 @@ declare
 begin
   perform pg_catalog.pg_advisory_xact_lock(4821001);
 
+  -- Unwind stranded claims. A row stays ok = null only between the claim and
+  -- the route stamping the result; the route's own ceiling is maxDuration 300,
+  -- so anything still null after an hour belongs to a run that was killed
+  -- mid-batch. Left alone it would hold that step's dedupe_key and that user's
+  -- daily slot forever, for an email nobody received.
+  delete from public.email_sends
+   where ok is null
+     and sent_at < now() - interval '1 hour';
+
   select s.id into v_spotlight
     from public.email_spotlights s
    order by s.approved_at desc
@@ -201,10 +210,20 @@ begin
 
   return query
   with da as (
+    -- The newest PUBLISHED read, same as the dashboard and the organic feed:
+    -- an unpublished draft must never enable a digest, let alone be sent.
+    --
+    -- published_on defaults to current_date in UTC while the desk works in
+    -- SGT, so between 00:00 and 08:00 SGT today's read is still stamped
+    -- yesterday. Matching on = v_today dropped Monday's digest entirely.
+    -- Hence <= v_today, bounded to the last day so a gap in publishing can
+    -- never present a stale read as today's.
     select d.title, d.bias, d.description
       from public.daily_analysis d
-     where d.published_on = v_today
-     order by d.created_at desc
+     where d.is_published
+       and d.published_on <= v_today
+       and d.published_on >= v_today - 1
+     order by d.published_on desc, d.created_at desc
      limit 1
   ),
   ev as (
@@ -255,7 +274,13 @@ begin
            coalesce(ev.lesson1, false)                   as onb_lesson1,
            coalesce(ev.desk, false)                      as onb_desk,
            ev.upgrade_viewed_at                          as upgrade_viewed_at,
-           ev.broker_clicked_at                          as broker_clicked_at
+           ev.broker_clicked_at                          as broker_clicked_at,
+           -- "Never submitted a deposit", the same predicate fn_admin_hot_leads
+           -- uses. deposit-dm-reminder owns everyone on the other side of it:
+           -- telling someone who already filed a submission that they look
+           -- stuck at the broker step is the one duplication §3C forbids.
+           exists (select 1 from public.deposit_submissions sub
+                    where sub.user_id = p.id)         as has_submission
       from public.profiles p
       join public.email_prefs pr on pr.user_id = p.id
       left join ev on ev.user_id = p.id
@@ -270,6 +295,15 @@ begin
        and not exists (
              select 1 from public.journal_interventions ji
               where ji.user_id = p.id and ji.sent_at > now() - interval '24 hours')
+       -- The third lane: deposit-dm-reminder emails from its own table, so a
+       -- member nudged about their submission must not also get a lifecycle
+       -- email the same day.
+       and not exists (
+             select 1 from public.deposit_submissions ds
+              where ds.user_id = p.id
+                and ds.dm_reminder_sent_at > now() - interval '24 hours')
+       -- Admins are staff, not an audience (as fn_admin_hot_leads has it).
+       and not coalesce(p.is_admin, false)
   ),
   cand as (
     -- C. Hot-lead rescue — behavioural, any non-member stage, no deposit yet.
@@ -283,6 +317,7 @@ begin
       from base b
      where b.audience in ('trial', 'expired')
        and b.deposit_verified_at is null
+       and not b.has_submission
        and b.broker_clicked_at is not null
        and b.broker_clicked_at <= now() - interval '24 hours'
     union all
@@ -291,6 +326,7 @@ begin
       from base b
      where b.audience in ('trial', 'expired')
        and b.deposit_verified_at is null
+       and not b.has_submission
        and b.upgrade_viewed_at is not null
        and b.upgrade_viewed_at <= now() - interval '48 hours'
 
@@ -335,9 +371,13 @@ begin
        and b.tier_rank >= 3
        and b.deposit_verified_at is not null
        and b.deposit_verified_at <= now() - interval '3 days'
+       -- 'deployed' is the only state that means the assistant is actually
+       -- running (journal_core: connecting / deployed / failed / disconnected).
+       -- Treating 'failed' as connected would silence this email for exactly
+       -- the people whose connection needs help.
        and not exists (
              select 1 from public.journal_accounts ja
-              where ja.user_id = b.user_id and ja.state <> 'disconnected')
+              where ja.user_id = b.user_id and ja.state = 'deployed')
     union all
     select b.*, 'member'::text, 'member-d7'::text, 51,
            b.user_id::text || ':member:member-d7'

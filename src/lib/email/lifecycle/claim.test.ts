@@ -70,6 +70,16 @@ describe("fn_claim_email_sends guards", () => {
     );
   });
 
+  it("guard 2 also covers the deposit-dm-reminder lane", () => {
+    expect(squish(CLAIM_FN)).toContain(
+      "not exists ( select 1 from public.deposit_submissions ds where ds.user_id = p.id and ds.dm_reminder_sent_at > now() - interval '24 hours')"
+    );
+  });
+
+  it("leaves admins out of the audience", () => {
+    expect(squish(CLAIM_FN)).toContain("not coalesce(p.is_admin, false)");
+  });
+
   it("guard 3 — at most one row per user per run", () => {
     const body = squish(CLAIM_FN);
     expect(body).toContain("select distinct on (c.user_id) c.* from cand c");
@@ -107,6 +117,40 @@ describe("fn_claim_email_sends guards", () => {
     expect(squish(CLAIM_FN)).toContain("p_spotlight_day integer default 4");
     expect(squish(CLAIM_FN)).toContain("v_dow = any(p_digest_days)");
     expect(squish(CLAIM_FN)).toContain("v_dow = p_spotlight_day");
+  });
+
+  it("unwinds claims stranded by a run that died mid-batch", () => {
+    const body = squish(CLAIM_FN);
+    expect(body).toContain(
+      "delete from public.email_sends where ok is null and sent_at < now() - interval '1 hour'"
+    );
+  });
+
+  it("reads only PUBLISHED analysis, within a day of today", () => {
+    const da = CLAIM_FN.slice(CLAIM_FN.indexOf("with da as ("), CLAIM_FN.indexOf("ev as ("));
+    expect(squish(da)).toContain("d.is_published");
+    // published_on defaults to current_date in UTC while the desk is on SGT,
+    // so an equality match drops the read for the first eight hours of the day.
+    expect(squish(da)).not.toContain("d.published_on = v_today");
+    expect(squish(da)).toContain("d.published_on <= v_today");
+    expect(squish(da)).toContain("d.published_on >= v_today - 1");
+  });
+
+  it("never sends rescue to anyone deposit-dm-reminder already owns", () => {
+    // That flow owns everyone who filed a submission (§3C: never duplicate it).
+    expect(squish(CLAIM_FN)).toContain(
+      "exists (select 1 from public.deposit_submissions sub where sub.user_id = p.id) as has_submission"
+    );
+    for (const step of ["'broker-clicked'", "'upgrade-seen'"]) {
+      const branch = CLAIM_FN.slice(CLAIM_FN.indexOf(`${step}::text`));
+      expect(squish(branch.slice(0, 500)), step).toContain("not b.has_submission");
+    }
+  });
+
+  it("counts only a DEPLOYED assistant as connected for member-d3", () => {
+    const branch = CLAIM_FN.slice(CLAIM_FN.indexOf("'member-d3'::text"));
+    expect(squish(branch.slice(0, 900))).toContain("ja.state = 'deployed'");
+    expect(squish(branch.slice(0, 900))).not.toContain("ja.state <> 'disconnected'");
   });
 
   it("only offers digest and spotlight to the Free tier", () => {
