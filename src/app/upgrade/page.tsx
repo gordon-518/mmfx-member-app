@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { getAccess } from "@/lib/access";
 import { logEventAfter } from "@/lib/events";
 import { Wordmark } from "@/components/AppShell";
-import { UpgradeFlow, type Region } from "./UpgradeFlow";
+import { UpgradeFlow } from "./UpgradeFlow";
 import { TierCards } from "./TierCards";
 import { DepositSlider } from "./DepositSlider";
 import { PlanFinder } from "./PlanFinder";
@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 import { nextTierFor, tierLabel } from "@/lib/tiers";
 import { depositRef } from "@/lib/depositRef";
 import { AmeliaLastStep } from "./AmeliaLastStep";
+import { regionFor } from "@/lib/brokerRegion";
 
 // Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
 // a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
@@ -24,32 +25,6 @@ import { AmeliaLastStep } from "./AmeliaLastStep";
 // Higgsfield's): outcome-first tier cards, a deposit slider, a plan finder that
 // uses the Know Your Style archetype, a comparison grid and an FAQ, around the
 // existing broker steps and deposit form. US/UK keeps the lifetime plans.
-//
-// Dupoin countries: Canada, the EU/EEA member states, Iran, Israel, Japan,
-// Myanmar, New Zealand, North Korea, the Philippines, Singapore.
-const DUPOIN_COUNTRIES = new Set<string>([
-  "CA", // Canada
-  // EU member states
-  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
-  "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
-  "SI", "ES", "SE",
-  // EEA (non-EU) member states
-  "IS", "LI", "NO",
-  "IR", // Iran
-  "IL", // Israel
-  "JP", // Japan
-  "MM", // Myanmar
-  "NZ", // New Zealand
-  "KP", // North Korea
-  "PH", // The Philippines
-  "SG", // Singapore
-]);
-
-function regionFor(country: string): Region {
-  if (country === "US" || country === "GB") return "contact";
-  if (DUPOIN_COUNTRIES.has(country)) return "dupoin";
-  return "octa";
-}
 
 // Copy stays compliance-safe: no profit/return language; the risk footer is
 // verbatim. Broker regions: the deposit-you-own model (no fee). US/UK: a paid

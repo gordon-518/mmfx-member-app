@@ -1,0 +1,903 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+
+vi.mock("@/lib/telegram", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/telegram")>();
+  return { ...actual, sendTelegram: vi.fn(async () => ({ ok: true, detail: {} })) };
+});
+
+// (minor/item 8) defaultDeps() calls adminDb(), which can throw when
+// misconfigured — used only by the two tests that call runBurst/handleOutgoing
+// without an explicit `deps`, to prove that throw is caught rather than
+// rejecting out of the caller.
+vi.mock("@/lib/channel/db", () => ({
+  adminDb: () => { throw new Error("adminDb misconfigured"); },
+}));
+
+import { sendTelegram } from "@/lib/telegram";
+import {
+  runBurst, handleOutgoing, defaultPing, PREFIX, RUN_BUDGET_MS, REDRAFT_TIMEOUT_MS,
+  FIRST_DECIDE_MIN_BUDGET_MS, MAX_REPLIES_PER_HOUR, MAX_CALLS_PER_DAY, ECHO_WINDOW_MS,
+  HANDOFF_TAIL_MS, ROUTE_MAX_DURATION_MS,
+  type RunDeps, type BurstTrigger,
+} from "./run";
+// The route's own declared ceiling, imported so the two can't drift apart.
+import { maxDuration } from "@/app/api/support/webhook/route";
+import type { ChatRow, EventRow, LogResult } from "./store";
+import type { ContactInfo, Decision, SupportSettings, ThreadMessage } from "./types";
+
+type Sp = RunDeps["sp"];
+
+const settings: SupportSettings = {
+  enabled: true, bonus_code: "TeamMM001", bonus_code_expires: "2026-12-15",
+  official_accounts: [{ handle: "MM_3000", label: "Admin Amelia" }],
+  office_hours: "during Singapore office hours", trade_cadence: "x", notes: "", approved_flows: [],
+};
+const NOW = new Date("2026-09-15T04:00:30Z");
+const T0 = "2026-09-15T04:00:00Z";
+const msg = (id: string, direction: "in" | "out", text: string, at = T0, fromFlow = false): ThreadMessage =>
+  ({ id, direction, text, at, fromFlow });
+const reply = (text: string, extra: Partial<Decision> = {}): Decision =>
+  ({ action: "reply", topic: "plans", confidence: 0.9, reply: text, reason: "facts", ...extra });
+/** Trigger matching a given message so `runBurst` treats it as still current. */
+const trig = (text: string, at = T0): BurstTrigger => ({ at, text });
+
+function setup(opts: {
+  thread: ThreadMessage[];
+  contact?: Partial<ContactInfo>;
+  decisions?: (Decision | null)[];
+  chat?: ChatRow | null;
+  settings?: SupportSettings | null;
+  now?: () => Date;
+  sendResult?: boolean;
+  getMessagesImpl?: () => Promise<ThreadMessage[]>;
+  repliesInLastHour?: number;
+  modelCallsToday?: number;
+  /** Called from inside the `sleep` fake — lets a test mutate chat state
+   * "during" the debounce (e.g. Amelia taking the chat over). */
+  duringSleep?: (setChat: (row: ChatRow | null) => void) => void;
+  /** Called from inside the `decide` fake, after popping a decision — lets
+   * a test advance a settable fake clock, or mutate chat state (e.g. Amelia
+   * taking over mid-draft), as if drafting took a long time. */
+  duringDecide?: (setChat: (row: ChatRow | null) => void) => void;
+  /** Makes store.saveChat throw for the patches this returns true for, so a
+   * test can prove a failed chat write never loses the alert to a human and
+   * never turns a delivered reply into an error outcome. */
+  failSaveChat?: (patch: Partial<ChatRow> & { contact_id: string }) => boolean;
+}) {
+  const events: EventRow[] = [];
+  const usedDedupeKeys = new Set<string>();
+  let chat: ChatRow | null = opts.chat ?? null;
+  const decisions = [...(opts.decisions ?? [])];
+  const sp = {
+    getMessages: vi.fn<Sp["getMessages"]>(opts.getMessagesImpl ?? (async () => opts.thread)),
+    getContact: vi.fn<Sp["getContact"]>(async () => ({ id: "c1", username: "sam", firstName: "Sam", isBusiness: false, tags: [], ...opts.contact })),
+    send: vi.fn<Sp["send"]>(async () => opts.sendResult ?? true),
+    setTag: vi.fn<Sp["setTag"]>(async () => true),
+    setPauseAutomation: vi.fn<Sp["setPauseAutomation"]>(async () => true),
+    openChat: vi.fn<Sp["openChat"]>(async () => true),
+  } satisfies Sp;
+  const decide = vi.fn<RunDeps["decide"]>(async () => {
+    const d = decisions.shift() ?? null;
+    opts.duringDecide?.((row) => { chat = row; });
+    return { decision: d, refused: false, model: "claude-opus-5" };
+  });
+  const ping = vi.fn<RunDeps["ping"]>(async () => ({ ok: true }));
+  const sleep = vi.fn(async () => { opts.duringSleep?.((row) => { chat = row; }); });
+  const deps: RunDeps = {
+    store: {
+      getSettings: async () => (opts.settings === undefined ? settings : opts.settings),
+      getChat: async () => chat,
+      saveChat: async (p) => {
+        if (opts.failSaveChat?.(p)) throw new Error("saveChat failed");
+        chat = { ...(chat ?? { contact_id: p.contact_id, state: "auto" }), ...p };
+      },
+      countRepliesSince: async () => opts.repliesInLastHour ?? events.filter((e) => e.kind === "reply").length,
+      countModelCallsSince: async () => opts.modelCallsToday ?? 0,
+      recentAgentTexts: async () => events.map((e) => e.reply_text).filter((t): t is string => Boolean(t)),
+      // Emulates support_events' real unique index on dedupe_key: the first
+      // insert with a given key wins, a later one with the same key comes
+      // back "duplicate" (nothing is pushed), and a null/absent key never
+      // collides with anything (a standard unique index allows many nulls).
+      log: async (e): Promise<LogResult> => {
+        if (e.dedupe_key) {
+          if (usedDedupeKeys.has(e.dedupe_key)) return { status: "duplicate" };
+          usedDedupeKeys.add(e.dedupe_key);
+        }
+        events.push(e);
+        return { status: "ok" };
+      },
+      markDelivered: async (dedupeKey) => {
+        const ev = events.find((e) => e.dedupe_key === dedupeKey);
+        if (ev) ev.delivered_at = new Date().toISOString();
+      },
+      patchSkipReason: async (dedupeKey, skipReason) => {
+        const ev = events.find((e) => e.dedupe_key === dedupeKey);
+        if (ev) ev.skip_reason = skipReason;
+      },
+    },
+    sp,
+    decide,
+    findMember: vi.fn(async () => null),
+    ping,
+    sleep,
+    now: opts.now ?? (() => NOW),
+  };
+  return { deps, sp, decide, ping, sleep, events, get chat() { return chat; } };
+}
+
+describe("runBurst", () => {
+  it("replies with the drafted text and logs it", async () => {
+    const s = setup({ thread: [msg("1", "in", "How much to join?")], decisions: [reply("Foundation starts at $50: https://app.marketmakersfx.net/upgrade")] });
+    await expect(runBurst("c1", trig("How much to join?"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+    expect(s.sp.send).toHaveBeenCalledWith("c1", "Foundation starts at $50: https://app.marketmakersfx.net/upgrade");
+    expect(s.events.at(-1)).toMatchObject({ kind: "reply", topic: "plans" });
+  });
+
+  it("prefixes replies in Amelia's-account chats", async () => {
+    const s = setup({ thread: [msg("1", "in", "trial length?")], contact: { isBusiness: true }, decisions: [reply("The trial is 14 days.", { topic: "trial" })] });
+    await runBurst("c1", trig("trial length?"), s.deps);
+    expect(s.sp.send).toHaveBeenCalledWith("c1", `${PREFIX}The trial is 14 days.`);
+  });
+
+  it("stays out when a SendPulse flow already answered", async () => {
+    const s = setup({ thread: [msg("1", "in", "Malaysia"), msg("2", "out", "Last one — where are you based?", "2026-09-15T04:00:02Z", true)] });
+    await expect(runBurst("c1", trig("Malaysia"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "flow answered" });
+    expect(s.decide).not.toHaveBeenCalled();
+    expect(s.sp.send).not.toHaveBeenCalled();
+  });
+
+  it("hands money questions to Amelia without calling Claude", async () => {
+    const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+    await expect(runBurst("c1", trig("How do I withdraw my money?"), s.deps)).resolves.toMatchObject({ kind: "handoff", reason: "withdrawal" });
+    expect(s.decide).not.toHaveBeenCalled();
+    expect(s.sp.send).toHaveBeenCalledWith("c1", expect.stringContaining("passed this to Admin Amelia"));
+    expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+    expect(s.sp.setPauseAutomation).toHaveBeenCalledWith("c1", 1440);
+    expect(s.sp.openChat).toHaveBeenCalledWith("c1");
+    expect(s.chat?.state).toBe("needs_amelia");
+    expect(s.deps.ping).toHaveBeenCalled();
+  });
+
+  it("redrafts once after a guard failure, then sends the fixed reply", async () => {
+    const s = setup({ thread: [msg("1", "in", "min deposit?")], decisions: [reply("The minimum is USD100."), reply("Foundation starts at $50.")] });
+    await expect(runBurst("c1", trig("min deposit?"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+    expect(s.decide).toHaveBeenCalledTimes(2);
+    expect(((s.decide.mock.calls[1] as unknown[])[0] as { retryReasons: string[] }).retryReasons[0]).toContain("amount");
+    expect(((s.decide.mock.calls[1] as unknown[])[0] as { timeoutMs?: number }).timeoutMs).toBe(REDRAFT_TIMEOUT_MS);
+    expect(s.sp.send).toHaveBeenCalledWith("c1", "Foundation starts at $50.");
+    expect(s.events.at(-1)).toMatchObject({ kind: "reply", guard_failures: expect.arrayContaining([expect.stringContaining("amount")]) });
+  });
+
+  it("hands off when the redraft still fails the guard", async () => {
+    const s = setup({ thread: [msg("1", "in", "min deposit?")], decisions: [reply("USD100."), reply("Still USD100.")] });
+    await expect(runBurst("c1", trig("min deposit?"), s.deps)).resolves.toMatchObject({ kind: "handoff" });
+    expect(s.events.at(-1)?.guard_failures?.[0]).toContain("amount");
+  });
+
+  it("on a model error, sends the member nothing and flags the chat", async () => {
+    const s = setup({ thread: [msg("1", "in", "question?")], decisions: [null] });
+    await expect(runBurst("c1", trig("question?"), s.deps)).resolves.toMatchObject({ kind: "handoff" });
+    expect(s.sp.send).not.toHaveBeenCalled();
+    expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+  });
+
+  it("does nothing while switched off", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi")], settings: { ...settings, enabled: false } });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "switched off" });
+    expect(s.sp.getMessages).not.toHaveBeenCalled();
+  });
+
+  it("leaves Needs-Amelia chats alone", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi")], chat: { contact_id: "c1", state: "needs_amelia" } });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "needs_amelia" });
+  });
+
+  it("stops early when the reply cap is already hit for this hour", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi")], repliesInLastHour: MAX_REPLIES_PER_HOUR });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "handoff", reason: "reply cap reached" });
+    expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  it("stops early when the daily model-call cap is already hit", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi")], modelCallsToday: MAX_CALLS_PER_DAY });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "handoff", reason: "daily cap reached" });
+    expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  // --- (a) Never re-send after a failed send -------------------------------
+  it("does not retry a failed send — hands off instead, without re-claiming its own row", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "How much to join?")],
+      decisions: [reply("Foundation starts at $50.")],
+      sendResult: false,
+    });
+    await expect(runBurst("c1", trig("How much to join?"), s.deps)).resolves.toMatchObject({ kind: "handoff" });
+    expect(s.sp.send).toHaveBeenCalledTimes(1);
+    // No holding line sent on top — the real reply may already have gone out.
+    expect(s.events.at(-1)).toMatchObject({ kind: "handoff", skip_reason: "send failed or unconfirmed" });
+    // The reply row was claimed (and left undelivered); the handoff row that
+    // follows in the same run must not try to claim the same key again.
+    expect(s.events.find((e) => e.kind === "reply")?.delivered_at).toBeUndefined();
+  });
+
+  // --- (b) Overall deadline -------------------------------------------------
+  it("hands off as 'out of time' before even calling decide when the budget is already nearly spent", async () => {
+    let clock = NOW.getTime();
+    const now = () => new Date(clock);
+    const s = setup({
+      thread: [msg("1", "in", "hi")],
+      now,
+      duringSleep: () => { clock += 60_000; }, // simulate the debounce itself running long
+    });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "handoff", reason: "out of time" });
+    expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  it("hands off as 'out of time' instead of redrafting when the budget is nearly spent", async () => {
+    let clock = NOW.getTime();
+    const now = () => new Date(clock);
+    const s = setup({
+      thread: [msg("1", "in", "min deposit?")],
+      decisions: [reply("The minimum is USD100.")],
+      now,
+      // Simulate the first draft call itself taking a long time: elapsed
+      // budget after it must fall under REDRAFT_MIN_BUDGET_MS (55s).
+      duringDecide: () => { clock += 61_000; },
+    });
+    await expect(runBurst("c1", trig("min deposit?"), s.deps)).resolves.toMatchObject({ kind: "handoff", reason: "out of time" });
+    expect(s.decide).toHaveBeenCalledTimes(1);
+  });
+
+  it("still redrafts when plenty of budget remains", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "min deposit?")],
+      decisions: [reply("The minimum is USD100."), reply("Foundation starts at $50.")],
+      now: () => NOW,
+    });
+    await expect(runBurst("c1", trig("min deposit?"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+    expect(s.decide).toHaveBeenCalledTimes(2);
+  });
+
+  // --- (c) A thrown read must hand off, not just log -------------------------
+  it("hands off to Amelia when getMessages throws", async () => {
+    const s = setup({
+      thread: [],
+      getMessagesImpl: async () => { throw new Error("SendPulse getMessages failed: 500"); },
+    });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "error" });
+    expect(s.events.at(-1)).toMatchObject({ kind: "error" });
+    expect(s.chat?.state).toBe("needs_amelia");
+    expect(s.deps.ping).toHaveBeenCalled();
+    // Best-effort only — never a holding line to the member when SendPulse
+    // reads are already failing.
+    expect(s.sp.send).not.toHaveBeenCalled();
+  });
+
+  // --- (item 5) getChat / getSettings must fail closed, never fail open ------
+  it("hands off to Amelia (never replies) when getChat throws", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi")], decisions: [reply("Hi!")] });
+    s.deps.store.getChat = async () => { throw new Error("support_chats read failed: pooler timeout"); };
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "error" });
+    expect(s.chat?.state).toBe("needs_amelia");
+    expect(s.sp.send).not.toHaveBeenCalled();
+    expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  it("hands off to Amelia (never replies) when getSettings throws", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi")], decisions: [reply("Hi!")] });
+    s.deps.store.getSettings = async () => { throw new Error("support_settings read failed: pooler timeout"); };
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "error" });
+    expect(s.chat?.state).toBe("needs_amelia");
+    expect(s.sp.send).not.toHaveBeenCalled();
+    expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  // --- (d) Re-check the redraft's topic --------------------------------------
+  it("hands off when the redraft itself turns into a money question", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "min deposit?")],
+      decisions: [
+        reply("The minimum is USD100."),
+        reply("Understood, thanks for letting us know.", { topic: "money" }),
+      ],
+    });
+    const result = await runBurst("c1", trig("min deposit?"), s.deps);
+    expect(result).toMatchObject({ kind: "handoff", reason: "money topic" });
+    expect(s.sp.send).not.toHaveBeenCalledWith("c1", "Understood, thanks for letting us know.");
+  });
+
+  // --- (f) Burst matching -----------------------------------------------------
+  it("skips as 'newer message' when a different, newer member message has arrived", async () => {
+    const s = setup({ thread: [msg("1", "in", "Hi", T0), msg("2", "in", "Sir?", "2026-09-15T04:00:10Z")] });
+    await expect(runBurst("c1", trig("Hi", T0), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "newer message" });
+    expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  it("proceeds when the trigger text matches the thread's latest member message", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "Hi", T0), msg("2", "in", "Sir?", "2026-09-15T04:00:10Z")],
+      decisions: [reply("Hi! How can I help?")],
+    });
+    await expect(runBurst("c1", trig("Sir?", "2026-09-15T04:00:10Z"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+  });
+
+  it("falls back to a time check when the trigger text is empty (media)", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "[attachment]", "2026-09-15T04:00:01Z")],
+      decisions: [reply("Got it, thanks!")],
+    });
+    // Within the tolerance of the trigger's own timestamp — proceeds.
+    await expect(runBurst("c1", { at: "2026-09-15T04:00:00Z", text: "" }, s.deps)).resolves.toMatchObject({ kind: "reply" });
+  });
+
+  // --- (item 11) Media path must fail open on clock skew, not closed ---------
+  it("proceeds via the time fallback even when latest.at is *older* than the trigger (clock skew)", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "[attachment]", "2026-09-15T03:59:00Z")], // 60s "older" than the trigger's own at
+      decisions: [reply("Got it, thanks!")],
+    });
+    await expect(runBurst("c1", { at: "2026-09-15T04:00:00Z", text: "" }, s.deps)).resolves.toMatchObject({ kind: "reply" });
+  });
+
+  it("skips via the time fallback when a clearly newer media message has arrived", async () => {
+    const s = setup({ thread: [msg("1", "in", "[attachment]", "2026-09-15T04:10:00Z")] }); // 10 minutes newer
+    await expect(runBurst("c1", { at: "2026-09-15T04:00:00Z", text: "" }, s.deps)).resolves.toMatchObject({ kind: "skip", reason: "newer message" });
+    expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  // --- (blocker 2) SendPulse's own tag backstops a lost support_chats row ---
+  it("skips as needs_amelia (tag) when SendPulse's contact already carries the needs-amelia tag, even if support_chats has no row", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi")], contact: { tags: ["needs-amelia"] } });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "needs_amelia (tag)" });
+    expect(s.decide).not.toHaveBeenCalled();
+    expect(s.sp.send).not.toHaveBeenCalled();
+  });
+
+  // --- (minor 7) A media message whose claim collides must still reach a human
+  describe("a duplicate claim escalates only on a stale read", () => {
+    it("skips silently when two photos arrive in a row: one reply, no handoff, no ping", async () => {
+      // Two photos back to back produce two webhooks and two runs, both
+      // resolving to the SAME newest message and computing the same claim
+      // key. memberText already aggregates consecutive incoming messages, so
+      // the winner's answer covered both — the loser must not tell the member
+      // "I've passed this to Admin Amelia", lock the chat for 24h and ping
+      // her for nothing.
+      const thread = [msg("p1", "in", "[attachment]", "2026-09-15T04:00:00Z")];
+      const s = setup({ thread, decisions: [reply("Got it, thanks!"), reply("Got it, thanks!")] });
+      const trigger: BurstTrigger = { at: "2026-09-15T04:00:00Z", text: "" };
+      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "reply" });
+      s.sp.send.mockClear(); s.sp.setTag.mockClear();
+      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "skip", reason: "already answered" });
+      expect(s.sp.send).not.toHaveBeenCalled();
+      expect(s.sp.setTag).not.toHaveBeenCalled();
+      expect(s.deps.ping).not.toHaveBeenCalled();
+      expect(s.chat?.state).not.toBe("needs_amelia");
+    });
+
+    it("hands a stale-read message to Amelia so a human sees it", async () => {
+      // A genuine stale read: the trigger is meaningfully NEWER than the
+      // thread's latest message, so the read is lagging and this message was
+      // never answered by whoever won the key.
+      const thread = [msg("p1", "in", "[attachment]", "2026-09-15T04:00:00Z")];
+      const s = setup({ thread, decisions: [reply("Got it, thanks!"), reply("Got it, thanks!")] });
+      const trigger: BurstTrigger = { at: "2026-09-15T04:01:00Z", text: "" };
+      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "reply" });
+      s.sp.send.mockClear(); s.sp.setTag.mockClear();
+      await expect(runBurst("c1", trigger, s.deps)).resolves.toMatchObject({ kind: "handoff", reason: "duplicate claim (stale read)" });
+      expect(s.sp.send).toHaveBeenCalledWith("c1", expect.stringContaining("passed this to Admin Amelia"));
+      expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+      expect(s.chat?.state).toBe("needs_amelia");
+    });
+  });
+
+  describe("a failed chat write never loses the alert or the reply", () => {
+    it("still pings a human when the emergency state write fails", async () => {
+      // The likeliest reason for being in the emergency path at all is a
+      // database outage — the same outage that breaks this write. Alerting a
+      // human must not depend on it.
+      const s = setup({
+        thread: [msg("1", "in", "hi")],
+        getMessagesImpl: async () => { throw new Error("SendPulse down"); },
+        failSaveChat: () => true,
+      });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "error" });
+      expect(s.deps.ping).toHaveBeenCalled();
+      expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+    });
+
+    it("still reports a delivered reply when the bookkeeping write fails", async () => {
+      // last_agent_reply_at is cosmetic and is written after the member
+      // already has the message: a failure must not tag the chat, pause
+      // automation for 24h and ping Amelia over a delivered answer.
+      const s = setup({
+        thread: [msg("1", "in", "hi")],
+        decisions: [reply("Foundation starts at $50.")],
+        failSaveChat: (p) => p.last_agent_reply_at !== undefined || p.last_member_msg_at !== undefined,
+      });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      expect(s.sp.send).toHaveBeenCalledWith("c1", "Foundation starts at $50.");
+      expect(s.events.some((e) => e.kind === "error")).toBe(false);
+      expect(s.deps.ping).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a missing timestamp never loses Amelia's quiet period", () => {
+    it("quiets the chat for an outgoing message whose timestamp is empty", async () => {
+      // sendpulse.ts maps a missing created_at to "": new Date("") is an
+      // Invalid Date whose toISOString() throws, which used to be caught and
+      // returned "ignored" — losing the quiet period and letting the agent
+      // reply over Amelia.
+      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", "")] });
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+      expect(s.chat?.state).toBe("quiet");
+    });
+
+    it("falls back to the tag and a ping when the quiet write fails", async () => {
+      // The amelia_reply claim is already spent, so SendPulse's retry would
+      // return "duplicate" and never set quiet — the period would be lost
+      // permanently. Fail closed instead.
+      const s = setup({
+        thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", "2026-09-15T04:00:20Z")],
+        failSaveChat: () => true,
+      });
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+      expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+      expect(s.deps.ping).toHaveBeenCalled();
+    });
+  });
+
+  it("hands off a draft the model isn't confident about", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "is XAU good today?")],
+      decisions: [reply("Probably.", { confidence: 0.4 })],
+    });
+    await expect(runBurst("c1", trig("is XAU good today?"), s.deps)).resolves.toMatchObject({ kind: "handoff" });
+    expect(s.sp.send).toHaveBeenCalledWith("c1", expect.stringContaining("passed this to Admin Amelia"));
+  });
+
+  it("replies again once a quiet period has expired", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "hi")],
+      decisions: [reply("Foundation starts at $50.")],
+      chat: { contact_id: "c1", state: "quiet", quiet_until: "2026-09-15T03:00:00Z" },
+    });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+  });
+
+  // --- (item 4) Amelia must never be talked over during the debounce --------
+  it("skips and never sends when the chat goes quiet during the debounce (Amelia took over)", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "hi")],
+      decisions: [reply("Hi! How can I help?")],
+      duringSleep: (setChat) => setChat({ contact_id: "c1", state: "quiet", quiet_until: "2026-09-15T05:00:00Z" }),
+    });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "quiet" });
+    expect(s.sp.send).not.toHaveBeenCalled();
+    expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  it("skips when the chat is moved to needs_amelia during the debounce", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "hi")],
+      decisions: [reply("Hi! How can I help?")],
+      duringSleep: (setChat) => setChat({ contact_id: "c1", state: "needs_amelia" }),
+    });
+    await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "needs_amelia" });
+    expect(s.sp.send).not.toHaveBeenCalled();
+    expect(s.decide).not.toHaveBeenCalled();
+  });
+
+  // --- (blocker 1) Amelia must never be talked over during the MODEL CALL ---
+  // (the debounce-only checks above are not enough: a draft/redraft can
+  // itself take up to ~35s, plenty of time for her to answer mid-call).
+  describe("never talks over Amelia during the model call (blocker 1)", () => {
+    it("sends nothing, and leaves quiet_until intact, when the chat goes quiet DURING the model call", async () => {
+      const s = setup({
+        thread: [msg("1", "in", "how much to join?")],
+        decisions: [reply("Foundation starts at $50.")],
+        duringDecide: (setChat) => setChat({ contact_id: "c1", state: "quiet", quiet_until: "2026-09-15T05:00:00Z" }),
+      });
+      await expect(runBurst("c1", trig("how much to join?"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "quiet" });
+      expect(s.sp.send).not.toHaveBeenCalled();
+      expect(s.chat?.state).toBe("quiet");
+      expect(s.chat?.quiet_until).toBe("2026-09-15T05:00:00Z");
+    });
+
+    it("sends nothing when the chat moves to needs_amelia DURING the model call", async () => {
+      const s = setup({
+        thread: [msg("1", "in", "how much to join?")],
+        decisions: [reply("Foundation starts at $50.")],
+        duringDecide: (setChat) => setChat({ contact_id: "c1", state: "needs_amelia" }),
+      });
+      await expect(runBurst("c1", trig("how much to join?"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "needs_amelia" });
+      expect(s.sp.send).not.toHaveBeenCalled();
+    });
+
+    it("the reply path's own saveChat calls never include state/quiet_until — only handleOutgoing and handoff write those", async () => {
+      const s = setup({ thread: [msg("1", "in", "how much to join?")], decisions: [reply("Foundation starts at $50.")] });
+      const saveChatSpy = vi.spyOn(s.deps.store, "saveChat");
+      await expect(runBurst("c1", trig("how much to join?"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      expect(saveChatSpy).toHaveBeenCalled();
+      for (const call of saveChatSpy.mock.calls) {
+        expect(call[0]).not.toHaveProperty("state");
+        expect(call[0]).not.toHaveProperty("quiet_until");
+      }
+    });
+
+    it("handoff's own claim also re-checks — a chat moved to needs_amelia just before a hard handoff isn't talked over", async () => {
+      const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+      // mustHandOff("money") fires before any model call, so simulate
+      // Amelia's takeover landing during the read that precedes it instead.
+      s.deps.findMember = async () => {
+        await s.deps.store.saveChat({ contact_id: "c1", state: "needs_amelia" });
+        return null;
+      };
+      await expect(runBurst("c1", trig("How do I withdraw my money?"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "needs_amelia" });
+      expect(s.sp.send).not.toHaveBeenCalled();
+      expect(s.sp.setTag).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- (item 1) The dedupe claim: no member gets the same reply twice -------
+  describe("the outcome claim (item 1)", () => {
+    it("answers the same member message only once across two sequential runs", async () => {
+      const s = setup({
+        thread: [msg("m1", "in", "hi")],
+        decisions: [reply("Hi! How can I help?"), reply("Hi! How can I help?")],
+      });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      const eventsAfterFirst = s.events.length;
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "already answered" });
+      expect(s.sp.send).toHaveBeenCalledTimes(1);
+      expect(s.events.length).toBe(eventsAfterFirst); // logs nothing extra
+    });
+
+    it("still answers two different member messages once each", async () => {
+      let call = 0;
+      const threads = [
+        [msg("m1", "in", "hi")],
+        [msg("m1", "in", "hi"), msg("m2", "in", "another question", "2026-09-15T04:05:00Z")],
+      ];
+      const s = setup({
+        thread: [],
+        getMessagesImpl: async () => threads[call++],
+        decisions: [reply("Hi!"), reply("Sure, here you go.")],
+      });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      await expect(runBurst("c1", trig("another question", "2026-09-15T04:05:00Z"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      expect(s.sp.send).toHaveBeenCalledTimes(2);
+    });
+
+    it("two non-media messages claiming the same key: the second is skipped, not re-sent", async () => {
+      const s = setup({ thread: [msg("m1", "in", "hi")], decisions: [reply("Hi!"), reply("Hi!")] });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      await expect(runBurst("c1", trig("hi"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "already answered" });
+      expect(s.sp.send).toHaveBeenCalledTimes(1);
+    });
+
+    // A media trigger's claim colliding is handled differently — see "media
+    // duplicate claim escalates to Amelia (minor 7)" above: silently
+    // skipping risked never answering and never handing off a photo (often a
+    // deposit screenshot), so that case escalates instead of just skipping.
+
+    it("the handoff claim guards the same namespace as the reply claim", async () => {
+      // First run claims dedupeKey via the handoff path (a hard handoff, no
+      // decide() call). A second run answering the identical message must
+      // be rejected by that same claim, with no side effects at all —
+      // proving reply and handoff share one dedupe namespace, not two.
+      const s = setup({ thread: [msg("m1", "in", "How do I withdraw my money?")] });
+      await expect(runBurst("c1", trig("How do I withdraw my money?"), s.deps)).resolves.toMatchObject({ kind: "handoff" });
+      // Reset the chat back to "auto" so the second run reaches the dedupe
+      // claim itself, rather than being turned away earlier by the
+      // needs_amelia guard — isolating the handoff-claim behaviour.
+      await s.deps.store.saveChat({ contact_id: "c1", state: "auto" });
+      s.sp.setTag.mockClear(); s.sp.send.mockClear();
+      await expect(runBurst("c1", trig("How do I withdraw my money?"), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "already answered" });
+      expect(s.sp.send).not.toHaveBeenCalled();
+      expect(s.sp.setTag).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- (item 6) Handoff ping: never the wrong Telegram chat, always redacted -
+  describe("the handoff ping (item 6)", () => {
+    it("redacts emails and phone numbers from the member text before pinging Telegram", async () => {
+      const text = "How do I withdraw my money? call me at 012-3456789 or email sam@example.com";
+      const s = setup({ thread: [msg("1", "in", text)] });
+      await runBurst("c1", trig(text), s.deps);
+      const html = s.ping.mock.calls.at(-1)?.[0] as string;
+      expect(html).not.toContain("sam@example.com");
+      expect(html).not.toContain("012-3456789");
+      expect(html).toContain("[email]");
+    });
+
+    it("completes the handoff even when the ping fails to send", async () => {
+      const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+      s.deps.ping = vi.fn(async () => ({ ok: false }));
+      await expect(runBurst("c1", trig("How do I withdraw my money?"), s.deps)).resolves.toMatchObject({ kind: "handoff" });
+      expect(s.chat?.state).toBe("needs_amelia");
+      expect(s.events.at(-1)?.skip_reason).toContain("write failed: ping");
+    });
+
+    it("records every failed handoff write, not just the ping", async () => {
+      const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+      s.sp.setTag = vi.fn(async () => false);
+      s.deps.ping = vi.fn(async () => ({ ok: false }));
+      await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+      const ev = s.events.find((e) => e.kind === "handoff");
+      expect(ev?.skip_reason).toContain("setTag");
+      expect(ev?.skip_reason).toContain("ping");
+    });
+
+    // --- (minor 4) A failed holding-line send is now recorded too -----------
+    it("records a failed holding-line send — it used to be the one handoff write nobody tracked", async () => {
+      const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")], sendResult: false });
+      await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+      const ev = s.events.find((e) => e.kind === "handoff");
+      expect(ev?.skip_reason).toContain("send");
+    });
+
+    // --- (blocker 2) A failed chat-state write is now recorded too ----------
+    it("records a failed chat-state save (support_chats) as a handoff write failure", async () => {
+      const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+      // Only the handoff's OWN state-setting save should fail — the earlier
+      // bookkeeping saveChat call (item 1) carries no `state` field, so it
+      // must keep succeeding; only `state: "needs_amelia"` is the write this
+      // test is about.
+      s.deps.store.saveChat = async (patch) => {
+        if (patch.state === "needs_amelia") throw new Error("support_chats upsert failed: connection reset");
+      };
+      await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+      const ev = s.events.find((e) => e.kind === "handoff");
+      expect(ev?.skip_reason).toContain("saveChat");
+      // The rest of the handoff must still go through — the tag/pause/ping
+      // are what actually get Amelia's attention when the row itself can't
+      // be trusted.
+      expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
+      expect(s.deps.ping).toHaveBeenCalled();
+    });
+  });
+
+  describe("defaultPing (item 6)", () => {
+    afterEach(() => {
+      delete process.env.SUPPORT_PING_CHAT_ID;
+      vi.mocked(sendTelegram).mockClear();
+    });
+
+    it("never sends, and never falls back to TELEGRAM_CHAT_ID, when SUPPORT_PING_CHAT_ID is unset", async () => {
+      delete process.env.SUPPORT_PING_CHAT_ID;
+      const result = await defaultPing("hi");
+      expect(sendTelegram).not.toHaveBeenCalled();
+      expect(result.ok).toBe(false);
+    });
+
+    it("sends to SUPPORT_PING_CHAT_ID when it's set", async () => {
+      process.env.SUPPORT_PING_CHAT_ID = "999";
+      await defaultPing("hi");
+      expect(sendTelegram).toHaveBeenCalledWith("hi", { chatId: "999" });
+    });
+  });
+
+  // --- (item 9) A kill between the log and the send must leave delivered_at null
+  describe("delivery marks (item 9)", () => {
+    it("marks delivery after a successful reply send", async () => {
+      const s = setup({ thread: [msg("1", "in", "How much to join?")], decisions: [reply("Foundation starts at $50.")] });
+      await runBurst("c1", trig("How much to join?"), s.deps);
+      expect(s.events.find((e) => e.kind === "reply")?.delivered_at).toBeTruthy();
+    });
+
+    it("leaves delivered_at unset when the send fails", async () => {
+      const s = setup({ thread: [msg("1", "in", "How much to join?")], decisions: [reply("Foundation starts at $50.")], sendResult: false });
+      await runBurst("c1", trig("How much to join?"), s.deps);
+      expect(s.events.find((e) => e.kind === "reply")?.delivered_at).toBeUndefined();
+    });
+
+    it("marks delivery on the handoff holding line when it sends", async () => {
+      const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+      await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+      expect(s.events.find((e) => e.kind === "handoff")?.delivered_at).toBeTruthy();
+    });
+  });
+
+  // --- (item 13) One insert per run, proven via an interleaved send fake ----
+  it("keeps the reply logged before the send resolves — a race with handleOutgoing sees it as an echo, not Amelia", async () => {
+    const s = setup({ thread: [msg("1", "in", "How much to join?")], decisions: [reply("Foundation starts at $50.")] });
+    let raceResult: "amelia_reply" | "ignored" | undefined;
+    s.sp.send = vi.fn(async (contactId: string, text: string) => {
+      // Simulate SendPulse's outgoing_message webhook firing (and being
+      // processed) before send() itself resolves.
+      raceResult = await handleOutgoing(contactId, {
+        ...s.deps,
+        sp: { ...s.deps.sp, getMessages: async () => [msg("1", "in", "How much to join?"), msg("2", "out", text, "2026-09-15T04:00:31Z")] },
+      });
+      return true;
+    });
+    await runBurst("c1", trig("How much to join?"), s.deps);
+    expect(raceResult).toBe("ignored");
+  });
+
+  // --- (blocker 3) The echo window is keyed to the message's own timestamp,
+  // not the run clock ----------------------------------------------------
+  describe("the 'answered by a person' check is windowed on the message's own time (blocker 3)", () => {
+    it("still recognises its own reply as an echo even when it was logged long before this run", async () => {
+      const outAt = "2026-09-15T03:50:00Z"; // 10 minutes before NOW (T0.5)
+      const s = setup({
+        thread: [msg("1", "in", "hi", T0), msg("2", "out", "Thanks, agent reply", outAt)],
+        decisions: [reply("Hi again!")],
+      });
+      const calls: string[] = [];
+      // Only "sees" the logged reply when the window is computed from the
+      // message's own timestamp (outAt), not from the run clock (NOW) — this
+      // is what actually distinguishes the old, broken windowing from the
+      // fixed one (the default fake ignores sinceIso entirely).
+      s.deps.store.recentAgentTexts = async (_id, sinceIso) => {
+        calls.push(sinceIso);
+        return Date.parse(sinceIso) <= Date.parse(outAt) ? ["Thanks, agent reply"] : [];
+      };
+      await expect(runBurst("c1", trig("hi", T0), s.deps)).resolves.toMatchObject({ kind: "reply" });
+      expect(calls[0]).toBe(new Date(Date.parse(outAt) - ECHO_WINDOW_MS).toISOString());
+    });
+
+    it("still detects a genuine person's reply with different text, and goes quiet", async () => {
+      const s = setup({ thread: [msg("1", "in", "hi", T0), msg("2", "out", "Hi, Amelia here!", "2026-09-15T04:00:10Z")] });
+      await expect(runBurst("c1", trig("hi", T0), s.deps)).resolves.toMatchObject({ kind: "skip", reason: "answered by a person" });
+      expect(s.chat?.state).toBe("quiet");
+      expect(s.decide).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- (minor 8) defaultDeps() throwing must not reject runBurst ------------
+  it("reports an error instead of throwing when defaultDeps() (adminDb) fails", async () => {
+    await expect(runBurst("c1", trig("hi"))).resolves.toMatchObject({ kind: "error" });
+  });
+
+  // --- (item 10) A behavioural test in place of arithmetic on constants -----
+  // The previous version of this test only compared RUN_BUDGET_MS,
+  // FIRST_DECIDE_MIN_BUDGET_MS etc. to each other and to a literal 180_000 —
+  // it never ran runBurst, so it could never catch a real regression in the
+  // budget check itself (see the "out of time" tests above for that). What's
+  // actually worth pinning down about these constants is the exact boundary
+  // at which the code they gate flips behaviour.
+  describe("the first-decide budget gate (item 10)", () => {
+    it("still calls decide() with exactly FIRST_DECIDE_MIN_BUDGET_MS of budget left, but hands off with 1ms less", async () => {
+      for (const [remaining, expectDecide] of [[FIRST_DECIDE_MIN_BUDGET_MS, true], [FIRST_DECIDE_MIN_BUDGET_MS - 1, false]] as const) {
+        let clock = NOW.getTime();
+        const now = () => new Date(clock);
+        const s = setup({
+          thread: [msg("1", "in", "hi")],
+          decisions: [reply("Hi!")],
+          now,
+          duringSleep: () => { clock += RUN_BUDGET_MS - remaining; },
+        });
+        await runBurst("c1", trig("hi"), s.deps);
+        expect(s.decide).toHaveBeenCalledTimes(expectDecide ? 1 : 0);
+      }
+    });
+
+    it("keeps the worst-case run inside the route's maxDuration", async () => {
+      // The behavioural tests above pin the gate; this pins the arithmetic
+      // the gate is sized against, so raising any constant past what the
+      // webhook route allows fails here instead of being killed in
+      // production mid-handoff. Worst case: the first draft starts with
+      // FIRST_DECIDE_MIN_BUDGET_MS left, runs the 35s default, a redraft
+      // runs REDRAFT_TIMEOUT_MS, then the handoff tail.
+      const firstDraftStart = RUN_BUDGET_MS - FIRST_DECIDE_MIN_BUDGET_MS;
+      const worstCase = firstDraftStart + 35_000 + REDRAFT_TIMEOUT_MS + HANDOFF_TAIL_MS;
+      expect(worstCase).toBeLessThanOrEqual(ROUTE_MAX_DURATION_MS);
+      // And the route must actually ask for that ceiling.
+      expect(ROUTE_MAX_DURATION_MS).toBe(maxDuration * 1000);
+    });
+  });
+});
+
+describe("handleOutgoing", () => {
+  // --- (minor 8) defaultDeps() throwing must not reject handleOutgoing ------
+  it("returns 'ignored' instead of throwing when defaultDeps() (adminDb) fails", async () => {
+    await expect(handleOutgoing("c1")).resolves.toBe("ignored");
+  });
+
+  it("goes quiet for an hour when a person replies", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", "2026-09-15T04:00:20Z")] });
+    await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+    expect(s.chat?.state).toBe("quiet");
+    expect(s.chat?.quiet_until).toBe("2026-09-15T05:00:30.000Z");
+  });
+
+  it("ignores its own echoes and flow messages", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Where are you based?", T0, true)] });
+    await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
+  });
+
+  // --- (e) The echo race -------------------------------------------------
+  it("waits before reading, so a just-sent reply isn't mistaken for Amelia", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Foundation starts at $50.", "2026-09-15T04:00:20Z")] });
+    // Simulate the agent's own reply having just been logged (by runBurst,
+    // before it called sp.send) with the exact same text.
+    s.events.push({ contact_id: "c1", kind: "reply", reply_text: "Foundation starts at $50." });
+    await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
+    expect(s.sleep).toHaveBeenCalledWith(5000);
+  });
+
+  it("still goes quiet when the outgoing text doesn't match anything the agent logged", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Different text entirely.", "2026-09-15T04:00:20Z")] });
+    s.events.push({ contact_id: "c1", kind: "reply", reply_text: "Foundation starts at $50." });
+    await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+    expect(s.chat?.state).toBe("quiet");
+  });
+
+  // --- (h) handleOutgoing must not throw -----------------------------------
+  it("logs an error and returns 'ignored' instead of throwing when a read fails", async () => {
+    const s = setup({
+      thread: [],
+      getMessagesImpl: async () => { throw new Error("SendPulse getMessages failed: 500"); },
+    });
+    await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
+    expect(s.events.at(-1)).toMatchObject({ kind: "error" });
+  });
+
+  // --- (item 10) Echo detection: normalise, recency, scan every message ------
+  describe("brittle echo detection (item 10)", () => {
+    it("treats a reply as its own echo despite extra whitespace (normalised comparison)", async () => {
+      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "  Foundation starts at $50.  ", "2026-09-15T04:00:20Z")] });
+      s.events.push({ contact_id: "c1", kind: "reply", reply_text: "Foundation starts at $50." });
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
+    });
+
+    it("looks back ECHO_WINDOW_MS (2 minutes) from the outgoing message's OWN timestamp, not the run clock (blocker 3)", async () => {
+      const outAt = "2026-09-15T04:00:20Z";
+      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Foundation starts at $50.", outAt)] });
+      const recentAgentTexts = vi.fn(async () => []);
+      s.deps.store.recentAgentTexts = recentAgentTexts;
+      await handleOutgoing("c1", s.deps);
+      expect(recentAgentTexts).toHaveBeenCalledWith("c1", new Date(Date.parse(outAt) - ECHO_WINDOW_MS).toISOString());
+      expect(ECHO_WINDOW_MS).toBe(2 * 60_000);
+    });
+
+    it("scans every outgoing message since the member's last one, not just the newest", async () => {
+      const s = setup({
+        thread: [
+          msg("1", "in", "hi"),
+          msg("2", "out", "Hi, Amelia here!", "2026-09-15T04:00:15Z"),
+          msg("3", "out", "Foundation starts at $50.", "2026-09-15T04:00:20Z"),
+        ],
+      });
+      s.events.push({ contact_id: "c1", kind: "reply", reply_text: "Foundation starts at $50." });
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+      expect(s.chat?.state).toBe("quiet");
+    });
+  });
+
+  // --- (blocker 3) A late-arriving echo webhook must still be recognised ----
+  describe("the echo window is keyed to the message's own timestamp (blocker 3)", () => {
+    it("recognises a reply logged 10 minutes ago as its own echo when the webhook itself arrives late", async () => {
+      const outAt = "2026-09-15T03:50:00Z"; // 10 minutes before NOW
+      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Thanks, agent reply", outAt)] });
+      // A strict fake that only "sees" the reply when the window is computed
+      // from the message's own timestamp — the default fake ignores sinceIso
+      // entirely, which wouldn't distinguish old vs. new behaviour.
+      s.deps.store.recentAgentTexts = async (_id, sinceIso) =>
+        Date.parse(sinceIso) <= Date.parse(outAt) ? ["Thanks, agent reply"] : [];
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
+      expect(s.chat).toBeNull(); // no quiet period set
+    });
+
+    it("still quiets the chat for a genuine reply with different text under the same strict window", async () => {
+      const outAt = "2026-09-15T04:00:20Z";
+      const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", outAt)] });
+      s.deps.store.recentAgentTexts = async (_id, sinceIso) =>
+        Date.parse(sinceIso) <= Date.parse(outAt) ? ["Thanks, agent reply"] : []; // never matches "Hi, Amelia here!"
+      await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+      expect(s.chat?.state).toBe("quiet");
+    });
+  });
+
+  // --- (minor 6) One amelia_reply row (and one quiet period) per reply ------
+  it("logs exactly one amelia_reply row, and doesn't re-extend quiet_until, across repeated webhooks for the same reply", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi"), msg("2", "out", "Hi, Amelia here!", "2026-09-15T04:00:20Z")] });
+    await expect(handleOutgoing("c1", s.deps)).resolves.toBe("amelia_reply");
+    const quietAfterFirst = s.chat?.quiet_until;
+    // A retried/duplicate webhook for the exact same outgoing message.
+    await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
+    expect(s.events.filter((e) => e.kind === "amelia_reply")).toHaveLength(1);
+    expect(s.chat?.quiet_until).toBe(quietAfterFirst);
+  });
+});
