@@ -163,7 +163,7 @@ const TIER_LADDER = (
 const FORM_STEP: Step = {
   icon: ChatIcon,
   title: "Fill in the form below",
-  body: <>Message Admin Amelia on Telegram, then submit your deposit details with a screenshot. We check it against your account and switch you on.</>,
+  body: <>Submit your deposit details with a screenshot, then message Admin Amelia on Telegram so we can reach you. We check it against your account and switch you on.</>,
   ctas: [{ label: "Go to the form", href: "#submit-deposit", primary: true }],
 };
 

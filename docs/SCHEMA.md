@@ -87,15 +87,26 @@ In-app deposit submissions (conversion-fix 5.1 and 5.4). A user submits from `/u
 | `amount` | `numeric(12,2)` | no | At least 50. |
 | `tradingview_username` | `text` | yes | Optional @handle. |
 | `telegram_username` | `text` | yes | The member's Telegram @handle without the @, 5–32 letters, numbers or underscores. **Required on new submissions** (`20260915000005`; the old 5-argument `fn_submit_deposit` was dropped in `20260915000006` once the new app was live); null only on the one submission from before it was required. |
+| `admin_dm_clicked_at` | `timestamptz` | yes | When the member clicked "Message Admin Amelia" (@MM_3000) after submitting, via `fn_mark_submission_dm_clicked`. The DM itself can't be seen. `20260915000007`. |
+| `dm_reminder_sent_at` | `timestamptz` | yes | When the one 24-hour reminder email was claimed for sending, via `fn_claim_dm_reminders`. `20260915000007`. |
 | `proof_path` | `text` | no | Object name in `deposit-proofs`: `<user_id>/<file>`. |
-| `status` | `text` | no | `pending` (default), `verified` or `rejected`. At most one `pending` per user (partial unique index). |
+| `status` | `text` | no | `pending` (default), `verified`, `rejected` or `closed` (`closed` added in `20260915000008`: already recorded another way, no ledger entry). At most one `pending` per user (partial unique index). |
 | `reject_reason` | `text` | yes | Shown to the user on `/upgrade`. |
+| `verified_amount` | `numeric(12,2)` | yes | The amount verified into the ledger, which can differ from `amount` when the admin corrected it in the queue. `20260915000008`. |
+| `admin_note` | `text` | yes | Admin-only, never shown to the member: why it was closed, or "Verified as $X (submitted $Y)". `20260915000008`. |
 | `reviewed_by` / `reviewed_at` | `uuid` / `timestamptz` | yes | Set by the review RPC (5.2). |
 | `created_at` | `timestamptz` | no | `now()`. |
 
 **RLS:** users `SELECT` their own rows, and admins `SELECT` all. There's no direct insert or update. **Writer:** `fn_submit_deposit(p_broker, p_trading_account_number, p_amount, p_tradingview_username, p_proof_path, p_telegram_username)` (`authenticated`). It validates broker, account number, a $50 minimum and the TradingView handle; checks that the proof exists **in the caller's own folder**; allows one pending submission at a time; and logs `deposit_submitted {amount, broker}`.
 
-**Reviewer:** `fn_review_deposit_submission(p_id, p_action 'verify'|'reject', p_reason, p_ib_confirmed)` (admin-only, `20260910000009`). The submission must still be `pending`, and the row is locked so it can't be reviewed twice. **Verify** runs `fn_verify_deposit` with the submission's broker and amount, so every Phase 3 rule applies, including the IB check, the ledger, top-ups and the double-submit guard. It also saves the submitted account number when the profile has none. **Reject** needs a reason, which the member sees. Both stamp `reviewed_by` and `reviewed_at`.
+**Reviewer:** `fn_review_deposit_submission(p_id, p_action 'verify'|'reject'|'close', p_reason, p_ib_confirmed, p_amount)` (admin-only; `20260910000009`, replaced in `20260915000008`, which dropped the 4-argument signature. `p_amount` defaults to null, so 4-argument named calls still resolve). The submission must still be `pending`, and the row is locked so it can't be reviewed twice.
+- **Verify** runs `fn_verify_deposit` with the submission's broker and `coalesce(p_amount, amount)`, the amount the admin actually saw at the broker, with a $50 minimum. Every Phase 3 rule applies, including the IB check, the ledger, top-ups and the double-submit guard. The verified amount is kept in `verified_amount`, and when it differs from `amount`, `admin_note` records both. It also saves the submitted account number when the profile has none.
+- **Reject** needs a reason, which the member sees.
+- **Close** marks the submission `closed` with **no ledger entry, no email and nothing shown to the member**. It's for a deposit already recorded another way, for example with the manual verify form. `p_reason` becomes the admin-only `admin_note` (default "Closed: already recorded").
+
+All three stamp `reviewed_by` and `reviewed_at`.
+
+**Message Admin Amelia (`20260915000007`):** after submitting, the member's last step is a Telegram DM to @MM_3000, because the desk doesn't message members first. `fn_mark_submission_dm_clicked()` (`authenticated`, no arguments) stamps `admin_dm_clicked_at` on the caller's own pending submission. `fn_claim_dm_reminders(p_limit)` (`service_role` only) atomically stamps `dm_reminder_sent_at` on pending submissions over 24 hours old with no click and no reminder yet (`for update skip locked`), and returns `submission_id, member_id, email, full_name, amount`. `/api/cron/deposit-dm-reminder` emails each one once. It's called hourly by pg_cron job `deposit-dm-reminder` with the same `CRON_SECRET` as `daily-stats`.
 
 **Hot leads:** `fn_admin_hot_leads(p_limit)` (admin-only, `20260910000010`, conversion-fix 5.5). Returns users who saved a TradingView username, viewed Daily Analysis, were active on 3 or more distinct days (a proxy for sessions, which aren't recorded), and viewed `/upgrade`, but have no `deposit_submissions` row and aren't `member_active`. Most recently active first.
 

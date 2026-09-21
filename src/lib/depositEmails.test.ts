@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { depositVerifiedEmail, depositRejectedEmail } from "./depositEmails";
+import { depositVerifiedEmail, depositRejectedEmail, depositDmReminderEmail } from "./depositEmails";
 
 const RISK = "No returns are guaranteed.";
 // Whole words: the risk line itself says "returns", so it's stripped first.
@@ -24,6 +24,29 @@ describe("depositVerifiedEmail", () => {
   it("calls a first deposit a deposit", () => {
     expect(depositVerifiedEmail({ name: null, amount: 60, cumulative: 60, tier: "foundation", topUp: false }).text)
       .toContain("Hi,\n\nYour $60 deposit is verified. You're on Foundation");
+  });
+});
+
+describe("depositDmReminderEmail", () => {
+  const e = depositDmReminderEmail({ name: "Alex Rivera", amount: 120, ref: "MM-9FBDA4" });
+
+  it("asks for the message to Admin Amelia, with the ref prefilled in the chat link", () => {
+    expect(e.subject).toBe("One last step for your $120 deposit");
+    expect(e.text).toContain("Hi Alex,");
+    expect(e.text).toContain("send Admin Amelia a message on Telegram");
+    expect(e.text).toContain("https://t.me/MM_3000?text=");
+    expect(e.text).toContain(encodeURIComponent("My reference is MM-9FBDA4."));
+    expect(e.html).toContain("MM-9FBDA4");
+  });
+
+  it("carries the risk line and makes no earnings claim", () => {
+    expect(e.text).toContain(RISK);
+    expect(e.html).toContain(RISK);
+    expect(e.text.replace(RISK, "")).not.toMatch(CLAIM);
+  });
+
+  it("escapes the name in HTML", () => {
+    expect(depositDmReminderEmail({ name: "<b>Sam</b>", amount: 50, ref: "MM-000000" }).html).toContain("Hi &lt;b&gt;Sam&lt;/b&gt;,");
   });
 });
 
