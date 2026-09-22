@@ -31,6 +31,12 @@ export interface ContactInfo {
   firstName: string;
   /** Arrived through Admin Amelia's account (Telegram Business). */
   isBusiness: boolean;
+  /**
+   * SendPulse's contact `type`. 1 and 2 are people in the bot chat, 5 is a
+   * Telegram Business chat; 3 is a CHANNEL and 4 a group — posting there is
+   * public, so the agent must never reply. Null when the API didn't say.
+   */
+  chatType: number | null;
   tags: string[];
 }
 

@@ -26,6 +26,21 @@ export const QUIET_MINUTES = 60;
 // actually keeps the agent out of the chat is support_chats.state =
 // needs_amelia, which holds until an admin clears it in /admin/support.
 export const HANDOFF_PAUSE_MINUTES = 120;
+/**
+ * SendPulse contact types the agent may reply in: 1 and 2 are people in the
+ * bot chat, 5 is a Telegram Business chat. Type 3 is a CHANNEL and 4 a group —
+ * a reply there is public, and one did go out: a channel post ("MACRO LAYERS ·
+ * XAUUSD") reached the webhook as an incoming message and the agent posted its
+ * handoff line to the channel. An allowlist, not a blocklist: an unrecognised
+ * or missing type is skipped too, because the cost of guessing wrong is a
+ * public message.
+ */
+export const DIRECT_CHAT_TYPES: ReadonlySet<number> = new Set([1, 2, 5]);
+
+export function isDirectChat(chatType: number | null): boolean {
+  return chatType !== null && DIRECT_CHAT_TYPES.has(chatType);
+}
+
 export const PREFIX = "MMFX Assistant: ";
 /**
  * Overall internal-accounting budget for one burst, measured from the top of
@@ -276,12 +291,18 @@ export async function runBurst(
     const memberTexts = thread.filter((m) => m.direction === "in").map((m) => m.text);
 
     const contact: ContactInfo = (await sp.getContact(contactId))
-      ?? { id: contactId, username: null, firstName: "", isBusiness: false, tags: [] };
+      ?? { id: contactId, username: null, firstName: "", isBusiness: false, tags: [], chatType: null };
+    // chatType null on the fallback is deliberate: if SendPulse can't tell us
+    // what kind of chat this is, we can't rule out a channel, and the guard
+    // below stays silent rather than risk a public reply.
     // Belt and braces (item 2): SendPulse's own tag backstops a lost
     // support_chats row — if a previous handoff's saveChat failed to
     // persist but its setTag call still landed, the tag alone must still
     // keep the agent from replying over Amelia.
     if (contact.tags.includes(TAG)) return skip("needs_amelia (tag)");
+    // A channel or group post is not a member asking a question, and any reply
+    // would be public. Stop before the model call and before any send.
+    if (!isDirectChat(contact.chatType)) return skip(`not a 1:1 chat (type ${contact.chatType ?? "unknown"})`);
     const member = await deps.findMember({ texts: memberTexts, telegramUsername: contact.username });
     // `state`/`quiet_until` are deliberately NOT written here (item 1) —
     // `handleOutgoing` and `handoff` are the only writers of chat state. This

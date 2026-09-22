@@ -209,7 +209,7 @@ describe("getContact", () => {
         business_connection: { id: "b" }, tags: [{ name: "country_UK/USA" }, "capital_under100"] } });
     });
     await expect(getContact("c1")).resolves.toEqual({
-      id: "c1", username: "Sam_T", firstName: "Sam", isBusiness: true, tags: ["country_UK/USA", "capital_under100"],
+      id: "c1", username: "Sam_T", firstName: "Sam", isBusiness: true, tags: ["country_UK/USA", "capital_under100"], chatType: null,
     });
   });
 
@@ -316,4 +316,13 @@ describe("deletePauseAutomation", () => {
     });
     await expect(deletePauseAutomation("c1")).resolves.toBe(false);
   });
+
+  it("carries SendPulse's contact type, so the agent can tell a channel from a person", async () => {
+    mockFetch((url) => {
+      if (url.endsWith("/oauth/access_token")) return json({ access_token: "T", expires_in: 3600 });
+      return json({ data: { id: "c9", type: 3, channel_data: { username: "mmsignalsfx", first_name: "Market Makers" } } });
+    });
+    await expect(getContact("c9")).resolves.toMatchObject({ chatType: 3 });
+  });
+
 });

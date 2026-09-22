@@ -45,7 +45,7 @@ describe.skipIf(!RUN)("support replay", () => {
         id: `${i}-${j}`, direction: m.d === 1 ? "in" as const : "out" as const,
         fromFlow: Boolean(m.flow), text: m.t, at: m.at ?? new Date().toISOString(),
       }));
-      const contact = { id: "replay", username: null, firstName: "", isBusiness: false, tags: [] };
+      const contact = { id: "replay", username: null, firstName: "", isBusiness: false, tags: [], chatType: 1 };
       const ctx = { facts, memberTexts: thread.filter((m) => m.direction === "in").map((m) => m.text), member: null };
 
       // Same order as run.ts: the always-human rules fire before any model call.

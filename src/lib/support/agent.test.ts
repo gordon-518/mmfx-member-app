@@ -12,7 +12,7 @@ const settings: SupportSettings = {
 };
 const facts = buildFactSheet(settings, new Date("2026-09-15T04:00:00Z"));
 
-const contact: ContactInfo = { id: "1", username: "alex", firstName: "Alex", isBusiness: false, tags: [] };
+const contact: ContactInfo = { id: "1", username: "alex", firstName: "Alex", isBusiness: false, tags: [], chatType: 1 };
 
 function thread(...msgs: Partial<ThreadMessage>[]): ThreadMessage[] {
   return msgs.map((m, i) => ({
@@ -325,7 +325,7 @@ describe("describeTags", () => {
     const content = buildUserContent({
       thread: [{ id: "1", direction: "in", fromFlow: false, text: "hi", at: "2026-09-15T01:00:00Z" }],
       contact: { id: "c1", username: null, firstName: "GG", isBusiness: false,
-        tags: ["country_malaysia", "country_UK/USA"] },
+        tags: ["country_malaysia", "country_UK/USA"], chatType: 1 },
       member: null,
     });
     expect(content).toContain("UNKNOWN");
