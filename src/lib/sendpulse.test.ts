@@ -160,6 +160,45 @@ describe("sendEmail", () => {
     expect(JSON.parse(String(smtp!.init.body)).email).not.toHaveProperty("headers");
   });
 
+  it("returns SendPulse's send id, the join key for every webhook event", async () => {
+    // {"result":true,"id":"tlr7m5-1bve4z-ik"} — email_sends.provider_id.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.includes("/oauth/access_token")
+          ? new Response(JSON.stringify({ access_token: "tok" }), { status: 200 })
+          : new Response(JSON.stringify({ result: true, id: "tlr7m5-1bve4z-ik" }), { status: 200 })
+      )
+    );
+    const res = await sendEmail(mailParams);
+    expect(res.ok).toBe(true);
+    expect(res.id).toBe("tlr7m5-1bve4z-ik");
+  });
+
+  it("stringifies a numeric id — the KB shows one, the API returns strings", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.includes("/oauth/access_token")
+          ? new Response(JSON.stringify({ access_token: "tok" }), { status: 200 })
+          : new Response(JSON.stringify({ result: true, id: 481516 }), { status: 200 })
+      )
+    );
+    expect((await sendEmail(mailParams)).id).toBe("481516");
+  });
+
+  it("has no id when SendPulse returns none", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.includes("/oauth/access_token")
+          ? new Response(JSON.stringify({ access_token: "tok" }), { status: 200 })
+          : new Response(JSON.stringify({ result: true }), { status: 200 })
+      )
+    );
+    expect((await sendEmail(mailParams)).id).toBeUndefined();
+  });
+
   it("returns ok:false when SendPulse credentials are absent", async () => {
     delete process.env.SENDPULSE_API_ID;
     delete process.env.SENDPULSE_API_SECRET;

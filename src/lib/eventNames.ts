@@ -15,6 +15,9 @@ export const APP_EVENTS = [
   "tier_changed",
   "onboarding_step_done",
   "deposit_submitted",
+  // Server-only (email v2 §4): middleware logs it when a signed-in reader
+  // lands on any app URL carrying an EML- cid. Deliberately NOT a CLIENT_EVENT.
+  "email_visit",
 ] as const;
 
 export type AppEvent = (typeof APP_EVENTS)[number];
