@@ -14,6 +14,7 @@
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { brandFonts, DISPLAY, BODY } from "@/lib/organic/renderFonts";
+import { BoldCarouselSlide } from "@/lib/organic/boldCarousel";
 import {
   anchorFor,
   anchorStyle,
@@ -38,7 +39,6 @@ type Body = {
   height?: number;
 };
 
-const SLIDE_ROLES = ["hook", "context", "mechanism", "proof", "cta"];
 
 // Vertical room the copy block actually has: the frame less its padding, the wordmark
 // row, and the footer (text + its top padding and rule).
@@ -248,37 +248,10 @@ export async function POST(req: NextRequest) {
       </Frame>
     );
   } else if (body.template === "lesson-carousel") {
-    // One slide per request; the caller loops the five roles.
-    const role = body.slide ?? "hook";
-    const index = SLIDE_ROLES.indexOf(role) + 1;
-    content = (
-      <Frame w={w} h={h}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Wordmark />
-          <div style={{ display: "flex", fontSize: 26, fontWeight: 700, color: SUB }}>
-            {index}/5
-          </div>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            ...blockStyle(
-              [{ text: s[role] ?? "", fontSize: role === "hook" ? 78 : 54, lineHeight: 1.15 }],
-              0,
-              h
-            ),
-            fontSize: role === "hook" ? 78 : 54,
-            fontWeight: 800,
-            color: role === "cta" ? ORANGE : INK,
-            lineHeight: 1.15,
-            fontFamily: DISPLAY,
-          }}
-        >
-          {s[role] ?? ""}
-        </div>
-        <Footer text={role === "cta" ? "app.marketmakersfx.net" : "Swipe"} />
-      </Frame>
-    );
+    // One slide per request; the caller loops the five roles. The layout, colour and
+    // furniture all live in BoldCarouselSlide — see that file for why each slide is
+    // deliberately unlike the one before it.
+    content = <BoldCarouselSlide role={body.slide ?? "hook"} slots={s} w={w} h={h} />;
   } else {
     return new Response(JSON.stringify({ error: `unknown template: ${body.template}` }), {
       status: 400,
