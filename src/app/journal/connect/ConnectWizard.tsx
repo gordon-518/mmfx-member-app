@@ -35,8 +35,11 @@ function CredentialsStep({
   const [password, setPassword] = useState("");
   const [server, setServer] = useState("");
   const [label, setLabel] = useState("");
-  // The servers this broker really runs, offered as suggestions.
+  // The servers this broker really runs, offered in the dropdown. The list
+  // isn't exhaustive, so "Other" lets a member type theirs (22 Sep).
   const servers = knownServersFor(brokerId);
+  const [typingServer, setTypingServer] = useState(false);
+  const showServerInput = typingServer || servers.length === 0;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,7 +99,11 @@ function CredentialsStep({
           id="mt5-broker"
           className={`${inputCls} mt-1.5`}
           value={brokerId}
-          onChange={(e) => setBrokerId(e.target.value)}
+          onChange={(e) => {
+            setBrokerId(e.target.value);
+            setServer("");
+            setTypingServer(false);
+          }}
           required
         >
           <option value="" disabled>
@@ -133,30 +140,56 @@ function CredentialsStep({
         <label className={labelCls} htmlFor="mt5-server">
           Broker server
         </label>
-        {/* Suggest the servers the broker really runs (brokerServers.ts); the
-            API checks the same list, and refuses demo servers. */}
-        <input
-          id="mt5-server"
-          list="mt5-server-options"
-          className={`${inputCls} mt-1.5`}
-          value={server}
-          onChange={(e) => setServer(e.target.value)}
-          placeholder={
-            servers.length > 0
-              ? `e.g. ${servers[0]} (shown on your MT5 login screen)`
-              : "Shown on your MT5 login screen"
-          }
-          required
-        />
-        <datalist id="mt5-server-options">
-          {servers.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
+        {/* The servers this broker runs (brokerServers.ts), with "Other" for
+            anyone on one we haven't listed. The API checks the same rules and
+            refuses demo servers either way. */}
+        {servers.length > 0 && (
+          <select
+            id="mt5-server"
+            className={`${inputCls} mt-1.5`}
+            value={showServerInput ? "__other" : server}
+            onChange={(e) => {
+              if (e.target.value === "__other") {
+                setTypingServer(true);
+                setServer("");
+              } else {
+                setTypingServer(false);
+                setServer(e.target.value);
+              }
+            }}
+            required={!showServerInput}
+          >
+            <option value="" disabled>
+              Choose your server
+            </option>
+            {servers.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+            <option value="__other">Other — type it</option>
+          </select>
+        )}
+        {showServerInput && (
+          <input
+            id={servers.length > 0 ? "mt5-server-other" : "mt5-server"}
+            className={`${inputCls} mt-1.5`}
+            value={server}
+            onChange={(e) => setServer(e.target.value)}
+            placeholder={
+              servers.length > 0
+                ? `e.g. ${servers[0]}`
+                : "Shown on your MT5 login screen"
+            }
+            autoFocus={servers.length > 0}
+            required
+          />
+        )}
         <p className="mt-1.5 text-[12px] leading-relaxed text-subtle">
-          Copy it exactly from your MT5 login screen.{" "}
-          <span className="font-semibold">Live accounts only</span> — the
-          assistant can&apos;t review a demo account.
+          Not listed? Choose <span className="font-semibold">Other</span> and
+          copy it exactly from your MT5 login screen.{" "}
+          <span className="font-semibold">Live accounts only</span>
+          {" — "}the assistant can&apos;t review a demo account.
         </p>
       </div>
       <div>
