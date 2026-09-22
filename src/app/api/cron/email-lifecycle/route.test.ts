@@ -175,7 +175,7 @@ describe("POST /api/cron/email-lifecycle", () => {
           error: null,
           provider_id: "tlr7m5-1bve4z-ik",
           variant: "A",
-          subject: "Welcome in — start with today's gold read",
+          subject: "Start with today's gold read",
         },
       },
     ]);
