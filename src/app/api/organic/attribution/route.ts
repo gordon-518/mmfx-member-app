@@ -1,4 +1,8 @@
-// Signups per organic cid, for the marketing brain's measure.ts.
+// Signups and verified deposits per attribution cid, for the marketing brain's
+// measure.ts. Covers ORG-% (organic) and, since 20260921000002, EML-% (the
+// lifecycle email rail). Rows are passed through exactly as the function
+// returns them — { cid, signups, deposits } — so a widened shape needs no
+// change here.
 // Bearer CRON_SECRET — same posture as /api/cron/*. Service role, because
 // profiles is RLS-gated to the owning user and this is an aggregate read.
 import { NextRequest, NextResponse } from "next/server";

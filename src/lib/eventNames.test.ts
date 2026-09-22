@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { isClientEvent, sanitizeClientProps } from "./eventNames";
+import { APP_EVENTS, isClientEvent, sanitizeClientProps } from "./eventNames";
+
+describe("APP_EVENTS", () => {
+  it("carries email_visit, the post-click attribution event", () => {
+    expect(APP_EVENTS).toContain("email_visit");
+  });
+});
 
 describe("isClientEvent", () => {
   it("accepts only the browser-originated events", () => {
@@ -11,6 +17,8 @@ describe("isClientEvent", () => {
     expect(isClientEvent("deposit_verified")).toBe(false);
     expect(isClientEvent("feature_view")).toBe(false);
     expect(isClientEvent("upgrade_viewed")).toBe(false);
+    // Only middleware logs this one, with the service-role key.
+    expect(isClientEvent("email_visit")).toBe(false);
   });
   it("rejects non-strings and unknown names", () => {
     expect(isClientEvent(undefined)).toBe(false);

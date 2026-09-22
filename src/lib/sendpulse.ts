@@ -29,17 +29,46 @@ export interface SendEmailParams {
   html: string;
   text?: string;
   attachments?: EmailAttachment[];
+  /**
+   * Extra SMTP headers on the email object, e.g. List-Unsubscribe and
+   * List-Unsubscribe-Post (RFC 8058). Gmail and Yahoo require both above
+   * ~5k/day. Omitted entirely when absent, so existing callers are unchanged.
+   */
+  headers?: Record<string, string>;
 }
 
 export interface SendResult {
   ok: boolean;
   detail: unknown;
+  /**
+   * SendPulse's id for the accepted message, from `{"result":true,"id":"…"}`.
+   * It is the join key for every SMTP webhook event, so the lifecycle rail
+   * stores it on email_sends.provider_id. Coerced to a string: the API returns
+   * ids like "tlr7m5-1bve4z-ik", but the KB shows a numeric one.
+   */
+  id?: string;
+}
+
+// SendPulse access tokens live for 3,600s. Fetching one per email doubled
+// the round trips of a 200-row lifecycle batch for nothing, so the token is
+// held for the life of the module (one Vercel invocation, in practice) and
+// dropped a safe margin before expiry, or on the first 401.
+const TOKEN_TTL_MS = 50 * 60 * 1000;
+let tokenCache: { key: string; token: string; expires: number } | null = null;
+
+/** Test hook: forget any cached token. */
+export function _resetSendpulseTokenCache(): void {
+  tokenCache = null;
 }
 
 async function sendpulseToken(): Promise<string | null> {
   const id = process.env.SENDPULSE_API_ID;
   const secret = process.env.SENDPULSE_API_SECRET;
   if (!id || !secret) return null;
+  const key = `${id}:${secret}`;
+  if (tokenCache && tokenCache.key === key && tokenCache.expires > Date.now()) {
+    return tokenCache.token;
+  }
   const r = await fetch(SP_OAUTH, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -50,7 +79,9 @@ async function sendpulseToken(): Promise<string | null> {
     }),
   });
   const j = await r.json().catch(() => ({}));
-  return j?.access_token ?? null;
+  const token: string | null = j?.access_token ?? null;
+  tokenCache = token ? { key, token, expires: Date.now() + TOKEN_TTL_MS } : null;
+  return token;
 }
 
 export async function sendEmail(params: SendEmailParams): Promise<SendResult> {
@@ -66,6 +97,9 @@ export async function sendEmail(params: SendEmailParams): Promise<SendResult> {
       html: Buffer.from(params.html, "utf8").toString("base64"),
     };
     if (params.text) email.text = params.text;
+    if (params.headers && Object.keys(params.headers).length) {
+      email.headers = params.headers;
+    }
 
     if (params.attachments?.length) {
       // Binary attachments go as an object keyed by filename → base64 content.
@@ -74,16 +108,25 @@ export async function sendEmail(params: SendEmailParams): Promise<SendResult> {
       email.attachments_binary = bin;
     }
 
-    const res = await fetch(SP_SMTP, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email }),
-    });
+    const post = (bearer: string) =>
+      fetch(SP_SMTP, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${bearer}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+    let res = await post(token);
+    if (res.status === 401 && tokenCache) {
+      // A cached token SendPulse no longer honours: refresh once, then give up.
+      tokenCache = null;
+      const fresh = await sendpulseToken();
+      if (fresh) res = await post(fresh);
+    }
     const detail = await res.json().catch(() => ({}));
-    return { ok: res.ok && detail?.result !== false, detail };
+    const id = detail?.id == null ? undefined : String(detail.id);
+    return { ok: res.ok && detail?.result !== false, detail, id };
   } catch (e) {
     return { ok: false, detail: String(e) };
   }
