@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { serviceClient } from "@/lib/journal/api";
 import { sendEmail, type EmailAddress } from "@/lib/sendpulse";
 import { renderLifecycle, templateFor } from "@/lib/email/lifecycle";
-import type { LifecycleCtx, LifecycleEmail } from "@/lib/email/lifecycle/types";
+import type { LifecycleCopy, LifecycleCtx, LifecycleEmail } from "@/lib/email/lifecycle/types";
 import { tierFor } from "@/lib/tiers";
 import type { AccountStatus } from "@/lib/trial/status";
 
@@ -220,7 +220,10 @@ async function run(req: NextRequest) {
       } else if (!templateFor(row.flow, row.step)) {
         why = `no template for ${row.flow}/${row.step}`;
       } else {
-        mail = renderLifecycle(row.flow, row.step, ctx);
+        // Part C fills this from the claimed row's variant arm; until then
+        // every send renders the template's own approved default.
+        const variantCopy: LifecycleCopy | undefined = undefined;
+        mail = renderLifecycle(row.flow, row.step, { ...ctx, copy: variantCopy });
       }
     } catch (e) {
       why = String(e);

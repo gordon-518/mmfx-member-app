@@ -127,8 +127,14 @@ describe("lifecycle templates", () => {
           expect(email.html).toContain("— Don, Market Makers FX");
           // A body fragment: the rail's shell owns the document and the footer.
           expect(email.html).not.toContain("<html");
-          expect(email.html).not.toContain("<img");
           expect(email.html).not.toContain(fixture.ctx.unsubUrl);
+          // v2 body fragments DO carry images — the tracker's check and ring
+          // discs, the feature tiles — but only from the versioned asset base,
+          // and every one of them degrades to alt text when images are off.
+          for (const tag of email.html.match(/<img [^>]*>/g) ?? []) {
+            expect(tag, tag).toContain("https://marketmakersfx.net/email/v1/");
+            expect(tag, tag).toMatch(/\salt="[^"]+"/);
+          }
           // "MMFX" is an internal name; readers get "Market Makers".
           expect(email.subject).not.toContain("MMFX");
           expect(stripped).not.toContain("MMFX");

@@ -20,25 +20,25 @@
 // email_spotlights and hands it to the template on the ctx, and the template
 // supplies the envelope around it.
 
-import type { LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "./types";
+import type { LifecycleCopy, LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "./types";
 import { wrapLifecycle } from "./render";
-import analysis from "./templates/analysis";
-import brokerClicked from "./templates/broker-clicked";
-import day12 from "./templates/day12";
-import digest from "./templates/digest";
-import kys from "./templates/kys";
-import ladder from "./templates/ladder";
-import lesson1 from "./templates/lesson1";
-import memberD3 from "./templates/member-d3";
-import memberD7 from "./templates/member-d7";
-import memberDormant from "./templates/member-dormant";
-import spotlight from "./templates/spotlight";
-import tv from "./templates/tv";
-import upgradeSeen from "./templates/upgrade-seen";
-import welcome from "./templates/welcome";
+import analysis, { defaultCopy as analysisCopy } from "./templates/analysis";
+import brokerClicked, { defaultCopy as brokerClickedCopy } from "./templates/broker-clicked";
+import day12, { defaultCopy as day12Copy } from "./templates/day12";
+import digest, { defaultCopy as digestCopy } from "./templates/digest";
+import kys, { defaultCopy as kysCopy } from "./templates/kys";
+import ladder, { defaultCopy as ladderCopy } from "./templates/ladder";
+import lesson1, { defaultCopy as lesson1Copy } from "./templates/lesson1";
+import memberD3, { defaultCopy as memberD3Copy } from "./templates/member-d3";
+import memberD7, { defaultCopy as memberD7Copy } from "./templates/member-d7";
+import memberDormant, { defaultCopy as memberDormantCopy } from "./templates/member-dormant";
+import spotlight, { defaultCopy as spotlightCopy } from "./templates/spotlight";
+import tv, { defaultCopy as tvCopy } from "./templates/tv";
+import upgradeSeen, { defaultCopy as upgradeSeenCopy } from "./templates/upgrade-seen";
+import welcome, { defaultCopy as welcomeCopy } from "./templates/welcome";
 
-export type { LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "./types";
-export { COMPLIANCE_LINE, FOOTER_NOTE, wrapLifecycle } from "./render";
+export type { LifecycleCopy, LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "./types";
+export { COMPLIANCE_LINE, contextLabelFor, FOOTER_NOTE, wrapLifecycle } from "./render";
 
 export const FLOWS: Readonly<Record<string, Readonly<Record<string, LifecycleTemplate>>>> = {
   // A. Trial activation (§3A)
@@ -49,6 +49,30 @@ export const FLOWS: Readonly<Record<string, Readonly<Record<string, LifecycleTem
   rescue: { "upgrade-seen": upgradeSeen, "broker-clicked": brokerClicked },
   // D. Member activation (§3D)
   member: { "member-d3": memberD3, "member-d7": memberD7, "member-dormant": memberDormant },
+};
+
+/**
+ * The approved default words for every step, keyed `"<flow>/<step>"`.
+ *
+ * This is what a challenger variant is measured against and what the metrics
+ * route hands the brain (plan §0.4), so it lives beside the registry rather
+ * than being re-derived by importing fourteen modules somewhere else.
+ */
+export const DEFAULT_COPY: Readonly<Record<string, LifecycleCopy>> = {
+  "trial/welcome": welcomeCopy,
+  "trial/analysis": analysisCopy,
+  "trial/kys": kysCopy,
+  "trial/tv": tvCopy,
+  "trial/lesson1": lesson1Copy,
+  "trial/ladder": ladderCopy,
+  "trial/day12": day12Copy,
+  "nurture/digest": digestCopy,
+  "nurture/spotlight": spotlightCopy,
+  "rescue/upgrade-seen": upgradeSeenCopy,
+  "rescue/broker-clicked": brokerClickedCopy,
+  "member/member-d3": memberD3Copy,
+  "member/member-d7": memberD7Copy,
+  "member/member-dormant": memberDormantCopy,
 };
 
 /** The template for a claimed (flow, step), or null if the pair is unknown. */
