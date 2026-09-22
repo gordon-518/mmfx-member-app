@@ -140,10 +140,13 @@ alter table public.email_spotlights enable row level security;
 -- ---------------------------------------------------------------------------
 create or replace function public.fn_claim_email_sends(
   p_limit         integer   default 200,
-  -- ISO day-of-week (Mon = 1). DIGEST_DAYS, default Mon/Wed/Fri (§3B).
-  p_digest_days   integer[] default array[1, 3, 5],
-  -- Spotlight day, default Thursday so it never lands on a digest day.
-  p_spotlight_day integer   default 4
+  -- ISO day-of-week (Mon = 1). DIGEST_DAYS: every trading day (Gordon,
+  -- 2026-09-22). The desk publishes Mon-Fri, so weekends carry no digest.
+  p_digest_days   integer[] default array[1, 2, 3, 4, 5],
+  -- Spotlight day, default Saturday: the one day with no read to displace
+  -- (spotlight outranks digest on a clash), and weekend reading time for a
+  -- guide. SPOTLIGHT_DAY overrides.
+  p_spotlight_day integer   default 6
 )
 returns table (
   send_id                   uuid,
@@ -182,6 +185,11 @@ declare
   -- The desk runs on Singapore time, and so does "today's" analysis.
   v_today     date    := (now() at time zone 'Asia/Singapore')::date;
   v_dow       integer := extract(isodow from (now() at time zone 'Asia/Singapore'))::integer;
+  -- Midnight SGT today, as an instant. The one-email-per-day cap (§1.5) is a
+  -- CALENDAR day, not a rolling 24h: a rolling window ratchets every send later
+  -- than the last one (eligible at 14:20 → claimed 14:25 → eligible 14:25 …),
+  -- so a daily digest would drift towards midnight and start missing days.
+  v_day_start timestamptz := (v_today::timestamp) at time zone 'Asia/Singapore';
   v_spotlight uuid;
 begin
   perform pg_catalog.pg_advisory_xact_lock(4821001);
@@ -218,11 +226,20 @@ begin
     -- yesterday. Matching on = v_today dropped Monday's digest entirely.
     -- Hence <= v_today, bounded to the last day so a gap in publishing can
     -- never present a stale read as today's.
+    --
+    -- And it must have been WRITTEN today (SGT). The desk publishes between
+    -- 12:00 and 19:00 SGT (82 reads sampled 2026-09-22: none before 07:00),
+    -- while this runs around the clock. Without this bound the 00:05 run
+    -- would send yesterday's read under today's dedupe key, and today's real
+    -- read would then never go out. created_at is the upload instant; the
+    -- only rows where it disagrees with published_on are June's backfills,
+    -- which the published_on window already excludes.
     select d.title, d.bias, d.description
       from public.daily_analysis d
      where d.is_published
        and d.published_on <= v_today
        and d.published_on >= v_today - 1
+       and d.created_at >= v_day_start
      order by d.published_on desc, d.created_at desc
      limit 1
   ),
@@ -288,20 +305,20 @@ begin
        and p.email <> ''
        -- guard 1: opted out of marketing
        and pr.marketing_opted_out = false
-       -- guard 2: one email per user per day, across EVERY lane (§1.5)
+       -- guard 2: one email per user per SGT calendar day, across EVERY lane (§1.5)
        and not exists (
              select 1 from public.email_sends s
-              where s.user_id = p.id and s.sent_at > now() - interval '24 hours')
+              where s.user_id = p.id and s.sent_at >= v_day_start)
        and not exists (
              select 1 from public.journal_interventions ji
-              where ji.user_id = p.id and ji.sent_at > now() - interval '24 hours')
+              where ji.user_id = p.id and ji.sent_at >= v_day_start)
        -- The third lane: deposit-dm-reminder emails from its own table, so a
        -- member nudged about their submission must not also get a lifecycle
        -- email the same day.
        and not exists (
              select 1 from public.deposit_submissions ds
               where ds.user_id = p.id
-                and ds.dm_reminder_sent_at > now() - interval '24 hours')
+                and ds.dm_reminder_sent_at >= v_day_start)
        -- Admins are staff, not an audience (as fn_admin_hot_leads has it).
        and not coalesce(p.is_admin, false)
   ),
@@ -472,10 +489,14 @@ grant execute on function public.fn_claim_email_sends(integer, integer[], intege
 
 
 -- ============================================================================
--- Scheduler — pg_cron + pg_net call the Vercel route hourly. Hourly, not
--- daily: the claim function paces itself (one email per user per 24h, p_limit
--- rows per run), so an hourly run spreads a 4,000-recipient digest across the
--- day instead of hammering SendPulse in one burst.
+-- Scheduler — pg_cron + pg_net call the Vercel route every five minutes.
+-- The claim function paces itself (one email per user per SGT day, p_limit
+-- rows per run), so the cadence and EMAIL_LIFECYCLE_BATCH together set the
+-- ceiling: 200 rows × 12 runs/h = 2,400/h, which clears a 3,762-recipient
+-- daily digest in about 95 minutes after the desk publishes, and sits well
+-- under SendPulse's per-hour limit on any paid SMTP plan (2,500/h at the
+-- 25k tier and up; the free tier's 50/h and 400/day cannot carry this).
+-- Runs with nothing due cost one RPC.
 --
 -- The CRON_SECRET and app URL must NOT be committed. Enable the extensions
 -- here, then apply the schedule out-of-band in the Supabase SQL Editor with
@@ -491,7 +512,7 @@ create extension if not exists pg_net;
 --
 --   select cron.schedule(
 --     'email-lifecycle',
---     '0 * * * *',
+--     '*/5 * * * *',
 --     $$
 --       select net.http_post(
 --         url     := 'https://APP_URL/api/cron/email-lifecycle',

@@ -1,13 +1,68 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { sendEmail, addContactToBook } from "./sendpulse";
+import { sendEmail, addContactToBook, _resetSendpulseTokenCache } from "./sendpulse";
 
 describe("sendEmail", () => {
   beforeEach(() => {
     process.env.SENDPULSE_API_ID = "id";
     process.env.SENDPULSE_API_SECRET = "secret";
+    _resetSendpulseTokenCache();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  const mailParams = {
+    to: { name: "U", email: "u@example.com" },
+    from: { name: "F", email: "f@example.com" },
+    subject: "Hi",
+    html: "<p>Body</p>",
+  };
+
+  it("fetches the OAuth token once and reuses it across a batch", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(url);
+        if (url.includes("/oauth/access_token")) {
+          return new Response(JSON.stringify({ access_token: "tok" }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ result: true }), { status: 200 });
+      })
+    );
+
+    await sendEmail(mailParams);
+    await sendEmail(mailParams);
+    await sendEmail(mailParams);
+
+    expect(urls.filter((u) => u.includes("/oauth/access_token"))).toHaveLength(1);
+    expect(urls.filter((u) => u.includes("/smtp/emails"))).toHaveLength(3);
+  });
+
+  it("refreshes a cached token SendPulse rejects with 401, once", async () => {
+    let issued = 0;
+    const bearers: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        if (url.includes("/oauth/access_token")) {
+          issued += 1;
+          return new Response(JSON.stringify({ access_token: `tok${issued}` }), { status: 200 });
+        }
+        const b = (init.headers as Record<string, string>).Authorization;
+        bearers.push(b);
+        if (b === "Bearer tok1" && bearers.length > 1) {
+          return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
+        }
+        return new Response(JSON.stringify({ result: true }), { status: 200 });
+      })
+    );
+
+    expect((await sendEmail(mailParams)).ok).toBe(true); // tok1, fresh
+    const second = await sendEmail(mailParams); // cached tok1 → 401 → tok2
+    expect(second.ok).toBe(true);
+    expect(issued).toBe(2);
+    expect(bearers).toEqual(["Bearer tok1", "Bearer tok1", "Bearer tok2"]);
   });
 
   it("posts base64 html + attachment keyed by filename to /smtp/emails", async () => {
@@ -122,6 +177,7 @@ describe("addContactToBook", () => {
   beforeEach(() => {
     process.env.SENDPULSE_API_ID = "id";
     process.env.SENDPULSE_API_SECRET = "secret";
+    _resetSendpulseTokenCache();
   });
   afterEach(() => {
     vi.unstubAllGlobals();

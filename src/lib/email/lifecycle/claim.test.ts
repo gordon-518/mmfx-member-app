@@ -59,20 +59,20 @@ describe("fn_claim_email_sends guards", () => {
     expect(squish(CLAIM_FN)).toContain("pr.marketing_opted_out = false");
   });
 
-  it("guard 2 — skips anyone emailed in the last 24h, in ANY lane", () => {
+  it("guard 2 — skips anyone emailed today (SGT), in ANY lane", () => {
     const body = squish(CLAIM_FN);
     expect(body).toContain(
-      "not exists ( select 1 from public.email_sends s where s.user_id = p.id and s.sent_at > now() - interval '24 hours')"
+      "not exists ( select 1 from public.email_sends s where s.user_id = p.id and s.sent_at >= v_day_start)"
     );
     // The journal's coaching emails share the cap — that's the point of §1.5.
     expect(body).toContain(
-      "not exists ( select 1 from public.journal_interventions ji where ji.user_id = p.id and ji.sent_at > now() - interval '24 hours')"
+      "not exists ( select 1 from public.journal_interventions ji where ji.user_id = p.id and ji.sent_at >= v_day_start)"
     );
   });
 
   it("guard 2 also covers the deposit-dm-reminder lane", () => {
     expect(squish(CLAIM_FN)).toContain(
-      "not exists ( select 1 from public.deposit_submissions ds where ds.user_id = p.id and ds.dm_reminder_sent_at > now() - interval '24 hours')"
+      "not exists ( select 1 from public.deposit_submissions ds where ds.user_id = p.id and ds.dm_reminder_sent_at >= v_day_start)"
     );
   });
 
@@ -113,8 +113,8 @@ describe("fn_claim_email_sends guards", () => {
   });
 
   it("takes DIGEST_DAYS and the spotlight day as parameters", () => {
-    expect(squish(CLAIM_FN)).toContain("p_digest_days integer[] default array[1, 3, 5]");
-    expect(squish(CLAIM_FN)).toContain("p_spotlight_day integer default 4");
+    expect(squish(CLAIM_FN)).toContain("p_digest_days integer[] default array[1, 2, 3, 4, 5]");
+    expect(squish(CLAIM_FN)).toContain("p_spotlight_day integer default 6");
     expect(squish(CLAIM_FN)).toContain("v_dow = any(p_digest_days)");
     expect(squish(CLAIM_FN)).toContain("v_dow = p_spotlight_day");
   });
@@ -134,6 +134,25 @@ describe("fn_claim_email_sends guards", () => {
     expect(squish(da)).not.toContain("d.published_on = v_today");
     expect(squish(da)).toContain("d.published_on <= v_today");
     expect(squish(da)).toContain("d.published_on >= v_today - 1");
+  });
+
+  it("only digests a read WRITTEN today (SGT): the desk publishes 12:00–19:00", () => {
+    const da = CLAIM_FN.slice(CLAIM_FN.indexOf("with da as ("), CLAIM_FN.indexOf("ev as ("));
+    expect(squish(da)).toContain("and d.created_at >= v_day_start");
+  });
+
+  it("caps one email per user per SGT CALENDAR day, not a rolling 24h", () => {
+    const body = squish(CLAIM_FN);
+    expect(body).toContain(
+      "v_day_start timestamptz := (v_today::timestamp) at time zone 'Asia/Singapore'"
+    );
+    expect(body).not.toContain("sent_at > now() - interval '24 hours'");
+    expect(body).not.toContain("dm_reminder_sent_at > now() - interval '24 hours'");
+  });
+
+  it("is scheduled every five minutes so a daily digest clears after publish", () => {
+    expect(SQL).toContain("'*/5 * * * *'");
+    expect(SQL).not.toContain("'0 * * * *'");
   });
 
   it("never sends rescue to anyone deposit-dm-reminder already owns", () => {
@@ -178,7 +197,7 @@ describe("the pg_cron snippet", () => {
     expect(SQL).toContain("create extension if not exists pg_cron;");
     expect(SQL).toContain("create extension if not exists pg_net;");
     expect(SQL).toContain("'email-lifecycle',");
-    expect(SQL).toContain("'0 * * * *',");
+    expect(SQL).toContain("'*/5 * * * *',");
     expect(SQL).toContain("/api/cron/email-lifecycle");
     expect(SQL).toContain("Bearer CRON_SECRET_VALUE");
     // Nothing live is ever committed.

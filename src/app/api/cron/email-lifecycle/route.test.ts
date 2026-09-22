@@ -245,7 +245,7 @@ describe("POST /api/cron/email-lifecycle", () => {
     const db = stubDb([]);
     serviceClientMock.mockReturnValue(db);
     await POST(req() as never);
-    expect(db._rpcArgs[0]).toEqual({ p_limit: 60, p_digest_days: [1, 3, 5], p_spotlight_day: 4 });
+    expect(db._rpcArgs[0]).toEqual({ p_limit: 200, p_digest_days: [1, 2, 3, 4, 5], p_spotlight_day: 6 });
   });
 
   it("returns 500 when the claim itself fails", async () => {
@@ -284,9 +284,9 @@ describe("parseSender", () => {
 
 describe("parseDigestDays", () => {
   it("defaults to Mon/Wed/Fri", () => {
-    expect(parseDigestDays(undefined)).toEqual([1, 3, 5]);
-    expect(parseDigestDays("")).toEqual([1, 3, 5]);
-    expect(parseDigestDays("nonsense")).toEqual([1, 3, 5]);
+    expect(parseDigestDays(undefined)).toEqual([1, 2, 3, 4, 5]);
+    expect(parseDigestDays("")).toEqual([1, 2, 3, 4, 5]);
+    expect(parseDigestDays("nonsense")).toEqual([1, 2, 3, 4, 5]);
   });
   it("reads a comma list and drops out-of-range days", () => {
     expect(parseDigestDays("1, 4 ,9,4")).toEqual([1, 4]);
@@ -295,9 +295,9 @@ describe("parseDigestDays", () => {
 
 describe("parseSpotlightDay", () => {
   it("defaults to Thursday, off the Mon/Wed/Fri digest days", () => {
-    expect(parseSpotlightDay(undefined)).toBe(4);
-    expect(parseSpotlightDay("0")).toBe(4);
-    expect(parseSpotlightDay("eh")).toBe(4);
+    expect(parseSpotlightDay(undefined)).toBe(6);
+    expect(parseSpotlightDay("0")).toBe(6);
+    expect(parseSpotlightDay("eh")).toBe(6);
   });
   it("reads a valid ISO day-of-week", () => {
     expect(parseSpotlightDay("2")).toBe(2);

@@ -6,9 +6,9 @@ import type { LifecycleCtx, LifecycleEmail } from "@/lib/email/lifecycle/types";
 import { tierFor } from "@/lib/tiers";
 import type { AccountStatus } from "@/lib/trial/status";
 
-// The lifecycle rail's worker (design doc 2026-09-21 §4). Hourly, via Supabase
-// pg_cron + pg_net (job 'email-lifecycle', snippet in the migration) — the
-// Vercel plan's two cron slots are taken.
+// The lifecycle rail's worker (design doc 2026-09-21 §4). Every five minutes,
+// via Supabase pg_cron + pg_net (job 'email-lifecycle', snippet in the
+// migration) — the Vercel plan's two cron slots are taken.
 //
 // Same shape as deposit-dm-reminder: fn_claim_email_sends decides what is due
 // and STAMPS the rows before we render, so overlapping runs can't double-send,
@@ -70,19 +70,21 @@ export function parseSender(raw: string | undefined): EmailAddress {
   return { name: "Market Makers FX", email: "hello@marketmakersfx.net" };
 }
 
-/** `SPOTLIGHT_DAY` as an ISO day-of-week number. Default Thursday. */
+/** `SPOTLIGHT_DAY` as an ISO day-of-week number. Default Saturday: the one
+ *  day with no read to displace (spotlight outranks digest on a clash). */
 export function parseSpotlightDay(raw: string | undefined): number {
   const d = Number((raw ?? "").trim());
-  return Number.isInteger(d) && d >= 1 && d <= 7 ? d : 4;
+  return Number.isInteger(d) && d >= 1 && d <= 7 ? d : 6;
 }
 
-/** `DIGEST_DAYS` as ISO day-of-week numbers (Mon = 1). Default Mon/Wed/Fri. */
+/** `DIGEST_DAYS` as ISO day-of-week numbers (Mon = 1). Default every trading
+ *  day, Mon–Fri (Gordon, 2026-09-22); the desk does not publish at weekends. */
 export function parseDigestDays(raw: string | undefined): number[] {
   const parsed = (raw ?? "")
     .split(",")
     .map((d) => Number(d.trim()))
     .filter((d) => Number.isInteger(d) && d >= 1 && d <= 7);
-  return parsed.length ? [...new Set(parsed)] : [1, 3, 5];
+  return parsed.length ? [...new Set(parsed)] : [1, 2, 3, 4, 5];
 }
 
 const AUDIENCES = new Set(["trial", "expired", "member"]);
@@ -147,11 +149,12 @@ async function run(req: NextRequest) {
 
   const db = serviceClient();
   const { data, error } = await db.rpc("fn_claim_email_sends", {
-    // Small on purpose: every row in a batch is claimed up front, so a batch
-    // killed mid-flight is a batch of rows the reaper has to unwind. 60 sends
-    // an hour is 1,440 a day, well past what 4,112 profiles can absorb under
-    // the one-per-user-per-day cap.
-    p_limit: Number(process.env.EMAIL_LIFECYCLE_BATCH ?? 60),
+    // Bounded on purpose: every row in a batch is claimed up front, so a batch
+    // killed mid-flight is a batch of rows the reaper has to unwind. 200 per
+    // five-minute run is 2,400/h: a 3,762-recipient daily digest clears in
+    // ~95 minutes, and 200 sequential SendPulse calls fit comfortably inside
+    // maxDuration with the token cached across the batch (sendpulse.ts).
+    p_limit: Number(process.env.EMAIL_LIFECYCLE_BATCH ?? 200),
     p_digest_days: parseDigestDays(process.env.DIGEST_DAYS),
     p_spotlight_day: parseSpotlightDay(process.env.SPOTLIGHT_DAY),
   });
