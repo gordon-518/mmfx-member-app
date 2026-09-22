@@ -20,7 +20,12 @@ export const CONFIDENCE_MIN = 0.7;
 export const MAX_REPLIES_PER_HOUR = 6;
 export const MAX_CALLS_PER_DAY = 1500;
 export const QUIET_MINUTES = 60;
-export const HANDOFF_PAUSE_MINUTES = 1440;
+// SendPulse rejects anything over 120 (verified: minutes:1440 returns 422
+// "The minutes may not be greater than 120"), which silently left handed-off
+// chats unpaused. 120 is the cap. This only pauses SENDPULSE's own flows; what
+// actually keeps the agent out of the chat is support_chats.state =
+// needs_amelia, which holds until an admin clears it in /admin/support.
+export const HANDOFF_PAUSE_MINUTES = 120;
 export const PREFIX = "MMFX Assistant: ";
 /**
  * Overall internal-accounting budget for one burst, measured from the top of
