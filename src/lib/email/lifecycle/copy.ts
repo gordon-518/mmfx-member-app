@@ -1,17 +1,24 @@
 // Shared copy primitives for the lifecycle templates. Pure, tiny, and
 // deliberately unopinionated: every template still writes its own sentences.
-// This exists so the twelve builders agree on escaping, on the shape of a
+// This exists so the fourteen builders agree on escaping, on the shape of a
 // paragraph, and above all on the `cid` convention — attribution that is
-// hand-rolled twelve times is attribution that is wrong at least once.
+// hand-rolled fourteen times is attribution that is wrong at least once.
 //
-// html is a BODY FRAGMENT. The rail's shell (src/lib/email/lifecycle/shell.ts)
-// supplies the dark header, the risk line, the footer and the unsubscribe link,
-// so nothing here repeats them.
+// html is a BODY FRAGMENT. The rail's shell (src/lib/email/shell.ts) supplies
+// the black header, the hero, the risk line, the footer and the unsubscribe
+// link, so nothing here repeats them.
+//
+// v2 split a template in two: its STRUCTURE (which module, which link, which
+// data) stays in the template file, and its WORDS live in a `LifecycleCopy`.
+// The template renders `ctx.copy ?? defaultCopy`, which is the whole mechanism
+// behind variant arms — a challenger is a row of JSON, not a deploy.
 
-import type { LifecycleCtx } from "./types";
+import { paragraph } from "@/lib/email/ui";
+import type { EmailPart } from "@/lib/email/ui";
+import type { LifecycleCopy, LifecycleCtx } from "./types";
 
-/** The one accent colour, on the one link. */
-export const ORANGE = "#ea580c";
+/** The one accent colour. */
+export const ORANGE = "#FF5A1F";
 
 export const SIGNOFF = "— Don, Market Makers FX";
 
@@ -35,16 +42,57 @@ export function url(ctx: LifecycleCtx, path: string, cid: string): string {
   return `${base}${path}?cid=EML-${cid}`;
 }
 
-const P = "margin:0 0 16px;font-size:15px;line-height:1.6;color:#1a1714";
-
 /** A paragraph. `inner` is trusted HTML — escape anything interpolated first. */
 export function p(inner: string): string {
-  return `<p style="${P}">${inner}</p>`;
+  return paragraph(inner);
 }
 
-/** The single call to action. One per email, by house rule. */
-export function cta(href: string, label: string): string {
-  return `<p style="${P}"><a href="${esc(href)}" style="color:${ORANGE};font-weight:600;text-decoration:none">${esc(label)} &rarr;</a></p>`;
+/** The approved words for this send: a challenger's, or the code default. */
+export function copyOf(ctx: LifecycleCtx, fallback: LifecycleCopy): LifecycleCopy {
+  return ctx.copy ?? fallback;
+}
+
+/** The copy's body paragraphs, in both renderings. */
+export function paragraphs(copy: LifecycleCopy): EmailPart {
+  return {
+    html: copy.paragraphs.map((t) => p(esc(t))).join(""),
+    text: copy.paragraphs.join("\n\n"),
+  };
+}
+
+/**
+ * The inbox preview line. Falls back to the opening sentence rather than
+ * letting the client invent one out of the greeting — an email whose preview
+ * reads "Hi Alex, Market Makers is a trading desk…" has spent its first
+ * impression on the word "Hi".
+ */
+export function preheaderOf(copy: LifecycleCopy): string {
+  const preheader = copy.preheader.trim();
+  if (preheader) return preheader;
+  const first = (copy.paragraphs[0] ?? "").trim();
+  return first.length <= 90 ? first : `${first.slice(0, 87).trimEnd()}...`;
+}
+
+/** The greeting, in both renderings. */
+export function greeting(ctx: LifecycleCtx): EmailPart {
+  const line = hi(ctx.firstName);
+  return { html: p(esc(line)), text: line };
+}
+
+/** The signature, in both renderings. */
+export function signoff(): EmailPart {
+  return {
+    html: `<p style="margin:18px 0 0;font:400 13px/1.6 Inter,Arial,sans-serif;color:#6b665e">${esc(SIGNOFF)}</p>`,
+    text: SIGNOFF,
+  };
+}
+
+/** A quiet closing note above the signature — what Free keeps, and the like. */
+export function note(text: string): EmailPart {
+  return {
+    html: `<p style="margin:18px 0 0;font:400 13px/1.6 Inter,Arial,sans-serif;color:#6b665e">${esc(text)}</p>`,
+    text,
+  };
 }
 
 /** The plain-text body: real sentences, written for text, joined by blank lines. */

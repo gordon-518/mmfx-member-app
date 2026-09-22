@@ -127,8 +127,14 @@ describe("lifecycle templates", () => {
           expect(email.html).toContain("— Don, Market Makers FX");
           // A body fragment: the rail's shell owns the document and the footer.
           expect(email.html).not.toContain("<html");
-          expect(email.html).not.toContain("<img");
           expect(email.html).not.toContain(fixture.ctx.unsubUrl);
+          // v2 body fragments DO carry images — the tracker's check and ring
+          // discs, the feature tiles — but only from the versioned asset base,
+          // and every one of them degrades to alt text when images are off.
+          for (const tag of email.html.match(/<img [^>]*>/g) ?? []) {
+            expect(tag, tag).toContain("https://marketmakersfx.net/email/v1/");
+            expect(tag, tag).toMatch(/\salt="[^"]+"/);
+          }
           // "MMFX" is an internal name; readers get "Market Makers".
           expect(email.subject).not.toContain("MMFX");
           expect(stripped).not.toContain("MMFX");
@@ -181,7 +187,7 @@ describe("spotlight", () => {
 
   it("falls back to the free feature rather than throwing on a missing payload", () => {
     const e = spotlight(ctx({ spotlight: undefined }));
-    expect(e.subject).toBe("From the desk this week");
+    expect(e.subject).toBe("This week's guide from the desk");
     expect(lintEmail(e.text)).toEqual({ verdict: "pass", hits: [] });
     expect(e.html).toContain("cid=EML-nurture-spotlight");
   });
@@ -203,7 +209,7 @@ describe("the ladder copy", () => {
 
   it("tells day-12 readers what the free tier keeps", () => {
     const t = day12(ctx({ daysSinceSignup: 12 })).text;
-    expect(t).toContain("day 14");
+    expect(t.toLowerCase()).toContain("day 14");
     for (const s of ["Daily Analysis", "Know Your Style", "Module 1", "signals channel"]) expect(t).toContain(s);
   });
 });

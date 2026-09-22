@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { isDemoUser } from "@/lib/showcase";
 
 // Post-click email attribution (email v2 §4). Every lifecycle link carries
@@ -15,11 +15,11 @@ import { isDemoUser } from "@/lib/showcase";
 // refresh or a second tab is not a second visit.
 const EML_CID = /^EML-[a-z0-9-]+$/;
 
-function logEmailVisit(userId: string, cid: string, path: string): void {
+function logEmailVisit(userId: string, cid: string, path: string): Promise<void> | null {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!base || !key) return;
-  void fetch(`${base}/rest/v1/rpc/fn_log_event_as`, {
+  if (!base || !key) return null;
+  return fetch(`${base}/rest/v1/rpc/fn_log_event_as`, {
     method: "POST",
     headers: { "Content-Type": "application/json", apikey: key, Authorization: `Bearer ${key}` },
     body: JSON.stringify({
@@ -27,12 +27,14 @@ function logEmailVisit(userId: string, cid: string, path: string): void {
       p_event: "email_visit",
       p_props: { cid, path },
     }),
-    // Never awaited, never retried: the reader's page must not wait on, or
-    // break because of, an analytics write.
-  }).catch(() => {});
+    // Never awaited by the request, never retried: the reader's page must not
+    // wait on, or break because of, an analytics write. The caller hands the
+    // promise to the fetch event's waitUntil, because on the Edge runtime a
+    // dangling fetch can be cancelled the moment the response is sent.
+  }).then(() => undefined, () => undefined);
 }
 
-export async function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest, event?: NextFetchEvent) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -74,7 +76,10 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   const cid = request.nextUrl.searchParams.get("cid");
-  if (user && cid && EML_CID.test(cid)) logEmailVisit(user.id, cid, path);
+  if (user && cid && EML_CID.test(cid)) {
+    const write = logEmailVisit(user.id, cid, path);
+    if (write) event?.waitUntil?.(write);
+  }
   const exempt = /^\/(welcome|showcase|login|signup|forgot-password|auth|api|privacy|terms)(\/|$)/.test(path);
   if (
     user &&

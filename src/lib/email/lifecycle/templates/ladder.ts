@@ -1,42 +1,44 @@
-import type { LifecycleTemplate } from "../types";
-import { cta, esc, hi, p, SIGNOFF, textOf, url } from "../copy";
+import { button, ladder as ladderStrip, tracker } from "@/lib/email/ui";
+import type { LifecycleCopy, LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "../types";
+import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from "../copy";
 
 // Flow A, day 9, to everyone still on trial. The first and only time the trial
 // sequence explains how access works here, stated as a map rather than an
-// offer. The deposit line is the point of the whole email. One action: read the
-// comparison for yourself.
+// offer. The deposit paragraph is the point of the whole email. One action:
+// read the comparison for yourself.
+//
+// v2: the four rungs move out of prose and into the ladder strip, which leaves
+// the copy free to do the only job prose is better at — saying what the money
+// actually is.
 
-const template: LifecycleTemplate = (ctx) => {
+export const defaultCopy: LifecycleCopy = {
+  subject: "The ladder, and what each rung opens",
+  preheader: "Free keeps Daily Analysis forever. The amounts are deposits into your own account.",
+  paragraphs: [
+    "Nine days in. Here is the map of how access works here. No pitch attached: read it and do nothing.",
+    "The amounts are not prices and are not paid to Market Makers. Each is a deposit into a trading account at a partner broker, opened in your name. You hold it, you trade with it, and you can withdraw it.",
+    "Your cumulative deposit sets your rung, and it is a high-water mark, so a drawdown never removes access. Free keeps Daily Analysis, Know Your Style, the calendar and Module 1 with no deposit at all.",
+  ],
+  ctaLabel: "See what each rung opens",
+};
+
+export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
   const link = url(ctx, "/upgrade", "trial-ladder");
-  const rungs = [
-    "Free, at no cost, for as long as you have an account: the economic calendar, the news feed, Know Your Style, the Daily Analysis every trading day, Module 1 of the course, and the public signals channel.",
-    "Foundation, at $50: the full course, all nineteen lessons, plus the MM Library.",
-    "Desk, at $200: the ten TradingView indicators, the strategy scripts, live classes with the desk, and the Fundamental Desk's macro read.",
-    "Team MM, at $500: the private Team MM channel, where the desk's own calls go out, and the AI Trading Assistant.",
-  ];
-  const before = "Nine days in, so here's the map of how access works here. No pitch attached — you can read it and do nothing.";
-  const deposit =
-    "About those numbers. They're not prices and they're not paid to Market Makers. Each one is a deposit into a trading account at a partner broker, opened in your name. You hold it, you trade with it, and you can withdraw it. Your cumulative deposit is what sets your rung, and it's a high-water mark, so a drawdown never takes your access away.";
+  const words = paragraphs(copy);
+  const rungs = ladderStrip();
+  const list = tracker(ctx.onboarding, "desk");
+  const cta = button(link, copy.ctaLabel);
+  const hello = greeting(ctx);
+  const sign = signoff();
 
   return {
-    subject: "What $50, $200 and $500 open",
-    html: [
-      p(esc(hi(ctx.firstName))),
-      p(esc(before)),
-      ...rungs.map((r) => p(esc(r))),
-      p(esc(deposit)),
-      cta(link, "See the full comparison"),
-      p(esc(SIGNOFF)),
-    ].join(""),
-    text: textOf([
-      hi(ctx.firstName),
-      before,
-      ...rungs.map((r) => `- ${r}`),
-      deposit,
-      `See the full comparison: ${link}`,
-      SIGNOFF,
-    ]),
+    subject: copy.subject,
+    preheader: preheaderOf(copy),
+    html: [hello.html, words.html, rungs.html, list.html, cta.html, sign.html].join(""),
+    text: textOf([hello.text, words.text, rungs.text, list.text, cta.text, sign.text]),
   };
-};
+}
+
+const template: LifecycleTemplate = (ctx) => build(ctx, copyOf(ctx, defaultCopy));
 
 export default template;

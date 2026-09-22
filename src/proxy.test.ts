@@ -66,6 +66,18 @@ describe("proxy — email_visit", () => {
     expect(headers.apikey).toBe("service");
   });
 
+  it("hands the attribution write to the fetch event so the edge runtime keeps it alive", async () => {
+    withUser(WEI);
+    const waitUntil = vi.fn();
+    await proxy(
+      new NextRequest("https://app.test/daily-analysis?cid=EML-nurture-digest"),
+      { waitUntil } as unknown as import("next/server").NextFetchEvent
+    );
+    expect(rpcCalls(fetchMock)).toHaveLength(1);
+    expect(waitUntil).toHaveBeenCalledTimes(1);
+    expect(waitUntil.mock.calls[0][0]).toBeInstanceOf(Promise);
+  });
+
   it("does not log for a signed-out visitor — there is no one to attribute it to", async () => {
     withUser(null);
     await proxy(new NextRequest("https://app.test/daily-analysis?cid=EML-nurture-digest"));

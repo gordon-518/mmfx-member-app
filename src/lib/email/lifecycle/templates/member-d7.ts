@@ -1,24 +1,42 @@
-import type { LifecycleTemplate } from "../types";
-import { cta, esc, hi, p, SIGNOFF, textOf, url } from "../copy";
+import { button, featureCard } from "@/lib/email/ui";
+import type { LifecycleCopy, LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "../types";
+import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from "../copy";
 
 // Flow D, a week after a deposit is verified at Desk or above. Desk members
 // find the indicators immediately and the Fundamental Desk almost never. One
 // action: open it once.
 
-const template: LifecycleTemplate = (ctx) => {
+export const defaultCopy: LifecycleCopy = {
+  subject: "The Fundamental Desk, open today",
+  preheader: "What is actually moving gold this week: the dollar, real yields, one calendar line",
+  paragraphs: [
+    "A week in, you have found the indicators. The Fundamental Desk is the half that gets opened less often, so here it is.",
+    "It is a plain read on what is driving gold right now: the dollar, real yields, what the central banks are signalling, and the one line on this week's calendar that matters.",
+    "Open it before your next session. Live classes with the desk sit beside it in the app, on your tier already.",
+  ],
+  ctaLabel: "Open the Fundamental Desk",
+};
+
+export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
   const link = url(ctx, "/bots/fundamental", "member-d7");
-  const body = [
-    "A week in. You've almost certainly found the indicators. The Fundamental Desk you almost certainly haven't, so here it is.",
-    "It's a live macro read on gold, in plain English: the current fundamental picture driving XAUUSD — the dollar, real yields, what the central banks are signalling, and which line on this week's calendar is the one that matters.",
-    "If you've ever watched gold move hard and had no idea what caused it, that's the page to have open.",
-    "Live classes with the desk are on your tier too — the schedule sits in the app alongside it.",
-  ];
+  const words = paragraphs(copy);
+  const card = featureCard(
+    "fundamental-desk",
+    "Fundamental Desk",
+    "The macro picture behind the move, in plain English."
+  );
+  const cta = button(link, copy.ctaLabel);
+  const hello = greeting(ctx);
+  const sign = signoff();
 
   return {
-    subject: "This week at the Fundamental Desk",
-    html: [p(esc(hi(ctx.firstName))), ...body.map((b) => p(esc(b))), cta(link, "Open the Fundamental Desk"), p(esc(SIGNOFF))].join(""),
-    text: textOf([hi(ctx.firstName), ...body, `Open the Fundamental Desk: ${link}`, SIGNOFF]),
+    subject: copy.subject,
+    preheader: preheaderOf(copy),
+    html: [hello.html, words.html, card.html, cta.html, sign.html].join(""),
+    text: textOf([hello.text, words.text, card.text, cta.text, sign.text]),
   };
-};
+}
+
+const template: LifecycleTemplate = (ctx) => build(ctx, copyOf(ctx, defaultCopy));
 
 export default template;

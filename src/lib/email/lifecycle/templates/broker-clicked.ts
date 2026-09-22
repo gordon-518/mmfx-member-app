@@ -1,6 +1,7 @@
 import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_URL } from "@/lib/depositRef";
-import type { LifecycleTemplate } from "../types";
-import { cta, esc, hi, p, SIGNOFF, textOf } from "../copy";
+import { button } from "@/lib/email/ui";
+import type { LifecycleCopy, LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "../types";
+import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf } from "../copy";
 
 // Flow C, 24 hours after someone clicked through to the broker and didn't come
 // back with a deposit. Almost always a stuck account-opening — documents, a
@@ -8,26 +9,37 @@ import { cta, esc, hi, p, SIGNOFF, textOf } from "../copy";
 // action: tell Admin Amelia where you got stuck. (No prefilled reference here:
 // depositRef's adminDmMessage describes a deposit already submitted, which by
 // definition has not happened yet on this step.)
+//
+// The one step in the set with no module. Someone stuck halfway through an
+// identity check does not need a tier strip or a progress list; they need one
+// person's name and one link.
 
-const template: LifecycleTemplate = (ctx) => {
+export const defaultCopy: LifecycleCopy = {
+  subject: "Half way through the broker form",
+  preheader: "Amelia does these every day. Tell her where you stopped and she takes it from there.",
+  paragraphs: [
+    "You opened the broker account page yesterday and stopped somewhere in the middle. That happens often enough that we keep a person for it.",
+    "The form asks for an identity document and a proof of address. Uploads get rejected for small reasons. Forms ask for things you did not have to hand.",
+    "Message Admin Amelia on Telegram and say where you stopped. She cannot write to you first, so the first line has to be yours. If you have changed your mind, that is a fine answer. The free side of your account stays as it is.",
+  ],
+  ctaLabel: "Message Admin Amelia",
+};
+
+export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
   const link = `${ADMIN_TELEGRAM_URL}?cid=EML-hot-broker-clicked`;
-  const body = [
-    "You opened the broker account page the other day and didn't get to the end of it. That's common enough that we have a person for it.",
-    "Account opening asks for identity documents and a proof of address, and it's easy to put down halfway and never pick up again. Sometimes an upload is rejected for something small. Sometimes the form asks for something you didn't have to hand.",
-    `${ADMIN_DISPLAY_NAME} handles this all day. Message her on Telegram, say where you got to, and she'll walk you through the rest of it. She can't message you first, so the first message has to come from you.`,
-    "If you decided against it instead, that's a fine answer too — the free side of your account carries on as it is.",
-  ];
+  const words = paragraphs(copy);
+  const cta = button(link, copy.ctaLabel);
+  const hello = greeting(ctx);
+  const sign = signoff();
 
   return {
-    subject: "Stuck at the broker step?",
-    html: [
-      p(esc(hi(ctx.firstName))),
-      ...body.map((b) => p(esc(b))),
-      cta(link, `Message ${ADMIN_DISPLAY_NAME} on Telegram`),
-      p(esc(SIGNOFF)),
-    ].join(""),
-    text: textOf([hi(ctx.firstName), ...body, `Message ${ADMIN_DISPLAY_NAME} on Telegram: ${link}`, SIGNOFF]),
+    subject: copy.subject,
+    preheader: preheaderOf(copy),
+    html: [hello.html, words.html, cta.html, sign.html].join(""),
+    text: textOf([hello.text, words.text, cta.text, sign.text]),
   };
-};
+}
+
+const template: LifecycleTemplate = (ctx) => build(ctx, copyOf(ctx, defaultCopy));
 
 export default template;
