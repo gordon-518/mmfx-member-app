@@ -17,6 +17,8 @@ const inputCls =
 const labelCls = "block text-[13px] font-semibold text-ink";
 const primaryBtn =
   "cursor-pointer rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-50";
+import { knownServersFor } from "@/lib/journal/brokerServers";
+
 const secondaryBtn =
   "cursor-pointer rounded-xl border border-line-strong bg-card px-4 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink";
 
@@ -33,6 +35,8 @@ function CredentialsStep({
   const [password, setPassword] = useState("");
   const [server, setServer] = useState("");
   const [label, setLabel] = useState("");
+  // The servers this broker really runs, offered as suggestions.
+  const servers = knownServersFor(brokerId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,14 +133,31 @@ function CredentialsStep({
         <label className={labelCls} htmlFor="mt5-server">
           Broker server
         </label>
+        {/* Suggest the servers the broker really runs (brokerServers.ts); the
+            API checks the same list, and refuses demo servers. */}
         <input
           id="mt5-server"
+          list="mt5-server-options"
           className={`${inputCls} mt-1.5`}
           value={server}
           onChange={(e) => setServer(e.target.value)}
-          placeholder="e.g. Elev8-Live (shown on your MT5 login screen)"
+          placeholder={
+            servers.length > 0
+              ? `e.g. ${servers[0]} (shown on your MT5 login screen)`
+              : "Shown on your MT5 login screen"
+          }
           required
         />
+        <datalist id="mt5-server-options">
+          {servers.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-subtle">
+          Copy it exactly from your MT5 login screen.{" "}
+          <span className="font-semibold">Live accounts only</span> — the
+          assistant can&apos;t review a demo account.
+        </p>
       </div>
       <div>
         <label className={labelCls} htmlFor="mt5-label">
