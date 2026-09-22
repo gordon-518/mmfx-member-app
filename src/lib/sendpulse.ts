@@ -40,6 +40,13 @@ export interface SendEmailParams {
 export interface SendResult {
   ok: boolean;
   detail: unknown;
+  /**
+   * SendPulse's id for the accepted message, from `{"result":true,"id":"…"}`.
+   * It is the join key for every SMTP webhook event, so the lifecycle rail
+   * stores it on email_sends.provider_id. Coerced to a string: the API returns
+   * ids like "tlr7m5-1bve4z-ik", but the KB shows a numeric one.
+   */
+  id?: string;
 }
 
 // SendPulse access tokens live for 3,600s. Fetching one per email doubled
@@ -118,7 +125,8 @@ export async function sendEmail(params: SendEmailParams): Promise<SendResult> {
       if (fresh) res = await post(fresh);
     }
     const detail = await res.json().catch(() => ({}));
-    return { ok: res.ok && detail?.result !== false, detail };
+    const id = detail?.id == null ? undefined : String(detail.id);
+    return { ok: res.ok && detail?.result !== false, detail, id };
   } catch (e) {
     return { ok: false, detail: String(e) };
   }

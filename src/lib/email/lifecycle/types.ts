@@ -21,6 +21,13 @@ export interface LifecycleCopy {
   ctaLabel: string;
 }
 
+export interface LifecycleCopy {
+  subject: string;          // ≤ 45 chars
+  preheader: string;        // ≤ 90 chars
+  paragraphs: string[];     // 1–3, plain text, no HTML
+  ctaLabel: string;         // ≤ 28 chars, no trailing arrow (ui adds it)
+}
+
 export interface LifecycleCtx {
   firstName: string | null;
   audience: "trial" | "expired" | "member";
@@ -32,20 +39,12 @@ export interface LifecycleCtx {
     title: string;
     bias: "bullish" | "bearish" | "neutral";
     description: string | null;
-    /**
-     * The published cover PNG for today's read (public `analysis-covers`
-     * bucket). Optional rather than required so Part C owns filling it from
-     * the claim function's new `cover_path` column without Part B having to
-     * touch `contextFor` — every template already reads it defensively.
-     */
+    /** Public analysis-covers URL for the read's cover image, when it has one. */
     coverUrl?: string | null;
   } | null;
   appUrl: string;
   unsubUrl: string;
-  /**
-   * An approved challenger's words, when the claim function put this user in
-   * a variant arm. Absent means the template renders its own `defaultCopy`.
-   */
+  /** An approved challenger arm's copy; absent means the template's default. */
   copy?: LifecycleCopy;
 }
 

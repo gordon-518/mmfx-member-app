@@ -52,6 +52,10 @@ interface ClaimedSend {
   upgrade_viewed_at: string | null;
   upgrade_broker_clicked_at: string | null;
   spotlight_id: string | null;
+  /** The copy arm the claim function assigned: 'A' or an email_variants key. */
+  variant: string | null;
+  /** The daily read's cover image, in the public analysis-covers bucket. */
+  cover_path: string | null;
 }
 
 function authorized(req: NextRequest): boolean {
@@ -85,6 +89,13 @@ export function parseDigestDays(raw: string | undefined): number[] {
     .map((d) => Number(d.trim()))
     .filter((d) => Number.isInteger(d) && d >= 1 && d <= 7);
   return parsed.length ? [...new Set(parsed)] : [1, 2, 3, 4, 5];
+}
+
+/** The public URL of a daily-analysis cover, or null when there isn't one. */
+export function coverUrlFor(path: string | null | undefined): string | null {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!path || !base) return null;
+  return `${base}/storage/v1/object/public/analysis-covers/${path}`;
 }
 
 const AUDIENCES = new Set(["trial", "expired", "member"]);
@@ -125,11 +136,19 @@ export function contextFor(row: ClaimedSend, appUrl = APP_URL): LifecycleCtx | n
             ? row.analysis_bias
             : null) as NonNullable<LifecycleCtx["todayAnalysis"]>["bias"],
           description: row.analysis_description,
+          coverUrl: coverUrlFor(row.cover_path),
         }
       : null,
     appUrl,
     unsubUrl: `${appUrl}/api/email/unsubscribe?token=${encodeURIComponent(row.unsub_token)}`,
   };
+}
+
+interface VariantRow {
+  flow: string;
+  step: string;
+  variant_key: string;
+  copy: LifecycleCopy;
 }
 
 interface Spotlight {
@@ -185,6 +204,25 @@ async function run(req: NextRequest) {
     }
   }
 
+  // The challenger arms (§4). fn_claim_email_sends decides WHO is in an arm;
+  // this loads WHAT that arm says. Only touched when the batch actually holds
+  // one, so the ordinary all-'A' run costs no extra round trip — and a row
+  // whose variant row has since been retired simply renders the control.
+  const variantCopy = new Map<string, LifecycleCopy>();
+  if (claimed.some((r) => r.variant && r.variant !== "A")) {
+    const { data: rows } = await db
+      .from("email_variants")
+      .select("flow, step, variant_key, copy")
+      .eq("active", true);
+    for (const v of (rows ?? []) as VariantRow[]) {
+      variantCopy.set(`${v.flow}/${v.step}/${v.variant_key}`, v.copy);
+    }
+  }
+  const copyFor = (row: ClaimedSend): LifecycleCopy | undefined =>
+    row.variant && row.variant !== "A"
+      ? variantCopy.get(`${row.flow}/${row.step}/${row.variant}`)
+      : undefined;
+
   let sent = 0;
   let failed = 0;
   let released = 0;
@@ -209,6 +247,7 @@ async function run(req: NextRequest) {
         } else {
           mail = renderLifecycle(row.flow, row.step, {
             ...ctx,
+            copy: copyFor(row),
             spotlight: {
               subject: s.subject,
               html: s.html,
@@ -220,16 +259,14 @@ async function run(req: NextRequest) {
       } else if (!templateFor(row.flow, row.step)) {
         why = `no template for ${row.flow}/${row.step}`;
       } else {
-        // Part C fills this from the claimed row's variant arm; until then
-        // every send renders the template's own approved default.
-        const variantCopy: LifecycleCopy | undefined = undefined;
-        mail = renderLifecycle(row.flow, row.step, { ...ctx, copy: variantCopy });
+        mail = renderLifecycle(row.flow, row.step, { ...ctx, copy: copyFor(row) });
       }
     } catch (e) {
       why = String(e);
     }
 
     let ok = false;
+    let providerId: string | null = null;
     if (mail) {
       const unsubUrl = `${APP_URL}/api/email/unsubscribe?token=${encodeURIComponent(row.unsub_token)}`;
       const res = await sendEmail({
@@ -246,6 +283,7 @@ async function run(req: NextRequest) {
         },
       });
       ok = res.ok;
+      providerId = res.id ?? null;
       if (!ok) why = typeof res.detail === "string" ? res.detail : JSON.stringify(res.detail);
     }
 
@@ -274,7 +312,13 @@ async function run(req: NextRequest) {
     // never retried: one best-effort marketing email, like deposit-dm-reminder.
     await db
       .from("email_sends")
-      .update({ ok, error: ok ? null : (why ?? "unknown").slice(0, 2000) })
+      .update({
+        ok,
+        error: ok ? null : (why ?? "unknown").slice(0, 2000),
+        provider_id: providerId,
+        variant: row.variant ?? "A",
+        subject: mail.subject,
+      })
       .eq("id", row.send_id);
   }
 
