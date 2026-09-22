@@ -15,6 +15,7 @@ import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { brandFonts, DISPLAY, BODY } from "@/lib/organic/renderFonts";
 import { BoldCarouselSlide } from "@/lib/organic/boldCarousel";
+import { StatCard, disclaimerError } from "@/lib/organic/statCard";
 import {
   anchorFor,
   anchorStyle,
@@ -247,6 +248,14 @@ export async function POST(req: NextRequest) {
         <Footer text="app.marketmakersfx.net" />
       </Frame>
     );
+  } else if (body.template === "stat-card") {
+    // Product figures never render without a disclaimer. This is a 400, not a silent
+    // omission, because the marketing site's own panels always carry one.
+    const bad = disclaimerError(s);
+    if (bad) {
+      return new Response(JSON.stringify({ error: bad }), { status: 400 });
+    }
+    content = <StatCard slots={s} w={w} h={h} />;
   } else if (body.template === "lesson-carousel") {
     // One slide per request; the caller loops the five roles. The layout, colour and
     // furniture all live in BoldCarouselSlide — see that file for why each slide is
