@@ -155,6 +155,7 @@ interface RawContact {
   id?: unknown;
   channel_data?: { username?: unknown; first_name?: unknown };
   business_connection?: unknown;
+  type?: unknown;
   tags?: (string | RawTag)[];
 }
 interface ContactEnvelope { data?: RawContact }
@@ -173,6 +174,7 @@ export async function getContact(contactId: string): Promise<ContactInfo | null>
     username: typeof cd.username === "string" ? cd.username : null,
     firstName: typeof cd.first_name === "string" ? cd.first_name : "",
     isBusiness: Boolean(c.business_connection),
+    chatType: typeof c.type === "number" ? c.type : null,
     tags: (Array.isArray(c.tags) ? c.tags : [])
       .map((t) => (typeof t === "string" ? t : t?.name))
       .filter((t): t is string => typeof t === "string" && t.length > 0),

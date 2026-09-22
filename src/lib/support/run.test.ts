@@ -69,7 +69,7 @@ function setup(opts: {
   const decisions = [...(opts.decisions ?? [])];
   const sp = {
     getMessages: vi.fn<Sp["getMessages"]>(opts.getMessagesImpl ?? (async () => opts.thread)),
-    getContact: vi.fn<Sp["getContact"]>(async () => ({ id: "c1", username: "sam", firstName: "Sam", isBusiness: false, tags: [], ...opts.contact })),
+    getContact: vi.fn<Sp["getContact"]>(async () => ({ id: "c1", username: "sam", firstName: "Sam", isBusiness: false, tags: [], chatType: 1, ...opts.contact })),
     send: vi.fn<Sp["send"]>(async () => opts.sendResult ?? true),
     setTag: vi.fn<Sp["setTag"]>(async () => true),
     setPauseAutomation: vi.fn<Sp["setPauseAutomation"]>(async () => true),
@@ -123,6 +123,45 @@ function setup(opts: {
   };
   return { deps, sp, decide, ping, sleep, events, get chat() { return chat; } };
 }
+
+describe("channels and groups", () => {
+  // A channel post reached the webhook as an incoming message and the agent
+  // posted its handoff line publicly to @mmsignalsfx. Type 3 is a channel,
+  // 4 a group; only 1, 2 (bot chats) and 5 (Telegram Business) are private.
+  it("never replies in a channel, and never calls the model", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "MACRO LAYERS · XAUUSD — daily context check")],
+      contact: { chatType: 3 },
+      decisions: [reply("should never be drafted")],
+    });
+    const out = await runBurst("c1", { at: T0, text: "MACRO LAYERS · XAUUSD — daily context check" }, s.deps);
+    expect(out).toMatchObject({ kind: "skip" });
+    expect(String(out.reason)).toContain("1:1");
+    expect(s.sp.send).not.toHaveBeenCalled();
+    expect(s.decide).not.toHaveBeenCalled();
+    expect(s.sp.setTag).not.toHaveBeenCalled();
+  });
+
+  it("never replies in a group either", async () => {
+    const s = setup({ thread: [msg("1", "in", "anyone here?")], contact: { chatType: 4 }, decisions: [reply("no")] });
+    await expect(runBurst("c1", { at: T0, text: "anyone here?" }, s.deps)).resolves.toMatchObject({ kind: "skip" });
+    expect(s.sp.send).not.toHaveBeenCalled();
+  });
+
+  it("stays silent when the chat type is unknown, rather than risking a public reply", async () => {
+    const s = setup({ thread: [msg("1", "in", "hi")], contact: { chatType: null }, decisions: [reply("hi there")] });
+    await expect(runBurst("c1", { at: T0, text: "hi" }, s.deps)).resolves.toMatchObject({ kind: "skip" });
+    expect(s.sp.send).not.toHaveBeenCalled();
+  });
+
+  it("still answers the three private chat types", async () => {
+    for (const chatType of [1, 2, 5]) {
+      const s = setup({ thread: [msg("1", "in", "min deposit?")], contact: { chatType }, decisions: [reply("**$50** to start.")] });
+      await expect(runBurst("c1", { at: T0, text: "min deposit?" }, s.deps)).resolves.toMatchObject({ kind: "reply" });
+      expect(s.sp.send).toHaveBeenCalled();
+    }
+  });
+});
 
 describe("Telegram formatting", () => {
   it("sends valid HTML, and logs exactly what it sent so the echo check still matches", async () => {
