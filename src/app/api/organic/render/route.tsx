@@ -13,6 +13,13 @@
 // eye should land on the headline, and a centred block leaves dead space above it.
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import {
+  anchorFor,
+  anchorStyle,
+  estimateBlockHeight,
+  CONTENT_WIDTH,
+  type CopyRun,
+} from "@/lib/organic/renderLayout";
 
 export const runtime = "nodejs";
 
@@ -31,6 +38,21 @@ type Body = {
 };
 
 const SLIDE_ROLES = ["hook", "context", "mechanism", "proof", "cta"];
+
+// Vertical room the copy block actually has: the frame less its padding, the wordmark
+// row, and the footer (text + its top padding and rule).
+const WORDMARK_H = 34;
+const FOOTER_H = 26 + 24 + 2;
+function availableHeight(h: number): number {
+  return h - 72 * 2 - WORDMARK_H - FOOTER_H;
+}
+
+// Short copy is centred, long copy keeps the original bottom anchor. See renderLayout.ts
+// for why this is a decision rather than a constant.
+function blockStyle(runs: CopyRun[], gap: number, h: number) {
+  const height = estimateBlockHeight(runs, gap, CONTENT_WIDTH);
+  return anchorStyle(anchorFor(height, availableHeight(h)));
+}
 
 function Frame({ children, w, h }: { children: React.ReactNode; w: number; h: number }) {
   return (
@@ -97,7 +119,22 @@ export async function POST(req: NextRequest) {
     content = (
       <Frame w={w} h={h}>
         <Wordmark />
-        <div style={{ display: "flex", flexDirection: "column", gap: 28, marginTop: "auto", marginBottom: 56 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 28,
+            ...blockStyle(
+              [
+                { text: s.instrument ?? "", fontSize: 34 },
+                { text: s.headline ?? "", fontSize: 78, lineHeight: 1.08 },
+                { text: s.context ?? "", fontSize: 34, lineHeight: 1.35 },
+              ],
+              28,
+              h
+            ),
+          }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: SUB }}>
               {s.instrument ?? ""}
@@ -132,7 +169,23 @@ export async function POST(req: NextRequest) {
     content = (
       <Frame w={w} h={h}>
         <Wordmark />
-        <div style={{ display: "flex", flexDirection: "column", gap: 26, marginTop: "auto", marginBottom: 56 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 26,
+            ...blockStyle(
+              [
+                { text: s.when ?? "", fontSize: 24 },
+                { text: s.headline ?? "", fontSize: 72, lineHeight: 1.1 },
+                { text: s.event ?? "", fontSize: 38 },
+                { text: s.context ?? "", fontSize: 32, lineHeight: 1.35 },
+              ],
+              26,
+              h
+            ),
+          }}
+        >
           <div
             style={{
               display: "flex",
@@ -166,7 +219,21 @@ export async function POST(req: NextRequest) {
     content = (
       <Frame w={w} h={h}>
         <Wordmark />
-        <div style={{ display: "flex", flexDirection: "column", gap: 30, marginTop: "auto", marginBottom: 56 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 30,
+            ...blockStyle(
+              [
+                { text: s.quote ?? "", fontSize: 66, lineHeight: 1.15 },
+                { text: s.attribution ?? "", fontSize: 30 },
+              ],
+              30,
+              h
+            ),
+          }}
+        >
           <div
             style={{ display: "flex", fontSize: 66, fontWeight: 700, color: INK, lineHeight: 1.15 }}
           >
@@ -194,8 +261,11 @@ export async function POST(req: NextRequest) {
         <div
           style={{
             display: "flex",
-            marginTop: "auto",
-            marginBottom: 56,
+            ...blockStyle(
+              [{ text: s[role] ?? "", fontSize: role === "hook" ? 78 : 54, lineHeight: 1.15 }],
+              0,
+              h
+            ),
             fontSize: role === "hook" ? 78 : 54,
             fontWeight: 700,
             color: role === "cta" ? ORANGE : INK,
