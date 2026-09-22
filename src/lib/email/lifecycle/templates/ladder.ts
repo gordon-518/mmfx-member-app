@@ -12,13 +12,14 @@ import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from 
 // actually is.
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "What $50, $200 and $500 open",
-  preheader: "A map of how access works here. No pitch attached — read it and do nothing.",
+  subject: "The ladder, and what each rung opens",
+  preheader: "Free keeps Daily Analysis forever. The amounts are deposits into your own account.",
   paragraphs: [
-    "Nine days in, so here's the map of how access works here. No pitch attached — you can read it and do nothing.",
-    "About those numbers. They're not prices and they're not paid to Market Makers. Each one is a deposit into a trading account at a partner broker, opened in your name. You hold it, you trade with it, and you can withdraw it. Your cumulative deposit is what sets your rung, and it's a high-water mark, so a drawdown never takes your access away.",
+    "Nine days in. Here is the map of how access works here. No pitch attached: read it and do nothing.",
+    "The amounts are not prices and are not paid to Market Makers. Each is a deposit into a trading account at a partner broker, opened in your name. You hold it, you trade with it, and you can withdraw it.",
+    "Your cumulative deposit sets your rung, and it is a high-water mark, so a drawdown never removes access. Free keeps Daily Analysis, Know Your Style, the calendar and Module 1 with no deposit at all.",
   ],
-  ctaLabel: "See the full comparison",
+  ctaLabel: "See what each rung opens",
 };
 
 export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {

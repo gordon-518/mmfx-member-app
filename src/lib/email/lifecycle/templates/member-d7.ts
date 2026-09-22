@@ -7,12 +7,12 @@ import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from 
 // action: open it once.
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "This week at the Fundamental Desk",
-  preheader: "A live macro read on gold, in plain English. Most members never open it.",
+  subject: "The Fundamental Desk, open today",
+  preheader: "What is actually moving gold this week: the dollar, real yields, one calendar line",
   paragraphs: [
-    "A week in. You've almost certainly found the indicators. The Fundamental Desk you almost certainly haven't, so here it is.",
-    "It's a live macro read on gold, in plain English: the current fundamental picture driving XAUUSD — the dollar, real yields, what the central banks are signalling, and which line on this week's calendar is the one that matters.",
-    "If you've ever watched gold move hard and had no idea what caused it, that's the page to have open. Live classes with the desk are on your tier too — the schedule sits in the app alongside it.",
+    "A week in, you have found the indicators. The Fundamental Desk is the half that gets opened less often, so here it is.",
+    "It is a plain read on what is driving gold right now: the dollar, real yields, what the central banks are signalling, and the one line on this week's calendar that matters.",
+    "Open it before your next session. Live classes with the desk sit beside it in the app, on your tier already.",
   ],
   ctaLabel: "Open the Fundamental Desk",
 };

@@ -15,23 +15,43 @@ import { copyOf, greeting, note, preheaderOf, signoff, textOf, url } from "../co
 const BIAS: Record<string, string> = { bullish: "Bullish", bearish: "Bearish", neutral: "Neutral" };
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "Gold today: {title} ({bias} bias)",
-  preheader: "Where price sat overnight, the levels the desk is watching, and today's bias.",
+  subject: "Gold today: {bias}",
+  preheader: "The overnight range, the levels the desk is watching, and where it stands now.",
   paragraphs: [],
-  ctaLabel: "Read the full analysis",
+  ctaLabel: "Read today's analysis",
 };
 
 /** What Free keeps. Structure, not copy: it is the same promise every time. */
 const KEEPS =
   "Daily Analysis stays open on your free account, along with Know Your Style, the economic calendar, live news and Module 1 of the MM System course. Nothing to do and nothing to pay — it's there every trading day.";
 
-/** `{title}` and `{bias}` substituted; `{bias}` drops with its brackets when
- *  the desk published no bias for today. */
+/** `{bias}` and `{title}` substituted. A missing bias takes its separator
+ *  with it, so "Gold today: {bias}" renders as "Gold today" rather than
+ *  "Gold today: ". */
 export function subjectFor(template: string, title: string, bias: string | null): string {
-  return template
-    .replace(/\s*\(\{bias\}[^)]*\)/g, bias ? ` (${bias.toLowerCase()} bias)` : "")
-    .replace(/\{title\}/g, title)
-    .replace(/\{bias\}/g, bias ? bias.toLowerCase() : "");
+  const out = bias
+    ? template.replace(/\{bias\}/g, bias.toLowerCase())
+    : template.replace(/\s*\(\{bias\}[^)]*\)/g, "").replace(/[\s,:·-]*\{bias\}(\s*bias)?/g, "");
+  return out.replace(/\{title\}/g, title).replace(/[\s,:·-]+$/, "").trim();
+}
+
+/** The desk's description opens with a real headline ("The flip delivered and
+ *  the graduation failed its exam.") while `title` is a dated label. Split the
+ *  first sentence off as the card's headline; the rest is the teaser, cut at a
+ *  word boundary so the email stays a reason to open the read, not the read. */
+export function headlineOf(description: string | null): { headline: string | null; teaser: string | null } {
+  const text = (description ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return { headline: null, teaser: null };
+  const m = text.match(/^(.{20,110}?[.!?])(\s+|$)/);
+  if (!m) return { headline: null, teaser: clip(text, 240) };
+  const rest = text.slice(m[0].length).trim();
+  return { headline: m[1], teaser: rest ? clip(rest, 240) : null };
+}
+
+function clip(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max).replace(/\s+\S*$/, "");
+  return `${cut}…`;
 }
 
 export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
@@ -40,10 +60,11 @@ export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
   const title = da?.title ?? "Today's XAU/USD read";
   const bias = da?.bias ? (BIAS[da.bias] ?? da.bias) : null;
 
+  const { headline, teaser } = headlineOf(da?.description ?? null);
   const card = analysisCard({
-    title,
+    title: headline ?? "The desk's read on gold today",
     bias: da?.bias ?? null,
-    description: da?.description ?? null,
+    description: teaser,
     href: link,
     ctaLabel: copy.ctaLabel,
   });

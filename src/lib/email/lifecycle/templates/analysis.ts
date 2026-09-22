@@ -8,10 +8,11 @@ import { copyOf, esc, greeting, p, paragraphs, preheaderOf, signoff, textOf, url
 
 export const defaultCopy: LifecycleCopy = {
   subject: "Today's read on gold",
-  preheader: "The desk writes its read on gold before the session. Here is today's.",
+  preheader: "Written before the session opens. A short video, a PDF, and the levels being watched.",
   paragraphs: [
-    "You signed up the other day, so here's the one thing the desk does every trading morning: it writes down its read on gold before the session opens.",
-    "A short video and a PDF. Where price sat overnight, the levels the desk is watching, and the bias it's working from. You don't have to agree with it — it's a second opinion you can hold your own chart against.",
+    "Every trading morning the desk writes down its read on gold before the session opens. Today's is above, with the bias it is working from.",
+    "A short video and a PDF. Where price sat overnight, and the levels the desk is watching.",
+    "You do not have to agree with it. Hold it against your own chart and see where the two differ.",
   ],
   ctaLabel: "Open today's analysis",
 };

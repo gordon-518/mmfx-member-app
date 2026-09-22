@@ -9,11 +9,11 @@ import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from 
 
 export const defaultCopy: LifecycleCopy = {
   subject: "The deposit stays in your name",
-  preheader: "It is not a fee and not a subscription. Here is what it actually is.",
+  preheader: "Not a payment to us. It is trading capital at a broker, yours to hold and withdraw.",
   paragraphs: [
-    "You had a look at the tier page a couple of days ago and left it there. Nine times out of ten it's the same sticking point, so let me answer it plainly.",
-    "The deposit isn't a fee. It's not paid to Market Makers and it doesn't buy a subscription. It's a deposit into a trading account at a partner broker, opened in your name, under your login. You hold it, you trade with it, and you can withdraw it. It's your own trading capital, sitting where you would need it to sit anyway.",
-    "What it does on our side is set your rung. The total counts cumulatively, and it's a high-water mark, so a drawdown never removes access you already have. If that's not what you thought it was, the tier page reads differently the second time.",
+    "You opened the tier page two days ago and left it there. The sticking point is usually the same one, so here it is plainly.",
+    "The deposit is not paid to Market Makers. It goes into a trading account opened in your name, under your login. You hold it, you trade with it, you can withdraw it.",
+    "On our side it only sets your rung. The total counts cumulatively and holds at its high-water mark, so a drawdown never takes back access you already have. The page reads differently with that in mind.",
   ],
   ctaLabel: "Read the tiers again",
 };

@@ -134,7 +134,7 @@ describe("POST /api/cron/email-lifecycle", () => {
     const params = sendEmailMock.mock.calls[0][0];
     expect(params.to).toEqual({ name: "Wei", email: "wei@example.com" });
     expect(params.from).toEqual({ name: "Market Makers FX", email: "hello@marketmakersfx.net" });
-    expect(params.subject).toBe("Welcome in — start with today's gold read");
+    expect(params.subject).toBe("Start with today's gold read");
     expect(params.html).toContain("MARKET MAKERS FX");
     expect(params.headers).toEqual({
       "List-Unsubscribe": "<https://app.marketmakersfx.net/api/email/unsubscribe?token=tok123>",

@@ -187,7 +187,7 @@ describe("spotlight", () => {
 
   it("falls back to the free feature rather than throwing on a missing payload", () => {
     const e = spotlight(ctx({ spotlight: undefined }));
-    expect(e.subject).toBe("From the desk this week");
+    expect(e.subject).toBe("This week's guide from the desk");
     expect(lintEmail(e.text)).toEqual({ verdict: "pass", hits: [] });
     expect(e.html).toContain("cid=EML-nurture-spotlight");
   });
@@ -209,7 +209,7 @@ describe("the ladder copy", () => {
 
   it("tells day-12 readers what the free tier keeps", () => {
     const t = day12(ctx({ daysSinceSignup: 12 })).text;
-    expect(t).toContain("day 14");
+    expect(t.toLowerCase()).toContain("day 14");
     for (const s of ["Daily Analysis", "Know Your Style", "Module 1", "signals channel"]) expect(t).toContain(s);
   });
 });

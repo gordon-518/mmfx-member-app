@@ -7,14 +7,14 @@ import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from 
 // open the course at Foundations.
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "Where to start in the course",
-  preheader: "Nineteen lessons is a wall. There is only one you need to open today.",
+  subject: "Start with Golden Mindset",
+  preheader: "Lesson one of Module 1. The other eighteen can wait for a weekend that never comes.",
   paragraphs: [
-    "Nineteen lessons is the kind of number people put off until a quiet weekend that never comes. So ignore it. There's only one lesson you need to open.",
-    "Module 1 is Foundations, and it's on every account here whether you deposit or not. It starts with Golden Mindset — the discipline the rest of the system stands on — then XAUUSD Explained, then What Moves Gold?: the dollar, real yields, risk sentiment and geopolitics, and why gold behaves the way it does when they move.",
-    "Each lesson is a video with the slide deck alongside it. Start one. You can stop after it.",
+    "Nineteen lessons is the kind of number people put off. So ignore the number. Today there is one lesson.",
+    "Golden Mindset opens Module 1. It is the discipline the rest of the system stands on, and everything after it assumes you have it. A video, with the slide deck beside it.",
+    "Module 1 sits on every account here, deposit or not. Open the lesson. You can stop after it.",
   ],
-  ctaLabel: "Open the course",
+  ctaLabel: "Watch Golden Mindset",
 };
 
 export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {

@@ -7,12 +7,12 @@ import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from 
 // one feature nobody finds on their own. One action: connect the account.
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "Connect your AI Trading Assistant",
-  preheader: "It is on your tier and it does nothing until you connect an account.",
+  subject: "Connect the AI Trading Assistant",
+  preheader: "Read-only access to your closed trades. One connection, about three minutes.",
   paragraphs: [
-    "You're on Team MM, which includes the AI Trading Assistant. It's the one thing on your tier that does nothing until you connect it, so it's usually the thing that never gets used.",
-    "Connect your trading account and it reads your closed trades and shows you your own record back: how long you hold, what you tend to do in the hour after a loser, which setups you keep taking and which ones you talk about but never take.",
-    "The connection is read-only. It can see the account's history; it can't place, size or close anything — and it gets more useful the more trades it has, which is an argument for connecting it now rather than later.",
+    "The assistant is already on your tier. Until an account is linked it has nothing to read, which is why it is usually the feature that never gets used.",
+    "Link your trading account and it reads your closed trades, then shows you your own record back: how long you hold, what you do in the hour after a loser, which setups you keep taking.",
+    "The link is read-only. It can see the account's history and it cannot place, size or close anything. It gets more useful the more trades it has, so today is worth more than next month.",
   ],
   ctaLabel: "Connect the assistant",
 };

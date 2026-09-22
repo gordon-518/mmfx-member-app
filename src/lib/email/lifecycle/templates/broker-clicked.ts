@@ -15,14 +15,14 @@ import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf } from "../c
 // person's name and one link.
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "Stuck at the broker step?",
-  preheader: "Account opening asks for documents. Amelia does this all day — just ask her.",
+  subject: "Half way through the broker form",
+  preheader: "Amelia does these every day. Tell her where you stopped and she takes it from there.",
   paragraphs: [
-    "You opened the broker account page the other day and didn't get to the end of it. That's common enough that we have a person for it.",
-    "Account opening asks for identity documents and a proof of address, and it's easy to put down halfway and never pick up again. Sometimes an upload is rejected for something small. Sometimes the form asks for something you didn't have to hand.",
-    `${ADMIN_DISPLAY_NAME} handles this all day. Message her on Telegram, say where you got to, and she'll walk you through the rest of it. She can't message you first, so the first message has to come from you. If you decided against it instead, that's a fine answer too — the free side of your account carries on as it is.`,
+    "You opened the broker account page yesterday and stopped somewhere in the middle. That happens often enough that we keep a person for it.",
+    "The form asks for an identity document and a proof of address. Uploads get rejected for small reasons. Forms ask for things you did not have to hand.",
+    "Message Admin Amelia on Telegram and say where you stopped. She cannot write to you first, so the first line has to be yours. If you have changed your mind, that is a fine answer. The free side of your account stays as it is.",
   ],
-  ctaLabel: `Message ${ADMIN_DISPLAY_NAME}`,
+  ctaLabel: "Message Admin Amelia",
 };
 
 export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {

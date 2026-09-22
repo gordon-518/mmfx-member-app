@@ -7,12 +7,12 @@ import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from 
 // action: answer the questions.
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "Which kind of trader are you?",
-  preheader: "A few questions, an archetype, and the blind spot that travels with it.",
+  subject: "Eight archetypes. One is yours.",
+  preheader: "Three minutes of questions, then the habit you are least likely to see in yourself.",
   paragraphs: [
-    "Before any of the charting, there's a question worth answering: what do you actually do when a trade goes against you?",
-    "Know Your Style asks a few questions and gives you an archetype — the habits that tend to travel with it, and the one you're most likely to be blind to in yourself.",
-    "It takes a few minutes, it's yours to keep, and the rest of the app reads it: your dashboard and the tier page both use your archetype to point you at what's worth your time.",
+    "Know Your Style asks a short set of questions and names your archetype. There are eight. It takes about three minutes.",
+    "What comes back is the set of habits that travels with that archetype, including the one most traders cannot see in themselves.",
+    "It is yours to keep. From then on your dashboard and the tier page read it, and point you at the work that suits how you actually trade.",
   ],
   ctaLabel: "Take Know Your Style",
 };

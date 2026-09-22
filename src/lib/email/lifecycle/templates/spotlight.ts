@@ -37,13 +37,13 @@ const LADDER =
   "Everything in this one is on the free side of your account. The paid rungs start at a $50 deposit into your own trading account, and the tier page says what each opens.";
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "From the desk this week",
-  preheader: "This week's guide from the desk, and the read that is there every day.",
+  subject: "This week's guide from the desk",
+  preheader: "One read on gold, start to finish. Open on the free tier, no deposit needed.",
   paragraphs: [
     "This week's guide isn't out yet, so here's what's always there: the desk's read on gold, posted every trading morning.",
     "Where price sat overnight, the levels the desk is watching, and the bias it's working from. It's on your account whether you deposit or not.",
   ],
-  ctaLabel: "Read the full guide",
+  ctaLabel: "Read this week's guide",
 };
 
 export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {

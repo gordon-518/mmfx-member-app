@@ -8,14 +8,14 @@ import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from 
 // today's analysis.
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "It's been a while",
-  preheader: "No pitch in this one. The desk has kept writing; the door is still open.",
+  subject: "Today's read on gold",
+  preheader: "A quiet month is fine. One read, three minutes, no catching up required.",
   paragraphs: [
-    "Your account has been quiet for about a month. No pitch in this one — life happens, and markets are easier to walk away from than to come back to.",
-    "The desk has kept doing the same thing every trading morning: its read on gold. Where price sat overnight, the levels it's watching, and the bias it's working from — a short video and a PDF, before the session opens.",
-    "That's the easiest way back in, and it's already on your account. Start there rather than trying to catch up on everything at once. And if Market Makers isn't for you any more, unsubscribe below and we'll leave you alone.",
+    "Your account has been quiet for about a month. No pitch in this one. Markets are easier to walk away from than to come back to.",
+    "The desk kept writing every trading morning: where gold sat overnight, the levels it is watching, the bias it is working from. A short video and a PDF, before the session.",
+    "Start with today's, not a month of them. It is already on your account. And if Market Makers is not for you any more, unsubscribe below and we will leave you alone.",
   ],
-  ctaLabel: "See today's read on gold",
+  ctaLabel: "Open today's analysis",
 };
 
 export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {

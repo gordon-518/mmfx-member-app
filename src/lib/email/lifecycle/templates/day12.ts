@@ -7,12 +7,12 @@ import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from 
 // nothing about time running out. One action: see what each rung opens.
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "What changes on day 14",
-  preheader: "What closes, what stays, and why nothing is deleted or charged.",
+  subject: "What closes on day 14",
+  preheader: "Daily Analysis, Know Your Style and Module 1 stay. Nothing is deleted, nothing charged.",
   paragraphs: [
-    "Your trial runs to day 14. Here's the plain version of what happens then, because the vague version is how people end up surprised.",
-    "What closes: the ten TradingView indicators, the strategy scripts, live classes, the Fundamental Desk, and the lessons past Module 1.",
-    "What stays, with no deposit at all: the Daily Analysis every trading day, Know Your Style, Module 1 of the course, the economic calendar, the news feed and the public signals channel. Your login keeps working. Nothing is deleted and nothing is charged.",
+    "Day 14 ends the trial. What closes: the ten TradingView indicators, the strategy scripts, live classes, the Fundamental Desk, and the lessons past Module 1.",
+    "What stays, with no deposit at all: Daily Analysis every trading day, Know Your Style, Module 1, the economic calendar, the news feed and the public signals channel. Your login keeps working.",
+    "Each rung above Free is a deposit into your own trading account at the broker, opened in your name, yours to trade and withdraw. The tiers page shows which rung opens what.",
   ],
   ctaLabel: "See what each rung opens",
 };

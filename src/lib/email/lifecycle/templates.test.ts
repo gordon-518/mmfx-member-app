@@ -79,7 +79,7 @@ function assertCompliant(mail: { subject: string; html: string; text: string }) 
 describe("welcome template", () => {
   it("says what it is, how it stays free, and asks for one action", () => {
     const mail = renderLifecycle("trial", "welcome", ctx());
-    expect(mail.subject).toBe("Welcome in — start with today's gold read");
+    expect(mail.subject).toBe("Start with today's gold read");
     expect(mail.text).toContain("Hi Wei,");
     expect(mail.text).toContain("introducing broker");
     expect(mail.text).toContain("14-day trial");
@@ -128,7 +128,7 @@ describe("digest template", () => {
 
   it("leads with today's read and says what Free keeps", () => {
     const mail = renderLifecycle("nurture", "digest", free);
-    expect(mail.subject).toBe("Gold today: Gold holds the 4H range high (bullish bias)");
+    expect(mail.subject).toBe("Gold today: bullish");
     // v2: the bias is a badge, not a sentence — but the text twin still says it.
     expect(mail.html).toContain("BULLISH");
     expect(mail.text).toContain("Bias: Bullish");
@@ -140,7 +140,7 @@ describe("digest template", () => {
 
   it("falls back to a generic headline with no analysis row", () => {
     const mail = renderLifecycle("nurture", "digest", ctx({ ...free, todayAnalysis: null }));
-    expect(mail.subject).toBe("Gold today: Today's XAU/USD read");
+    expect(mail.subject).toBe("Gold today");
     assertCompliant(mail);
   });
 
@@ -376,7 +376,9 @@ describe("v2 structure", () => {
       stepCtx("nurture", { todayAnalysis: { ...BASE.todayAnalysis!, coverUrl: null } })
     ).html;
     expect(html).not.toContain("cdn.test/covers");
-    expect(html).toContain("Gold holds the 4H range high");
+    // v2: the card headline is the description's first sentence; the dated
+    // title only ever rides as the cover's alt text.
+    expect(html).toContain("Price is pressing the range high into London.");
   });
 
   it("gives the two ladder emails the four-rung strip", () => {

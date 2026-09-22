@@ -11,12 +11,12 @@ import { copyOf, esc, greeting, p, paragraphs, preheaderOf, signoff, textOf, url
 // fourteen days into five things rather than a countdown.
 
 export const defaultCopy: LifecycleCopy = {
-  subject: "Welcome in — start with today's gold read",
-  preheader: "What Market Makers is, why it costs you nothing, and the one thing to read first.",
+  subject: "Start with today's gold read",
+  preheader: "One page on XAU/USD, worked from the daily chart. Three minutes is all it asks.",
   paragraphs: [
-    "Market Makers is a trading desk, not a course library. Every trading day we publish one read on gold — XAU/USD — worked top-down from the daily chart, and everything around it exists so you can build your own view rather than borrow ours.",
-    "How it stays free: we're an introducing broker. When you trade through a broker we're partnered with, the broker pays us. You never pay Market Makers for access, and any deposit you make is yours — in your name, at the broker, and yours to withdraw.",
-    "Your 14-day trial is open now: the daily read, Know Your Style, the economic calendar, live news and the MM System course. After day 14 the account stays — Daily Analysis, Know Your Style, the calendar, news and Module 1 of the course are yours either way.",
+    "Start here: open today's Daily Analysis. One page on gold, worked top-down from the daily chart. Three minutes, and you will know how the desk is reading price this session.",
+    "It publishes every trading day. This is a desk, not a course library, so the read exists for you to argue with and build your own view rather than borrow ours.",
+    "Your 14-day trial is open now, and access costs you nothing. We are an introducing broker, so the broker pays us when you trade. Any deposit goes into your own account, in your name, and stays yours. After day 14, the daily read, Know Your Style and Module 1 of the course stay open.",
   ],
   ctaLabel: "Open today's analysis",
 };
