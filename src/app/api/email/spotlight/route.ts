@@ -20,7 +20,9 @@ interface SpotlightBody {
 }
 
 function authorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
+  // The brain calls this with its dedicated ORGANIC_CRON_SECRET when one is
+  // set (same rule as /api/organic/*); CRON_SECRET remains the fallback.
+  const secret = process.env.ORGANIC_CRON_SECRET || process.env.CRON_SECRET;
   return !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
 }
 

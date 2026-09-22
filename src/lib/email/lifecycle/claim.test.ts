@@ -99,6 +99,10 @@ describe("fn_claim_email_sends guards", () => {
     );
   });
 
+  it("resolves OUT-column name clashes to the column (42702 in the rollback dry run)", () => {
+    expect(CLAIM_FN).toContain("#variable_conflict use_column");
+  });
+
   it("serialises overlapping runs with an advisory lock", () => {
     expect(CLAIM_FN).toContain("pg_catalog.pg_advisory_xact_lock(");
   });

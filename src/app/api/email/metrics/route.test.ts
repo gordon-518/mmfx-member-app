@@ -4,6 +4,7 @@ const { serviceClientMock } = vi.hoisted(() => ({ serviceClientMock: vi.fn() }))
 vi.mock("@/lib/journal/api", () => ({ serviceClient: serviceClientMock }));
 
 import { FLOWS } from "@/lib/email/lifecycle";
+import { NextRequest } from "next/server";
 import { GET } from "./route";
 
 type Row = Record<string, unknown>;
@@ -50,6 +51,7 @@ const KPI_ROW = {
 beforeEach(() => {
   serviceClientMock.mockReset();
   process.env.CRON_SECRET = "testsecret";
+  delete process.env.ORGANIC_CRON_SECRET;
 });
 
 describe("GET /api/email/metrics", () => {
@@ -123,4 +125,13 @@ describe("GET /api/email/metrics", () => {
     });
     expect((await GET(req())).status).toBe(500);
   });
+});
+
+it("prefers the brain's ORGANIC_CRON_SECRET when it is set", async () => {
+  process.env.ORGANIC_CRON_SECRET = "brainsecret";
+  const denied = await GET(new NextRequest("https://app.test/api/email/metrics", { headers: { authorization: "Bearer testsecret" } }));
+  expect(denied.status).toBe(401);
+  const ok = await GET(new NextRequest("https://app.test/api/email/metrics", { headers: { authorization: "Bearer brainsecret" } }));
+  expect(ok.status).not.toBe(401);
+  delete process.env.ORGANIC_CRON_SECRET;
 });

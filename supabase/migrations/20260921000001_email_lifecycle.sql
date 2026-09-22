@@ -180,6 +180,12 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+  -- RETURNS TABLE declares user_id, flow, step … as OUT variables, and inside
+  -- the body a bare column name in ON CONFLICT (user_id) is then ambiguous
+  -- (42702 on Postgres 17, caught in the 2026-09-22 rollback dry run).
+  -- Every table reference here is qualified; the OUT names are only ever
+  -- assigned through RETURN QUERY, so resolving clashes to the column is safe.
+  #variable_conflict use_column
 declare
   v_limit     integer := greatest(1, least(coalesce(p_limit, 200), 1000));
   -- The desk runs on Singapore time, and so does "today's" analysis.

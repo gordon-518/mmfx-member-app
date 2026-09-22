@@ -80,6 +80,10 @@ describe("email_measurement migration", () => {
 });
 
 describe("fn_claim_email_sends — the two additions", () => {
+  it("resolves OUT-column name clashes to the column (42702 in the rollback dry run)", () => {
+    expect(CLAIM_FN).toContain("#variable_conflict use_column");
+  });
+
   it("drops before it re-creates: RETURNS TABLE gained two columns", () => {
     // create or replace cannot widen a function's return type.
     expect(squish(SQL)).toContain(
