@@ -129,6 +129,7 @@ describe("GET /api/email/metrics", () => {
 
 it("prefers the brain's ORGANIC_CRON_SECRET when it is set", async () => {
   process.env.ORGANIC_CRON_SECRET = "brainsecret";
+  serviceClientMock.mockReturnValue(stubDb([]));
   const denied = await GET(new NextRequest("https://app.test/api/email/metrics", { headers: { authorization: "Bearer testsecret" } }));
   expect(denied.status).toBe(401);
   const ok = await GET(new NextRequest("https://app.test/api/email/metrics", { headers: { authorization: "Bearer brainsecret" } }));
