@@ -13,6 +13,7 @@
 // eye should land on the headline, and a centred block leaves dead space above it.
 import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
+import { brandFonts, DISPLAY, BODY } from "@/lib/organic/renderFonts";
 import {
   anchorFor,
   anchorStyle,
@@ -65,7 +66,7 @@ function Frame({ children, w, h }: { children: React.ReactNode; w: number; h: nu
         justifyContent: "space-between",
         background: "#FFFFFF",
         padding: 72,
-        fontFamily: "sans-serif",
+        fontFamily: BODY,
       }}
     >
       {children}
@@ -77,7 +78,7 @@ function Wordmark() {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ width: 34, height: 34, borderRadius: 10, background: ORANGE, display: "flex" }} />
-      <div style={{ display: "flex", fontSize: 26, fontWeight: 700, color: INK }}>
+      <div style={{ display: "flex", fontSize: 26, fontWeight: 700, color: INK, fontFamily: DISPLAY }}>
         MarketMakersFX
       </div>
     </div>
@@ -154,7 +155,7 @@ export async function POST(req: NextRequest) {
             </div>
           </div>
           <div
-            style={{ display: "flex", fontSize: 78, fontWeight: 700, color: INK, lineHeight: 1.08 }}
+            style={{ display: "flex", fontSize: 78, fontWeight: 800, color: INK, lineHeight: 1.08, fontFamily: DISPLAY }}
           >
             {s.headline ?? ""}
           </div>
@@ -201,7 +202,7 @@ export async function POST(req: NextRequest) {
             {s.when ?? ""}
           </div>
           <div
-            style={{ display: "flex", fontSize: 72, fontWeight: 700, color: INK, lineHeight: 1.1 }}
+            style={{ display: "flex", fontSize: 72, fontWeight: 800, color: INK, lineHeight: 1.1, fontFamily: DISPLAY }}
           >
             {s.headline ?? ""}
           </div>
@@ -235,7 +236,7 @@ export async function POST(req: NextRequest) {
           }}
         >
           <div
-            style={{ display: "flex", fontSize: 66, fontWeight: 700, color: INK, lineHeight: 1.15 }}
+            style={{ display: "flex", fontSize: 66, fontWeight: 800, color: INK, lineHeight: 1.15, fontFamily: DISPLAY }}
           >
             {s.quote ?? ""}
           </div>
@@ -267,9 +268,10 @@ export async function POST(req: NextRequest) {
               h
             ),
             fontSize: role === "hook" ? 78 : 54,
-            fontWeight: 700,
+            fontWeight: 800,
             color: role === "cta" ? ORANGE : INK,
             lineHeight: 1.15,
+            fontFamily: DISPLAY,
           }}
         >
           {s[role] ?? ""}
@@ -283,5 +285,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  return new ImageResponse(content, { width: w, height: h });
+  // Without this, Satori silently uses its own default face — the templates are
+  // designed around the brand's type, so the fonts are not optional.
+  return new ImageResponse(content, { width: w, height: h, fonts: await brandFonts() });
 }

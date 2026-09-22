@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The organic image renderer reads its .ttf files from disk at request time. Next
+  // only traces files it can see referenced statically, and the path there is built with
+  // path.join, so the fonts must be named explicitly or they are absent in production
+  // and every render fails.
+  outputFileTracingIncludes: {
+    "/api/organic/render": ["./src/lib/organic/fonts/*.ttf"],
+  },
+
   // Admin uploads a cover image + a PDF report in one server action — the
   // default 1MB body limit would silently drop real PDFs. Raise it.
   experimental: {
