@@ -67,6 +67,7 @@ describe("proxy — email_visit", () => {
   });
 
   it("hands the attribution write to the fetch event so the edge runtime keeps it alive", async () => {
+    withUser(WEI);
     const waitUntil = vi.fn();
     await proxy(
       new NextRequest("https://app.test/daily-analysis?cid=EML-nurture-digest"),
