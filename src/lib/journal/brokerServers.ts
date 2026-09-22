@@ -17,6 +17,10 @@
 //
 // Elev8 and Octa share one broker id (elev8_octa): Elev8 is the brand OctaFX
 // members were moved to, and both server families are valid for it.
+//
+// The lists below are what the dropdown offers. They are not exhaustive — a
+// member on a server we haven't listed types it, and it's accepted as long as
+// it's shaped like an MT5 server name for THAT broker and isn't a demo.
 
 /**
  * Words that mark a non-live account. The trailing \\w* matters: brokers number
@@ -30,24 +34,33 @@ const ACCESS_SERVER_SUFFIX = /\s*[-–]?\s*access server.*$/i;
 interface BrokerServerRule {
   /** Shown in errors. */
   label: string;
-  /** Offered as suggestions in the connect form, best-known first. */
+  /** Offered in the connect form's dropdown, best-known first. */
   known: string[];
-  /** Accepts the known names plus the brokers' numbered variants. */
-  pattern: RegExp;
+  /** The broker's own name, as it appears in its server names. */
+  brand: RegExp;
 }
 
 const RULES: Record<string, BrokerServerRule> = {
   dupoin: {
     label: "Dupoin",
-    known: ["DupoinMarkets-Real"],
-    pattern: /^dupoinmarkets-(real|live)\d*$/i,
+    // Gordon's MT5, 22 Sep: Dupoin runs more than one entity.
+    known: ["DupoinMarkets-Real", "DupoinInternational-Real"],
+    brand: /dupoin/i,
   },
   elev8_octa: {
     label: "Elev8 / Octa",
-    known: ["Elev8-Real2", "Elev8-Real10", "OctaFX-Real"],
-    pattern: /^(elev8-(real|live)\d*|octafx?-(real|live)\d*)$/i,
+    known: ["Elev8-Real2", "OctaFX-Real2", "OctaFX-Real"],
+    brand: /elev8|octa/i,
   },
 };
+
+/**
+ * An MT5 server name: brand, a hyphen, then the server ("DupoinInternational-Real",
+ * "OctaFX-Real2"). No spaces — that's what separates a real server from the
+ * things members pasted instead ("Octa Markets Incorporated", "SG #2",
+ * "Anti DDos Proxy Server", or just "Dupoin").
+ */
+const SERVER_SHAPE = /^[A-Za-z0-9.]+[A-Za-z0-9.-]*-[A-Za-z0-9.-]+$/;
 
 export type ServerCheck =
   | { ok: true; server: string }
@@ -90,14 +103,18 @@ export function validateBrokerServer(raw: string, brokerId: string): ServerCheck
   const rule = RULES[brokerId];
   if (!rule) return { ok: true, server };
 
-  if (!rule.pattern.test(server)) {
-    return {
-      ok: false,
-      error: `That doesn't look like a ${rule.label} server. It should look like ${rule.known[0]} — copy it from your MT5 login screen.`,
-    };
+  // A server we already know: store our spelling of it.
+  const canonical = rule.known.find((k) => k.toLowerCase() === server.toLowerCase());
+  if (canonical) return { ok: true, server: canonical };
+
+  // Anything else has to be a plausible server name for THIS broker, so a
+  // member on a server we haven't listed can still connect by typing it.
+  if (SERVER_SHAPE.test(server) && rule.brand.test(server)) {
+    return { ok: true, server };
   }
 
-  // Store the canonical casing when we know it.
-  const canonical = rule.known.find((k) => k.toLowerCase() === server.toLowerCase());
-  return { ok: true, server: canonical ?? server };
+  return {
+    ok: false,
+    error: `That doesn't look like a ${rule.label} server. It should look like ${rule.known[0]} — copy it from your MT5 login screen.`,
+  };
 }

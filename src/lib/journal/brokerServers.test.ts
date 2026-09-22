@@ -15,6 +15,27 @@ describe("validateBrokerServer — the servers that really sync", () => {
     expect(ok("OctaFX-Real", "elev8_octa")).toEqual({ ok: true, server: "OctaFX-Real" });
   });
 
+  it("accepts the servers from Gordon's MT5 (22 Sep)", () => {
+    expect(ok("DupoinInternational-Real", "dupoin")).toEqual({
+      ok: true,
+      server: "DupoinInternational-Real",
+    });
+    expect(ok("OctaFX-Real2", "elev8_octa")).toEqual({ ok: true, server: "OctaFX-Real2" });
+  });
+
+  it("accepts a server we haven't listed, typed by the member", () => {
+    // Dupoin or Octa can add an entity or a numbered server at any time; a
+    // member must never be locked out because our list is behind.
+    expect(ok("DupoinInternational-Real2", "dupoin").ok).toBe(true);
+    expect(ok("DupoinAsia-Live3", "dupoin").ok).toBe(true);
+    expect(ok("Octa-Real4", "elev8_octa").ok).toBe(true);
+  });
+
+  it("still refuses a demo server the member typed themselves", () => {
+    expect(ok("DupoinInternational-Demo", "dupoin").ok).toBe(false);
+    expect(ok("Octa-Demo7", "elev8_octa").ok).toBe(false);
+  });
+
   it("accepts numbered variants we haven't seen yet, so nobody is locked out", () => {
     expect(ok("Elev8-Real7", "elev8_octa").ok).toBe(true);
     expect(ok("Elev8-Live2", "elev8_octa").ok).toBe(true);
@@ -82,8 +103,15 @@ describe("validateBrokerServer — the junk members actually typed", () => {
 
 describe("knownServersFor", () => {
   it("offers suggestions per broker", () => {
-    expect(knownServersFor("dupoin")).toEqual(["DupoinMarkets-Real"]);
-    expect(knownServersFor("elev8_octa")).toContain("OctaFX-Real");
+    expect(knownServersFor("dupoin")).toEqual([
+      "DupoinMarkets-Real",
+      "DupoinInternational-Real",
+    ]);
+    expect(knownServersFor("elev8_octa")).toEqual([
+      "Elev8-Real2",
+      "OctaFX-Real2",
+      "OctaFX-Real",
+    ]);
     expect(knownServersFor("nope")).toEqual([]);
   });
 });
