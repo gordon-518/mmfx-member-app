@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { requireMemberApi, serviceClient } from "@/lib/journal/api";
 import { MetaApiError, createMetaApiAccount } from "@/lib/journal/metaapi";
-import { loadBrokers, serverMatchesBroker } from "@/lib/journal/ibBrokers";
+import { loadBrokers } from "@/lib/journal/ibBrokers";
+import { validateBrokerServer } from "@/lib/journal/brokerServers";
 
 // POST /api/journal/accounts — connect an MT5 account.
 //
 // The journal tracks the member's one registered active account: the login is
 // taken from profiles.trading_account_number (not the client). The investor
 // password is validated, passed through to MetaApi over TLS, and NEVER stored.
-// Broker is chosen from the registry; a mismatched server is rejected; an
-// account previously removed as not-under-IB (ib_review = journal_blocked) can't
-// reconnect.
+// Broker is chosen from the registry; the server must be one the broker really
+// runs and must not be a demo server (brokerServers.ts), so a typo can no longer
+// bill a MetaApi account that was always going to fail; an account previously
+// removed as not-under-IB (ib_review = journal_blocked) can't reconnect.
 
 interface ConnectBody {
   broker_id?: string;
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   const brokerId = (body.broker_id ?? "").trim();
   const password = body.password ?? "";
-  const server = (body.server ?? "").trim();
+  const rawServer = (body.server ?? "").trim();
   const label = (body.label ?? "").trim() || null;
 
   const svc = serviceClient();
@@ -58,18 +60,13 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (server.length < 3) {
-    return NextResponse.json(
-      { error: "Broker server is required (from your MT5 login screen)" },
-      { status: 400 }
-    );
+  // Allowlist + demo check (22 Sep). Returns the canonical spelling, so one
+  // server is one row rather than five casings.
+  const checked = validateBrokerServer(rawServer, brokerId);
+  if (!checked.ok) {
+    return NextResponse.json({ error: checked.error }, { status: 400 });
   }
-  if (!serverMatchesBroker(server, brokerId)) {
-    return NextResponse.json(
-      { error: `That server doesn't look like a ${broker.display_name} server.` },
-      { status: 400 }
-    );
-  }
+  const server = checked.server;
 
   // Block reconnect of an account previously removed as not-under-IB.
   const { data: prior } = await svc

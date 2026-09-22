@@ -10,6 +10,15 @@ Phase 1 (Connect & Collect) of the AI Trading Journal. Full design:
    password** (read-only) + broker server. The password is passed through to
    MetaApi (cloud MT5 bridge) over TLS and **never stored or logged**; we keep
    only the returned `metaapi_account_id`.
+   The server is checked against a per-broker allowlist before MetaApi is
+   called (`src/lib/journal/brokerServers.ts`): `DupoinMarkets-Real` for
+   Dupoin, and `Elev8-Real<n>` / `Elev8-Live<n>` / `OctaFX-Real` for
+   `elev8_octa`. **Demo servers are refused** — the coach only reviews live
+   trading. MT5's status-bar suffix ("… Access Server SG #1") is stripped and
+   casing is canonicalised, so one server is one row. This exists because
+   free-text servers ("Anti DDos Proxy Server", "SG #2", the broker's company
+   name) each provisioned a **billable** MetaApi account that was always going
+   to fail.
 2. A **job queue** (`journal_sync_jobs`) syncs each account incrementally:
    pg_cron POSTs `/api/journal/cron/sync` every 15 min → the worker enqueues
    due accounts (last sync > 4 h), claims jobs via `fn_claim_sync_jobs`
