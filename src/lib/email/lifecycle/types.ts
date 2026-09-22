@@ -1,4 +1,5 @@
 import type { MemberTier } from "@/lib/tiers";
+import type { EmailHero } from "@/lib/email/shell";
 
 /**
  * The words of one lifecycle email, separated from its structure.
@@ -54,6 +55,8 @@ export interface LifecycleEmail {
   text: string;
   /** Inbox preview text. The rail hides it in the shell. */
   preheader?: string;
+  /** The band under the black header, when this step has one. */
+  hero?: EmailHero;
 }
 
 export type LifecycleTemplate = (ctx: LifecycleCtx) => LifecycleEmail;

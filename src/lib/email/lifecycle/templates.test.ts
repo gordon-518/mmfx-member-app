@@ -25,9 +25,12 @@ function ctx(over: Partial<LifecycleCtx> = {}): LifecycleCtx {
   return { ...BASE, ...over };
 }
 
-/** Every href in the HTML. */
+/** Every href a READER can follow. The shell v2 <head> also links the Google
+ *  Fonts stylesheet, which is not a link in the email's sense. */
 function hrefs(html: string): string[] {
-  return [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+  return [...html.matchAll(/href="([^"]+)"/g)]
+    .map((m) => m[1])
+    .filter((h) => !h.startsWith("https://fonts.googleapis.com/"));
 }
 
 // The words compliance says never appear in Market Makers marketing copy:
