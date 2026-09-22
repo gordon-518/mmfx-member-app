@@ -18,8 +18,7 @@ import {
   runBurst, handleOutgoing, defaultPing, PREFIX, RUN_BUDGET_MS, REDRAFT_TIMEOUT_MS,
   FIRST_DECIDE_MIN_BUDGET_MS, MAX_REPLIES_PER_HOUR, MAX_CALLS_PER_DAY, ECHO_WINDOW_MS,
   HANDOFF_TAIL_MS, ROUTE_MAX_DURATION_MS,
-  type RunDeps, type BurstTrigger,
-} from "./run";
+  type RunDeps, type BurstTrigger, HANDOFF_PAUSE_MINUTES } from "./run";
 // The route's own declared ceiling, imported so the two can't drift apart.
 import { maxDuration } from "@/app/api/support/webhook/route";
 import type { ChatRow, EventRow, LogResult } from "./store";
@@ -179,7 +178,10 @@ describe("runBurst", () => {
     expect(s.decide).not.toHaveBeenCalled();
     expect(s.sp.send).toHaveBeenCalledWith("c1", expect.stringContaining("passed this to Admin Amelia"));
     expect(s.sp.setTag).toHaveBeenCalledWith("c1", "needs-amelia");
-    expect(s.sp.setPauseAutomation).toHaveBeenCalledWith("c1", 1440);
+    // 120 is SendPulse's hard cap — asking for more is rejected outright, which
+    // is how handed-off chats were silently left unpaused in production.
+    expect(s.sp.setPauseAutomation).toHaveBeenCalledWith("c1", HANDOFF_PAUSE_MINUTES);
+    expect(HANDOFF_PAUSE_MINUTES).toBeLessThanOrEqual(120);
     expect(s.sp.openChat).toHaveBeenCalledWith("c1");
     expect(s.chat?.state).toBe("needs_amelia");
     expect(s.deps.ping).toHaveBeenCalled();
