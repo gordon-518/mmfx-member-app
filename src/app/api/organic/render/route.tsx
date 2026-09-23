@@ -16,6 +16,7 @@ import { NextRequest } from "next/server";
 import { brandFonts, DISPLAY, BODY } from "@/lib/organic/renderFonts";
 import { BoldCarouselSlide } from "@/lib/organic/boldCarousel";
 import { StatCard, disclaimerError } from "@/lib/organic/statCard";
+import { HowToSlide } from "@/lib/organic/howToSlide";
 import {
   anchorFor,
   anchorStyle,
@@ -256,6 +257,8 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: bad }), { status: 400 });
     }
     content = <StatCard slots={s} w={w} h={h} />;
+  } else if (body.template === "how-to-carousel") {
+    content = <HowToSlide role={body.slide ?? "hook"} slots={s} w={w} h={h} />;
   } else if (body.template === "lesson-carousel") {
     // One slide per request; the caller loops the five roles. The layout, colour and
     // furniture all live in BoldCarouselSlide — see that file for why each slide is
