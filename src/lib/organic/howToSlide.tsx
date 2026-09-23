@@ -44,6 +44,7 @@ export function HowToSlide({
   const step = me?.step ?? stepIndex(role);
   const total = me?.totalSteps ?? 0;
   const isStep = step !== null;
+  const image = me?.image ?? null;
 
   return (
     <div
@@ -75,42 +76,111 @@ export function HowToSlide({
           display: "flex",
           flexDirection: "column",
           alignItems: "flex-start",
-          gap: 24,
+          gap: image ? 30 : 24,
           margin: "auto 0",
           width: "100%",
         }}
       >
-        {isStep ? (
-          // The numeral, set large and in the accent — the reader's place in the sequence.
+        {/* With a screenshot the numeral shrinks to a chip and sits beside the caption:
+            the picture is the thing being looked at, and a 200px numeral above it would
+            fight for the same attention. Without one, the numeral IS the slide. */}
+        {image ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            {isStep ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 64,
+                  height: 64,
+                  borderRadius: 999,
+                  background: t.accent,
+                  color: t.bg,
+                  fontFamily: DISPLAY,
+                  fontWeight: 800,
+                  fontSize: 34,
+                }}
+              >
+                {step}
+              </div>
+            ) : (
+              <img src={markUrl(t.accent)} width={48} height={48} style={{ display: "flex" }} alt="" />
+            )}
+            <div
+              style={{
+                display: "flex",
+                fontFamily: DISPLAY,
+                fontWeight: 800,
+                fontSize: textSize(text, 54),
+                lineHeight: 1.08,
+                letterSpacing: -1.5,
+                color: t.ink,
+                width: 830,
+              }}
+            >
+              {text}
+            </div>
+          </div>
+        ) : (
+          <>
+            {isStep ? (
+              // The numeral, large and in the accent — the reader's place in the sequence.
+              <div
+                style={{
+                  display: "flex",
+                  fontFamily: DISPLAY,
+                  fontWeight: 800,
+                  fontSize: 200,
+                  lineHeight: 0.9,
+                  letterSpacing: -8,
+                  color: t.accent,
+                }}
+              >
+                {String(step).padStart(2, "0")}
+              </div>
+            ) : (
+              <img src={markUrl(t.accent)} width={56} height={56} style={{ display: "flex" }} alt="" />
+            )}
+            <div
+              style={{
+                display: "flex",
+                fontFamily: DISPLAY,
+                fontWeight: 800,
+                fontSize: textSize(text, isStep ? 76 : 96),
+                lineHeight: 1.06,
+                letterSpacing: -2,
+                color: t.ink,
+              }}
+            >
+              {text}
+            </div>
+          </>
+        )}
+
+        {image ? (
+          // A device-shaped frame: the screenshot is what the reader will actually see,
+          // so it is shown as a screen rather than as decoration bled to the edges.
           <div
             style={{
               display: "flex",
-              fontFamily: DISPLAY,
-              fontWeight: 800,
-              fontSize: 200,
-              lineHeight: 0.9,
-              letterSpacing: -8,
-              color: t.accent,
+              width: "100%",
+              height: 720,
+              borderRadius: 28,
+              border: `3px solid ${t.dark ? "#2A2724" : "#E4DFD8"}`,
+              background: t.dark ? "#161412" : "#FFFFFF",
+              overflow: "hidden",
             }}
           >
-            {String(step).padStart(2, "0")}
+            <img
+              src={image}
+              width={930}
+              height={714}
+              style={{ display: "flex", objectFit: "cover", objectPosition: "top" }}
+              alt=""
+            />
           </div>
-        ) : (
-          <img src={markUrl(t.accent)} width={56} height={56} style={{ display: "flex" }} alt="" />
-        )}
-        <div
-          style={{
-            display: "flex",
-            fontFamily: DISPLAY,
-            fontWeight: 800,
-            fontSize: textSize(text, isStep ? 76 : 96),
-            lineHeight: 1.06,
-            letterSpacing: -2,
-            color: t.ink,
-          }}
-        >
-          {text}
-        </div>
+        ) : null}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
