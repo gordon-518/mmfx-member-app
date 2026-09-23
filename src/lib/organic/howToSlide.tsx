@@ -85,41 +85,65 @@ export function HowToSlide({
             the picture is the thing being looked at, and a 200px numeral above it would
             fight for the same attention. Without one, the numeral IS the slide. */}
         {image ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-            {isStep ? (
+          // Instruction left, screen right. App screenshots are tall portrait (roughly
+          // 1:2), so a full-width landscape frame would crop away everything below the
+          // first third. Standing the screen up beside the caption shows the whole thing
+          // and uses the width that a centred phone would waste.
+          <div style={{ display: "flex", alignItems: "center", gap: 40, width: "100%" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24, width: 430 }}>
+              {isStep ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 74,
+                    height: 74,
+                    borderRadius: 999,
+                    background: t.accent,
+                    color: t.bg,
+                    fontFamily: DISPLAY,
+                    fontWeight: 800,
+                    fontSize: 38,
+                  }}
+                >
+                  {step}
+                </div>
+              ) : (
+                <img src={markUrl(t.accent)} width={56} height={56} style={{ display: "flex" }} alt="" />
+              )}
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 64,
-                  height: 64,
-                  borderRadius: 999,
-                  background: t.accent,
-                  color: t.bg,
                   fontFamily: DISPLAY,
                   fontWeight: 800,
-                  fontSize: 34,
+                  fontSize: textSize(text, 58),
+                  lineHeight: 1.08,
+                  letterSpacing: -1.5,
+                  color: t.ink,
                 }}
               >
-                {step}
+                {text}
               </div>
-            ) : (
-              <img src={markUrl(t.accent)} width={48} height={48} style={{ display: "flex" }} alt="" />
-            )}
+            </div>
             <div
               style={{
                 display: "flex",
-                fontFamily: DISPLAY,
-                fontWeight: 800,
-                fontSize: textSize(text, 54),
-                lineHeight: 1.08,
-                letterSpacing: -1.5,
-                color: t.ink,
-                width: 830,
+                width: 466,
+                height: 930,
+                borderRadius: 34,
+                border: `4px solid ${t.dark ? "#2A2724" : "#E4DFD8"}`,
+                background: t.dark ? "#161412" : "#FFFFFF",
+                overflow: "hidden",
               }}
             >
-              {text}
+              <img
+                src={image}
+                width={458}
+                height={922}
+                style={{ display: "flex", objectFit: "cover", objectPosition: "top" }}
+                alt=""
+              />
             </div>
           </div>
         ) : (
@@ -158,29 +182,6 @@ export function HowToSlide({
           </>
         )}
 
-        {image ? (
-          // A device-shaped frame: the screenshot is what the reader will actually see,
-          // so it is shown as a screen rather than as decoration bled to the edges.
-          <div
-            style={{
-              display: "flex",
-              width: "100%",
-              height: 720,
-              borderRadius: 28,
-              border: `3px solid ${t.dark ? "#2A2724" : "#E4DFD8"}`,
-              background: t.dark ? "#161412" : "#FFFFFF",
-              overflow: "hidden",
-            }}
-          >
-            <img
-              src={image}
-              width={930}
-              height={714}
-              style={{ display: "flex", objectFit: "cover", objectPosition: "top" }}
-              alt=""
-            />
-          </div>
-        ) : null}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
