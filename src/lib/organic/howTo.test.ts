@@ -92,3 +92,62 @@ describe("howToSlides", () => {
     for (const s of howToSlides(three)) expect(s.totalSteps).toBe(3);
   });
 });
+
+describe("howToSlides — screenshots", () => {
+  const withImages = {
+    hook: "Your MT5 account, read in four steps.",
+    step1: "Log in to the app", step1Image: "https://cdn.example/1.png",
+    step2: "Open the AI Trading Assistant", step2Image: "https://cdn.example/2.png",
+    step3: "Enter your investor password", step3Image: "https://cdn.example/3.png",
+    step4: "See which habit is costing you", step4Image: "https://cdn.example/4.png",
+    cta: "Free in the app",
+  };
+
+  it("attaches each step's image to that step", () => {
+    const steps = howToSlides(withImages).filter((s) => s.step !== null);
+    expect(steps.map((s) => s.image)).toEqual([
+      "https://cdn.example/1.png",
+      "https://cdn.example/2.png",
+      "https://cdn.example/3.png",
+      "https://cdn.example/4.png",
+    ]);
+  });
+
+  it("keeps an image with its own step when earlier steps are dropped", () => {
+    // THE SUBTLE ONE. Blank step2 renumbers step3 to "2" — its image must travel with
+    // it. Reading the image by the RENDERED number would show step 3's screenshot
+    // captioned with step 3's text under the numeral 2, which is right, while step 4's
+    // image would be lost. Reading by slot keeps text and picture together.
+    const gapped = { ...withImages, step2: "" };
+    const steps = howToSlides(gapped).filter((s) => s.step !== null);
+    expect(steps.map((s) => s.step)).toEqual([1, 2, 3]);
+    expect(steps.map((s) => s.text)).toEqual([
+      "Log in to the app",
+      "Enter your investor password",
+      "See which habit is costing you",
+    ]);
+    expect(steps.map((s) => s.image)).toEqual([
+      "https://cdn.example/1.png",
+      "https://cdn.example/3.png",
+      "https://cdn.example/4.png",
+    ]);
+  });
+
+  it("a step without an image is still a valid step", () => {
+    // Mixed carousels are fine: a screenshot where one helps, type where it does not.
+    const mixed = { ...withImages, step2Image: "" };
+    const steps = howToSlides(mixed).filter((s) => s.step !== null);
+    expect(steps[1].image).toBeNull();
+    expect(steps[1].text).toBe("Open the AI Trading Assistant");
+  });
+
+  it("ignores an image slot whose step was never written", () => {
+    const orphan = { hook: "H", cta: "C", step3Image: "https://cdn.example/x.png" };
+    expect(howToSlides(orphan).map((s) => s.role)).toEqual(["hook", "cta"]);
+  });
+
+  it("the hook and the cta can carry images too", () => {
+    const s = howToSlides({ ...withImages, hookImage: "https://cdn.example/h.png" });
+    expect(s[0].image).toBe("https://cdn.example/h.png");
+  });
+});

@@ -37,6 +37,8 @@ export type HowToSlide = {
   /** 1-based position among the steps actually being shown, or null. */
   step: number | null;
   totalSteps: number;
+  /** A screenshot of the screen this step describes, or null for a type-only slide. */
+  image: string | null;
 };
 
 /**
@@ -46,26 +48,51 @@ export type HowToSlide = {
  * following along sees 1, 2, 3 with no gap. Leaving the original numbering would show
  * "step 3" immediately after "step 1", which reads as a missing slide.
  */
+function img(slots: Record<string, string>, key: string): string | null {
+  const v = (slots[`${key}Image`] ?? "").trim();
+  return v.length ? v : null;
+}
+
 export function howToSlides(slots: Record<string, string>): HowToSlide[] {
+  // Carry the SLOT each step came from, not just its text. An image belongs to the slot
+  // that was written, so when a blank step renumbers the rest, each picture travels with
+  // its own caption instead of being read off the number the reader ends up seeing.
   const steps = [1, 2, 3, 4]
-    .map((n) => (slots[`step${n}`] ?? "").trim())
-    .filter((t) => t.length > 0);
+    .map((n) => ({ text: (slots[`step${n}`] ?? "").trim(), slot: `step${n}` }))
+    .filter((s) => s.text.length > 0);
 
   const out: HowToSlide[] = [];
   const hook = (slots.hook ?? "").trim();
-  if (hook) out.push({ role: "hook", text: hook, step: null, totalSteps: steps.length });
+  if (hook) {
+    out.push({
+      role: "hook",
+      text: hook,
+      step: null,
+      totalSteps: steps.length,
+      image: img(slots, "hook"),
+    });
+  }
 
-  steps.forEach((text, i) => {
+  steps.forEach(({ text, slot }, i) => {
     out.push({
       role: `step${i + 1}` as HowToRole,
       text,
       step: i + 1,
       totalSteps: steps.length,
+      image: img(slots, slot),
     });
   });
 
   const cta = (slots.cta ?? "").trim();
-  if (cta) out.push({ role: "cta", text: cta, step: null, totalSteps: steps.length });
+  if (cta) {
+    out.push({
+      role: "cta",
+      text: cta,
+      step: null,
+      totalSteps: steps.length,
+      image: img(slots, "cta"),
+    });
+  }
 
   return out;
 }
