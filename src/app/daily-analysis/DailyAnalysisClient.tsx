@@ -95,7 +95,19 @@ export function DailyAnalysisClient({ entries }: { entries: AnalysisEntry[] }) {
       {active && (
         <div ref={playerRef} className="scroll-mt-6">
           <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-line bg-ink shadow-soft">
-            {active.gumlet_id ? (
+            {active.gumlet_id?.startsWith("http") ? (
+              // Direct video URL (e.g. Supabase storage) — used when the
+              // video host is down and the day publishes a raw file instead.
+              <video
+                key={active.gumlet_id}
+                src={active.gumlet_id}
+                title={active.title}
+                controls
+                playsInline
+                preload="metadata"
+                className="absolute inset-0 h-full w-full"
+              />
+            ) : active.gumlet_id ? (
               <iframe
                 key={active.gumlet_id}
                 src={`https://play.gumlet.io/embed/${active.gumlet_id}`}
