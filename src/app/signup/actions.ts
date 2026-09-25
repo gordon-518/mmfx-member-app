@@ -4,6 +4,8 @@ import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { sendSignupConversions, fbcFromFbclid, splitName } from "@/lib/meta-capi";
 import { recordSignupIp } from "@/lib/signupIp";
+import { serviceClient } from "@/lib/journal/api";
+import { recordTouch } from "@/lib/attribution/touch";
 
 // Fires the signup conversions for the in-page email-OTP flow (SignupForm's
 // client-side verifyOtp never hits /auth/confirm, so the events have to be sent
@@ -57,6 +59,23 @@ export async function recordSignupConversion(): Promise<void> {
         p_feature: attr.feature ?? null,
       });
       if (attrError) console.error("[attribution] persist failed:", attrError.message);
+    }
+
+    // The same cid, again, as a row in the touch log (partners §2.2). The
+    // profile column above is FIRST touch and is written once; the log is the
+    // running record, and the signup touch has to be in it or a partner's
+    // funnel would start at the first visit AFTER the signup.
+    //
+    // Service-role, because attribution_touches has RLS on and no policies —
+    // the session client would match nothing and, as in the 2026-09-10
+    // attribution bug, report no error. recordTouch never throws.
+    if (attr.cid) {
+      await recordTouch(serviceClient(), {
+        userId: user.id,
+        cid: attr.cid,
+        geo: attr.geo ?? null,
+        path: "/signup",
+      });
     }
 
     await sendSignupConversions(
