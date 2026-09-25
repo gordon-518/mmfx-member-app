@@ -201,3 +201,27 @@ describe("proxy — cid_visit and the touch log", () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe("proxy — the first-run gate", () => {
+  const NEW_USER: User = {
+    id: "22222222-2222-4222-8222-222222222222",
+    email: "new@example.com",
+    created_at: "2026-09-20T00:00:00Z",
+    user_metadata: {},
+  };
+
+  it("sends a brand-new member to /welcome once", async () => {
+    withUser(NEW_USER);
+    const res = await proxy(new NextRequest("https://app.test/daily-analysis"));
+    expect(res.headers.get("location")).toContain("/welcome");
+  });
+
+  it("leaves the partner report alone — it is not a member page", async () => {
+    // A keyed report for an outside agency. Redirecting a signed-in reader to
+    // /welcome would make the link look broken.
+    withUser(NEW_USER);
+    const res = await proxy(new NextRequest("https://app.test/partners/ren?key=abc"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+  });
+});

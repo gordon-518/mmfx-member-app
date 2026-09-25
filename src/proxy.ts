@@ -112,7 +112,10 @@ export async function proxy(request: NextRequest, event?: NextFetchEvent) {
     ];
     for (const write of writes) if (write) event?.waitUntil?.(write);
   }
-  const exempt = /^\/(welcome|showcase|login|signup|forgot-password|auth|api|privacy|terms)(\/|$)/.test(path);
+  // /partners is on the list because it is not a member page at all: it is a
+  // keyed report for an outside agency, and bouncing a signed-in reader to
+  // /welcome would make the link look broken.
+  const exempt = /^\/(welcome|showcase|login|signup|forgot-password|auth|api|privacy|terms|partners)(\/|$)/.test(path);
   if (
     user &&
     !exempt &&
