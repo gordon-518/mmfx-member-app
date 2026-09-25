@@ -18,6 +18,10 @@ export const APP_EVENTS = [
   // Server-only (email v2 §4): middleware logs it when a signed-in reader
   // lands on any app URL carrying an EML- cid. Deliberately NOT a CLIENT_EVENT.
   "email_visit",
+  // Server-only (partners §2.2): the same hook, for ANY recognised cid —
+  // AGY- partner, CRT- our paid, ORG- organic, EML- email. email_visit stays
+  // beside it so the lifecycle KPIs are unchanged. Not a CLIENT_EVENT either.
+  "cid_visit",
 ] as const;
 
 export type AppEvent = (typeof APP_EVENTS)[number];
