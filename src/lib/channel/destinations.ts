@@ -4,6 +4,7 @@
 export const DESTINATIONS: Record<string, string> = {
   signup: "/signup",
   trial: "/signup",
+  upgrade: "/upgrade",
   indicators: "/indicators",
   "daily-analysis": "/daily-analysis",
   signals: "/signals",

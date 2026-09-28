@@ -23,4 +23,8 @@ describe("resolveDestination", () => {
   it("resolves the AI assistant (journal) destination", () => {
     expect(resolveDestination("journal")).toBe("https://app.marketmakersfx.net/journal");
   });
+
+  it("resolves the upgrade destination (tier CTA posts)", () => {
+    expect(resolveDestination("upgrade")).toBe("https://app.marketmakersfx.net/upgrade");
+  });
 });
