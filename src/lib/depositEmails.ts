@@ -55,7 +55,7 @@ export function depositVerifiedEmail(opts: {
 // hasn't clicked "Message Admin Amelia". Sent once, by the deposit-dm-reminder cron.
 export function depositDmReminderEmail(opts: { name: string | null; amount: number; ref: string }): DepositEmail {
   const hi = opts.name ? `Hi ${opts.name.split(/\s+/)[0]},` : "Hi,";
-  const chat = `${ADMIN_TELEGRAM_URL}?text=${encodeURIComponent(adminDmMessage(opts.ref, opts.amount))}`;
+  const chat = `${ADMIN_TELEGRAM_URL}?text=${encodeURIComponent(adminDmMessage({ ref: opts.ref, amount: opts.amount }))}`;
   const why = `Our admin can't message you first, so it's how we reach you if anything about your deposit needs checking.`;
   const lines = [
     hi,

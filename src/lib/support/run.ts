@@ -7,6 +7,7 @@ import { buildFactSheet } from "./facts";
 import { checkDraft, mustHandOff } from "./guard";
 import { toTelegramHtml } from "./format";
 import { findMember as realFindMember } from "./member";
+import { memberPingHtml } from "./memberPing";
 import { supabaseStore, type SupportStore } from "./store";
 import type { ContactInfo, MemberContext, SupportSettings, ThreadMessage } from "./types";
 
@@ -317,7 +318,9 @@ export async function runBurst(
       last_member_msg_at: latest.at,
     }).catch(() => undefined);
 
-    const ctx = { deps, settings, contact, contactId, memberText, dedupeKey, staleRead };
+    // The member rides along, so a handoff ping can say who this is and
+    // where their upgrade stands (28 Sep).
+    const ctx = { deps, settings, contact, contactId, memberText, dedupeKey, staleRead, member };
     if ((await store.countRepliesSince(contactId, minus(now, 3600_000))) >= MAX_REPLIES_PER_HOUR) {
       return handoff(ctx, "reply cap reached");
     }
@@ -457,7 +460,7 @@ export async function runBurst(
 }
 
 async function handoff(
-  ctx: { deps: RunDeps; settings: SupportSettings; contact: ContactInfo; contactId: string; memberText: string; dedupeKey: string; staleRead: boolean },
+  ctx: { deps: RunDeps; settings: SupportSettings; contact: ContactInfo; contactId: string; memberText: string; dedupeKey: string; staleRead: boolean; member?: MemberContext | null },
   reason: string,
   opts: { sendHolding?: boolean; guardFailures?: string[]; model?: string; topic?: string; alreadyClaimed?: boolean } = {}
 ): Promise<RunOutcome> {
@@ -530,7 +533,8 @@ async function handoff(
   // phone number pasted by a member must never linger there indefinitely.
   const pingResult = await deps.ping(
     `🙋 <b>Needs Amelia</b> · ${escapeHtml(contact.firstName || "Member")}${contact.username ? ` (@${escapeHtml(contact.username)})` : ""}` +
-    `\n"${escapeHtml(redactForModel(memberText).slice(0, 300))}"\n<i>Reason: ${escapeHtml(reason)}</i>`
+    `\n"${escapeHtml(redactForModel(memberText).slice(0, 300))}"\n<i>Reason: ${escapeHtml(reason)}</i>` +
+    memberPingHtml(ctx.member ?? null, deps.now())
   );
   // setTag/setPauseAutomation/openChat/ping/saveChat results used to be
   // discarded — a fully failed handoff left only a support_chats row nobody

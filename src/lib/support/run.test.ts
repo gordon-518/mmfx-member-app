@@ -226,6 +226,41 @@ describe("runBurst", () => {
     expect(s.deps.ping).toHaveBeenCalled();
   });
 
+  it("puts the member's account details on the handoff ping", async () => {
+    const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+    s.deps.findMember = async () => ({
+      userId: "9dc9b21c-382e-4513-9655-5779296e95a1",
+      matchedBy: "handle" as const,
+      tier: "foundation" as const,
+      trialEndsAt: null,
+      email: "m@example.com",
+      tradingAccount: "63453820",
+      broker: "octa",
+      depositTotal: 159.32,
+      submission: {
+        status: "pending" as const,
+        rejectReason: null,
+        createdAt: "2026-09-24T10:52:00Z",
+        amount: 370.28,
+        broker: "octa",
+      },
+      attested: true,
+    });
+    await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+    const html = s.ping.mock.calls[0][0];
+    expect(html).toContain("MM-9DC9B2");
+    expect(html).toContain("63453820");
+    expect(html).toContain("Foundation");
+    expect(html).toContain("pending");
+    expect(html).toContain("$370.28");
+  });
+
+  it("keeps the handoff ping short when the chat isn't a known member", async () => {
+    const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")] });
+    await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+    expect(s.ping.mock.calls[0][0]).not.toContain("Open the admin queue");
+  });
+
   it("redrafts once after a guard failure, then sends the fixed reply", async () => {
     const s = setup({ thread: [msg("1", "in", "min deposit?")], decisions: [reply("The minimum is USD100."), reply("Foundation starts at $50.")] });
     await expect(runBurst("c1", trig("min deposit?"), s.deps)).resolves.toMatchObject({ kind: "reply" });

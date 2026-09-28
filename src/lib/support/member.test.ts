@@ -97,7 +97,17 @@ describe("findMember", () => {
       matchedBy: "ref",
       tier: "desk",
       trialEndsAt: null,
-      submission: { status: "pending", rejectReason: null, createdAt: "2026-09-15T01:00:00Z" },
+      email: null,
+      tradingAccount: null,
+      broker: null,
+      depositTotal: 250,
+      submission: {
+        status: "pending",
+        rejectReason: null,
+        createdAt: "2026-09-15T01:00:00Z",
+        amount: null,
+        broker: null,
+      },
       attested: false,
     });
   });
@@ -115,6 +125,10 @@ describe("findMember", () => {
       matchedBy: "handle",
       tier: "desk",
       trialEndsAt: null,
+      email: null,
+      tradingAccount: null,
+      broker: null,
+      depositTotal: 250,
       submission: null,
       attested: true,
     });

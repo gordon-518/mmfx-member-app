@@ -18,15 +18,20 @@ export function AmeliaLastStep({
   amount,
   isTopUp,
   clicked,
+  broker,
+  account,
 }: {
   refCode: string;
   amount: number;
   isTopUp: boolean;
   clicked: boolean;
+  /** Carried into the message so the admin can check the broker's back office. */
+  broker?: string | null;
+  account?: string | null;
 }) {
   const [done, setDone] = useState(clicked);
   const [copied, setCopied] = useState(false);
-  const message = adminDmMessage(refCode, amount);
+  const message = adminDmMessage({ ref: refCode, amount, broker, account });
   const at = message.indexOf(refCode);
 
   const open = () => {

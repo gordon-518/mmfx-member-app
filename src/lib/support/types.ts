@@ -45,7 +45,19 @@ export interface MemberContext {
   matchedBy: "ref" | "handle";
   tier: MemberTier;
   trialEndsAt: string | null;
-  submission: { status: "pending" | "verified" | "rejected"; rejectReason: string | null; createdAt: string } | null;
+  /** Account facts for the handoff ping (28 Sep) - see memberPing.ts. */
+  email?: string | null;
+  tradingAccount?: string | null;
+  broker?: string | null;
+  /** Cumulative verified deposits. */
+  depositTotal?: number;
+  submission: {
+    status: "pending" | "verified" | "rejected";
+    rejectReason: string | null;
+    createdAt: string;
+    amount?: number | null;
+    broker?: string | null;
+  } | null;
   /**
    * True only when the platform-attested Telegram username resolved to this
    * member. A self-asserted MM- reference code alone is NOT attested: it can be

@@ -55,6 +55,8 @@ interface SubmissionRow {
   status: unknown;
   reject_reason: string | null;
   created_at: string;
+  amount: number | string | null;
+  broker: string | null;
 }
 
 function toSubmissionStatus(v: unknown): SubmissionStatus {
@@ -85,12 +87,12 @@ export async function findMember(
   if (!userId) return null;
 
   const { data: p, error: pErr } = await db.from("profiles")
-    .select("account_status, trial_ends_at, deposit_amount, grandfathered, lifetime_plan")
+    .select("account_status, trial_ends_at, deposit_amount, grandfathered, lifetime_plan, email, trading_account_number, broker")
     .eq("id", userId).maybeSingle();
   if (pErr) throw new Error("member profile lookup failed");
   if (!p) return null;
   const { data: sData, error: sErr } = await db.from("deposit_submissions")
-    .select("status, reject_reason, created_at").eq("user_id", userId)
+    .select("status, reject_reason, created_at, amount, broker").eq("user_id", userId)
     .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(1).maybeSingle();
   if (sErr) throw new Error("member submission lookup failed");
   const s = sData as SubmissionRow | null;
@@ -100,7 +102,19 @@ export async function findMember(
     matchedBy,
     tier: accessTierFor(p as TierSnapshot),
     trialEndsAt: (p as TierSnapshot).trial_ends_at ? String((p as TierSnapshot).trial_ends_at) : null,
-    submission: s ? { status: toSubmissionStatus(s.status), rejectReason: s.reject_reason ?? null, createdAt: s.created_at } : null,
+    email: (p as { email?: string | null }).email ?? null,
+    tradingAccount: (p as { trading_account_number?: string | null }).trading_account_number ?? null,
+    broker: (p as { broker?: string | null }).broker ?? null,
+    depositTotal: Number((p as TierSnapshot).deposit_amount ?? 0) || 0,
+    submission: s
+      ? {
+          status: toSubmissionStatus(s.status),
+          rejectReason: s.reject_reason ?? null,
+          createdAt: s.created_at,
+          amount: s.amount == null ? null : Number(s.amount),
+          broker: s.broker ?? null,
+        }
+      : null,
     // Attested only when the platform-attested Telegram username itself
     // resolved to this member — a self-asserted ref code, even one that
     // agrees with the handle, never counts on its own (see matchedBy).
