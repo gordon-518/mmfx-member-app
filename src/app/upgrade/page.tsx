@@ -85,6 +85,8 @@ export default async function UpgradePage({
     amount: number | string;
     reject_reason: string | null;
     admin_dm_clicked_at: string | null;
+    broker: string | null;
+    trading_account_number: string | null;
   } | null = null;
   if (access.profile && !isContact) {
     // Filter to the viewer explicitly. RLS alone isn't enough: admins may read
@@ -92,7 +94,7 @@ export default async function UpgradePage({
     // /upgrade showed whoever submitted last.
     const { data } = await (await createClient())
       .from("deposit_submissions")
-      .select("status, amount, reject_reason, admin_dm_clicked_at")
+      .select("status, amount, reject_reason, admin_dm_clicked_at, broker, trading_account_number")
       .eq("user_id", access.profile.id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -301,6 +303,8 @@ export default async function UpgradePage({
                     amount={Number(latestSubmission.amount)}
                     isTopUp={isPaid}
                     clicked={latestSubmission.admin_dm_clicked_at !== null}
+                    broker={latestSubmission.broker}
+                    account={latestSubmission.trading_account_number}
                   />
                 ) : (
                   <>

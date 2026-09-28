@@ -37,7 +37,10 @@ export async function logUpgradeClick(event: unknown, props: unknown): Promise<v
 // records the submission. A paid member's submission is a top-up through the
 // same queue.
 
-export type DepositFormState = { ok: true; amount: number } | { error: string } | null;
+export type DepositFormState =
+  | { ok: true; amount: number; broker: string; account: string }
+  | { error: string }
+  | null;
 
 const PROOF_TYPES: Readonly<Record<string, string>> = {
   "image/png": "png",
@@ -123,7 +126,7 @@ export async function submitDeposit(
   if (!mail.ok) console.error("[deposit-submit] admin email alert failed:", mail.detail);
 
   revalidatePath("/upgrade");
-  return { ok: true, amount };
+  return { ok: true, amount, broker, account };
 }
 
 // The last step after submitting: the member clicked "Message Admin Amelia".

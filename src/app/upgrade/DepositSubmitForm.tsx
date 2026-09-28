@@ -52,7 +52,16 @@ export function DepositSubmitForm({
   const [state, action] = useActionState<DepositFormState, FormData>(submitDeposit, null);
 
   if (state && "ok" in state) {
-    return <AmeliaLastStep refCode={refCode} amount={state.amount} isTopUp={isTopUp} clicked={false} />;
+    return (
+      <AmeliaLastStep
+        refCode={refCode}
+        amount={state.amount}
+        isTopUp={isTopUp}
+        clicked={false}
+        broker={state.broker}
+        account={state.account}
+      />
+    );
   }
 
   return (
