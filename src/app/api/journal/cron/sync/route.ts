@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { serviceClient } from "@/lib/journal/api";
 import { syncAccount } from "@/lib/journal/sync";
-import { undeployMetaApiAccount } from "@/lib/journal/metaapi";
+import { deleteMetaApiAccount, undeployMetaApiAccount } from "@/lib/journal/metaapi";
+import {
+  CONNECT_STALLED_DETAIL,
+  stalledConnecting,
+  type AccountJob,
+  type ConnectingAccount,
+} from "@/lib/journal/stalledConnecting";
 import type { JournalAccountRow } from "@/lib/journal/types";
 
 // The sync worker. Triggered every 15 min by Supabase pg_cron + pg_net (same
@@ -42,6 +48,11 @@ const TIME_BUDGET_MS = 90_000; // stop claiming here; worst last batch ~165s ⇒
 const MAX_CHAIN_DEPTH = 8;
 // A 'running' job older than this was orphaned by a killed invocation — reap it.
 const STALE_RUNNING_MS = 15 * 60_000;
+// An account still 'connecting' this long after its last attempt is stranded:
+// fn_enqueue_due_sync_jobs only picks up state='deployed', so nothing will ever
+// retry it or fail it. Fail it so the member gets an error and a retry instead
+// of a spinner that never resolves (29 Sep).
+const STALE_CONNECTING_MS = 60 * 60_000;
 
 interface SyncJob {
   id: number;
@@ -185,6 +196,54 @@ async function reapOrphans(db: ReturnType<typeof serviceClient>): Promise<void> 
   }
 }
 
+/**
+ * Fail accounts stranded in 'connecting'. Their MetaApi account is deleted
+ * rather than undeployed: we can't trust its state, and leaving the id on the
+ * row would orphan it when the member reconnects (see sync.ts's terminal
+ * connect failure, which does the same).
+ */
+async function reapStalledConnecting(db: ReturnType<typeof serviceClient>): Promise<number> {
+  const { data: accounts } = await db
+    .from("journal_accounts")
+    .select("id, metaapi_account_id, created_at")
+    .eq("state", "connecting");
+  if (!accounts?.length) return 0;
+
+  const ids = accounts.map((a) => a.id as string);
+  const { data: jobs } = await db
+    .from("journal_sync_jobs")
+    .select("account_id, status, finished_at")
+    .in("account_id", ids);
+
+  const stalled = stalledConnecting(
+    accounts as ConnectingAccount[],
+    (jobs ?? []) as AccountJob[],
+    new Date(),
+    STALE_CONNECTING_MS
+  );
+
+  for (const a of stalled) {
+    if (a.metaapi_account_id) {
+      try {
+        await deleteMetaApiAccount(a.metaapi_account_id);
+      } catch {
+        /* best-effort: the row is failed either way, and a stale id must not stay on it */
+      }
+    }
+    await db
+      .from("journal_accounts")
+      .update({
+        state: "failed",
+        state_detail: CONNECT_STALLED_DETAIL,
+        metaapi_account_id: null,
+      })
+      .eq("id", a.id)
+      // Only if it's still connecting — a sync that connected in the meantime wins.
+      .eq("state", "connecting");
+  }
+  return stalled.length;
+}
+
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (!process.env.JOURNAL_CRON_SECRET || auth !== `Bearer ${process.env.JOURNAL_CRON_SECRET}`) {
@@ -205,6 +264,8 @@ export async function POST(req: NextRequest) {
 
   // Reap orphaned 'running' jobs (a prior invocation killed mid-sync).
   await reapOrphans(db);
+  // Fail accounts stranded mid-connect, which nothing else would ever touch.
+  const stalledFailed = await reapStalledConnecting(db);
 
   const { data: enqueued, error: enqueueErr } = await db.rpc(
     "fn_enqueue_due_sync_jobs",
@@ -256,6 +317,8 @@ export async function POST(req: NextRequest) {
     ok: true,
     enqueued: enqueued ?? 0,
     ...counts,
+    // Stranded connects swept this run — visible in the cron's own response.
+    stalledFailed,
     remaining: remaining ?? 0,
     depth,
   });
