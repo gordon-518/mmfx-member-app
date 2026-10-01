@@ -33,6 +33,18 @@ function withCid(href: string): string {
   return `${href}${href.includes("?") ? "&" : "?"}cid=${CID}`;
 }
 
+/** The guide's Open Graph image, drawn by the site from the guide's cover spec
+ *  (guide v2 §3). Same origin and path as the guide, query and hash dropped. */
+export function coverUrlFor(guideUrl: string): string | null {
+  try {
+    const u = new URL(guideUrl);
+    if (!/^\/guides\/[a-z0-9-]+\/?$/.test(u.pathname)) return null;
+    return `${u.origin}${u.pathname.replace(/\/$/, "")}/opengraph-image`;
+  } catch {
+    return null;
+  }
+}
+
 const LADDER =
   "Everything in this one is on the free side of your account. The paid rungs start at a $50 deposit into your own trading account, and the tier page says what each opens.";
 
@@ -69,9 +81,12 @@ export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
   const cta = button(guide, copy.ctaLabel);
   const ladderLine = note(LADDER);
 
+  const cover = coverUrlFor(s.guideUrl);
+
   return {
     subject: s.subject,
     preheader: preheaderOf(copy),
+    ...(cover ? { hero: { kind: "image" as const, src: cover, alt: s.subject } } : {}),
     html: [hello.html, s.html, cta.html, ladderLine.html, sign.html].join(""),
     text: textOf([hello.text, s.text, cta.text, ladderLine.text, sign.text]),
   };
