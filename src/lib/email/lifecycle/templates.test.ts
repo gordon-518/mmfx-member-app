@@ -415,3 +415,22 @@ describe("v2 structure", () => {
     expect(Object.keys(DEFAULT_COPY).sort()).toEqual(STEPS.map((s) => `${s.flow}/${s.step}`).sort());
   });
 });
+
+import { coverUrlFor } from "./templates/spotlight";
+
+describe("spotlight cover hero", () => {
+  it("derives the guide's Open Graph image from its URL, dropping the cid", () => {
+    expect(coverUrlFor("https://marketmakersfx.net/guides/building-a-daily-bias-on-xauusd?cid=EML-spotlight-daily-analysis"))
+      .toBe("https://marketmakersfx.net/guides/building-a-daily-bias-on-xauusd/opengraph-image");
+    expect(coverUrlFor("https://app.marketmakersfx.net/daily-analysis")).toBeNull();
+    expect(coverUrlFor("not a url")).toBeNull();
+  });
+  it("rides the cover as the email's hero when the brain supplied a guide", () => {
+    const mail = renderLifecycle("nurture", "spotlight", {
+      ...ctx({ audience: "expired", tier: "free", trialEndsAt: null }),
+      ...({ spotlight: { subject: "Liquidity, explained", html: "<p>B</p>", text: "B", guideUrl: "https://marketmakersfx.net/guides/liquidity-explained?cid=EML-x" } } as Partial<LifecycleCtx>),
+    } as LifecycleCtx);
+    expect(mail.html).toContain("https://marketmakersfx.net/guides/liquidity-explained/opengraph-image");
+    expect(mail.html).toContain('alt="Liquidity, explained"');
+  });
+});
