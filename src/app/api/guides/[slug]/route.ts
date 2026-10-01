@@ -13,6 +13,9 @@ import { GUIDE_COLUMNS, rowToGuide, type GuideRow } from "@/lib/guides/store";
 // stored row that does not validate. All three mean "there is no page here",
 // and the third must not be a 500: a guide whose row went bad takes its own URL
 // down, nothing else. rowToGuide logs the reason.
+//
+// DELETE is the brain's withdraw, behind the same bearer as POST. It never
+// deletes a row.
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +23,13 @@ export const dynamic = "force-dynamic";
 const CACHE = "public, s-maxage=300, stale-while-revalidate=3600";
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function authorized(req: NextRequest): boolean {
+  // The brain calls this with its dedicated ORGANIC_CRON_SECRET when one is
+  // set (same rule as /api/organic/*); CRON_SECRET remains the fallback.
+  const secret = process.env.ORGANIC_CRON_SECRET || process.env.CRON_SECRET;
+  return !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
+}
 
 const notFound = () =>
   NextResponse.json({ error: "Not found" }, { status: 404, headers: { "Cache-Control": CACHE } });
@@ -47,4 +57,41 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
   if (!guide) return notFound();
 
   return NextResponse.json(guide, { headers: { "Cache-Control": CACHE } });
+}
+
+/**
+ * Withdraw a guide — bearer, and never a delete.
+ *
+ * `status = 'unpublished'` because the slug is already named by rows that
+ * outlive the guide: attribution_touches carries `SEO-guide-<slug>`,
+ * email_sends names the spotlight that linked to it, and the brain's topic
+ * backlog records it against a used topic. A store that cannot say what a
+ * withdrawn guide said is not a store. Re-POSTing the slug republishes it.
+ *
+ * Idempotent: unpublishing an already-unpublished guide is a 200, because the
+ * caller asked for a state and that is the state. Only a slug the table has
+ * never held is a 404.
+ */
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { slug } = await params;
+  if (!SLUG_RE.test(slug)) {
+    return NextResponse.json({ error: "slug must be lowercase kebab-case" }, { status: 400 });
+  }
+
+  const db = serviceClient();
+  const { data, error } = await db
+    .from("guides")
+    .update({ status: "unpublished" })
+    .eq("slug", slug)
+    .select("slug");
+
+  if (error) {
+    console.error(`[api/guides/${slug}] unpublish failed:`, error.message);
+    return NextResponse.json({ error: "unpublish failed" }, { status: 500 });
+  }
+  if (!(data ?? []).length) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  return NextResponse.json({ ok: true, slug, status: "unpublished" });
 }

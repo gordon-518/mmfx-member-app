@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const { serviceClientMock } = vi.hoisted(() => ({ serviceClientMock: vi.fn() }));
 vi.mock("@/lib/journal/api", () => ({ serviceClient: serviceClientMock }));
 
-import { GET } from "./route";
+import { DELETE, GET } from "./route";
 import { guideToRow, type GuideRow } from "@/lib/guides/store";
 import { validateGuide } from "@/lib/guides/validate";
 
@@ -139,6 +139,107 @@ describe("GET /api/guides/[slug]", () => {
     const res = await GET(req("what-moves-gold"), params("what-moves-gold"));
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "read failed" });
+    spy.mockRestore();
+  });
+});
+
+/* ===== DELETE ============================================================ */
+
+/** A Supabase stub for `.update().eq().select()`, recording what it was asked. */
+function stubUpdate(matched: string[], error: { message: string } | null = null) {
+  const calls: { table?: string; patch?: Record<string, unknown>; eq: [string, unknown][] } = { eq: [] };
+  const builder = {
+    eq(col: string, value: unknown) {
+      calls.eq.push([col, value]);
+      return builder;
+    },
+    select: () =>
+      Promise.resolve({ data: error ? null : matched.map((slug) => ({ slug })), error }),
+  };
+  return {
+    calls,
+    from(table: string) {
+      calls.table = table;
+      return {
+        update(patch: Record<string, unknown>) {
+          calls.patch = patch;
+          return builder;
+        },
+      };
+    },
+  };
+}
+
+const del = (slug: string, auth = "Bearer testsecret") =>
+  new Request(`https://app.test/api/guides/${slug}`, {
+    method: "DELETE",
+    headers: auth ? { Authorization: auth } : {},
+  }) as never;
+
+describe("DELETE /api/guides/[slug]", () => {
+  it("rejects a bad secret with 401, before any database call", async () => {
+    serviceClientMock.mockReturnValue(stubUpdate(["what-moves-gold"]));
+    expect((await DELETE(del("what-moves-gold", "Bearer wrong"), params("what-moves-gold"))).status).toBe(401);
+    expect((await DELETE(del("what-moves-gold", ""), params("what-moves-gold"))).status).toBe(401);
+    expect(serviceClientMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts ORGANIC_CRON_SECRET in preference to CRON_SECRET", async () => {
+    process.env.ORGANIC_CRON_SECRET = "organicsecret";
+    serviceClientMock.mockReturnValue(stubUpdate(["what-moves-gold"]));
+    expect(
+      (await DELETE(del("what-moves-gold", "Bearer organicsecret"), params("what-moves-gold"))).status
+    ).toBe(200);
+    expect(
+      (await DELETE(del("what-moves-gold", "Bearer testsecret"), params("what-moves-gold"))).status
+    ).toBe(401);
+  });
+
+  it("flips the status and never deletes the row", async () => {
+    const db = stubUpdate(["what-moves-gold"]);
+    serviceClientMock.mockReturnValue(db);
+    const res = await DELETE(del("what-moves-gold"), params("what-moves-gold"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      ok: true,
+      slug: "what-moves-gold",
+      status: "unpublished",
+    });
+    expect(db.calls.table).toBe("guides");
+    expect(db.calls.patch).toEqual({ status: "unpublished" });
+    expect(db.calls.eq).toEqual([["slug", "what-moves-gold"]]);
+  });
+
+  it("does not filter on status, so unpublishing twice is a 200", async () => {
+    // The caller asked for a state; that is already the state. Filtering on
+    // status = 'published' would make the second call a confusing 404.
+    const db = stubUpdate(["what-moves-gold"]);
+    serviceClientMock.mockReturnValue(db);
+    await DELETE(del("what-moves-gold"), params("what-moves-gold"));
+    expect(db.calls.eq.map(([col]) => col)).not.toContain("status");
+  });
+
+  it("404s a slug the table has never held", async () => {
+    serviceClientMock.mockReturnValue(stubUpdate([]));
+    const res = await DELETE(del("no-such-guide"), params("no-such-guide"));
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "Not found" });
+  });
+
+  it("400s a slug the table could not hold, without touching the database", async () => {
+    const db = stubUpdate([]);
+    serviceClientMock.mockReturnValue(db);
+    const res = await DELETE(del("Not-Kebab"), params("Not-Kebab"));
+    expect(res.status).toBe(400);
+    expect(db.calls.table).toBeUndefined();
+  });
+
+  it("500s when the update itself fails", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    serviceClientMock.mockReturnValue(stubUpdate([], { message: "deadlock detected" }));
+    const res = await DELETE(del("what-moves-gold"), params("what-moves-gold"));
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "unpublish failed" });
     spy.mockRestore();
   });
 });
