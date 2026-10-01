@@ -482,19 +482,27 @@ export function validateGuide(label: string, raw: unknown): GuideV2 {
 }
 
 /**
- * The same check as a list: `[]` when the guide is good, one message when it is
- * not. This is what POST answers `422 { errors }` with — the validator is
- * fail-fast (the site's build had to name ONE problem per failed file), so the
- * list is never longer than one, and the shape is a list so a future
- * accumulating pass needs no change at the route.
+ * The same check without the throw: the guide, or the problems with it.
+ *
+ * This is what POST answers `422 { errors }` with. The validator is fail-fast
+ * (the site's build had to name ONE problem per failed file), so `errors` is
+ * never longer than one entry — but it is a list, so an accumulating pass later
+ * needs no change at the route.
  */
-export function guideErrors(label: string, raw: unknown): string[] {
+export function parseGuide(
+  label: string,
+  raw: unknown
+): { guide: GuideV2; errors: [] } | { guide: null; errors: string[] } {
   try {
-    validateGuide(label, raw);
-    return [];
+    return { guide: validateGuide(label, raw), errors: [] };
   } catch (e) {
-    return [(e as Error).message];
+    return { guide: null, errors: [(e as Error).message] };
   }
+}
+
+/** Just the problems — `[]` when the guide is good. */
+export function guideErrors(label: string, raw: unknown): string[] {
+  return parseGuide(label, raw).errors;
 }
 
 /** The index-card projection of a validated guide. */
