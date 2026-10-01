@@ -1,0 +1,156 @@
+{
+  "slug": "reading-market-structure-a-practical-framework",
+  "title": "Reading Market Structure: A Practical Framework",
+  "description": "How to mark swing points, define a real break of structure, handle ranges and false breaks, and read multiple timeframes without contradicting yourself.",
+  "feature": "mm-system",
+  "publishedOn": "2026-09-30",
+  "cid": "EML-spotlight-mm-system",
+  "h2s": [
+    "What market structure actually tells you",
+    "Swing points, and the rule that defines a break",
+    "Ranges, liquidity and the false break",
+    "Reading structure across timeframes without contradicting yourself",
+    "Turning structure into a repeatable process with the MM System"
+  ],
+  "bodyMarkdown": "Most traders think they read market structure. What they actually do is look at a chart, decide how they feel about it, and then find the swing points that agree with them. That is not analysis. That is confirmation with extra steps.\n\nStructure is the one part of technical reading that can be written down as a rule. If it can be written down, it can be checked. If it can be checked, you can find out whether you followed it. That is the whole point.\n\n## What market structure actually tells you\n\nMarket structure is a record of who has been in control and where they lost it. Nothing more. It is descriptive, not predictive.\n\nPrice moves in impulses and pullbacks. When impulses go up and pullbacks stay shallow, buyers have been in control. When impulses go down and rallies keep failing lower, sellers have been. Structure gives you a vocabulary for that: higher highs and higher lows, lower highs and lower lows, and the sideways mess in between.\n\nWhat structure does not do is tell you what happens next. A chart in a clean uptrend can reverse on the very next candle. Reading structure correctly does not remove that. What it does is give you a reference point — a level where you can honestly say \"if price goes through here, the story I was telling myself is no longer true.\"\n\nThat single sentence is worth more than any indicator. Most account damage does not come from being wrong. It comes from being wrong and having no pre-agreed point at which you admit it. Structure supplies that point before you enter, while you are still calm.\n\nSo the working definition: market structure is a framework for deciding what you believe, and for deciding in advance what would change your mind.\n\n## Swing points, and the rule that defines a break\n\nYou cannot read structure without first marking it. And you cannot mark it consistently unless you have a rule for what counts as a swing.\n\nA swing high is a candle high with lower highs either side of it. A swing low is the opposite. That is the mechanical version. On XAU/USD, which moves fast and leaves a lot of noise, the strict three-candle definition will litter your chart with points that mean nothing. So you filter: a swing point only matters if the move away from it was meaningful relative to recent range, and if it left a visible reaction.\n\nPick a filter and keep it. It does not have to be the best filter in the world. It has to be the same filter every session, so that when you review your charts a month from now you are comparing like with like.\n\nOnce your swings are marked, the break rule follows. A break of structure is a close beyond a prior swing point in the direction of the trend, not a wick through it. A change of character is the first break in the opposite direction — the first lower low after a sequence of higher lows, or the first higher high after a sequence of lower highs.\n\nThe close-versus-wick distinction is where most disagreements happen, and it is why you must choose in advance. Wicks through levels are extremely common on gold. If you accept wicks as breaks, you will be flipping bias several times a session. If you demand closes, you will be later but steadier. Either is defensible. Changing between them mid-trade is not — that is how a stop-out becomes a revenge trade.\n\nWrite your rule down. Close-based break on your chosen timeframe. Apply it even when you hate the answer.\n\n## Ranges, liquidity and the false break\n\nStructure reading is easy in a trend and brutal in a range. Ranges are where most of the damage is done, because a range produces the same visual pattern as a break, over and over, in both directions.\n\nA range is simply a market where neither side can hold ground. Highs and lows stop making progress. Swings become roughly equal. When you see equal highs or equal lows, treat them as a warning, not an invitation: those clustered levels are obvious to everybody, which is exactly why price so often trades through them and comes straight back.\n\nA false break — price takes out a swing point, fails to hold, and closes back inside — is not an anomaly. It is normal behaviour at obvious levels. Your reaction to it decides a lot. If you have a close-based rule, most false breaks never qualify as breaks at all, and you are simply not involved. If you chase the wick, you are entering at the worst price available, with your stop sitting exactly where everyone else put theirs.\n\nPractical handling: classify the market before you look for entries. Trending, ranging, or unclear. If it is ranging, structure breaks inside that range carry far less weight, and the edges of the range matter more than the swings within it. If it is unclear, that is a valid classification and the correct response is usually to wait. Sitting out a session because the chart does not fit your rules is a skill, not a failure.\n\n## Reading structure across timeframes without contradicting yourself\n\nHere is the most common self-inflicted wound. A trader is bearish on the 4-hour, sees a bullish break on the 5-minute, takes the long, then manages it as though the 4-hour bias still applies. Two timeframes, two stories, one position. It cannot end tidily.\n\nGive each timeframe a job.\n\nThe higher timeframe sets direction and context. This is where you mark your major swing points, your ranges, and the levels that would genuinely change the picture. You do this once, early, and you do not redraw it every twenty minutes.\n\nThe middle timeframe classifies the current state: trending, ranging, unclear. It tells you whether the higher timeframe story is currently being respected or is under pressure.\n\nThe lower timeframe handles timing only. It is where you look for a structural shift in your direction and where you define entry and invalidation. It does not get a vote on bias.\n\nWhen the lower timeframe disagrees with the higher one, that is not a signal. It is a pullback, or it is the early part of a larger turn, and you do not yet know which. The honest answer is to wait for the higher timeframe level to actually break by your own rule.\n\n## Turning structure into a repeatable process with the MM System\n\nKnowing all of this and doing it consistently at seven in the morning are different problems. That is what the MM System inside the MMFX member app is built to address: the same steps, in the same order, every day.\n\nThe Daily SOP lesson lays out an eight-step ritual — mark, bias, classify, wait, confirm, execute, manage, journal. Mark your levels before you have an opinion. Form a bias from the higher timeframe. Classify the current state. Wait for the conditions you defined. Confirm on your timing chart. Execute with predefined invalidation. Manage the position by rule. Journal what actually happened.\n\nThe Complete Workflow lesson runs that end to end in one session, from blank chart to closed trade, so you can see how the pieces connect rather than learning them as isolated ideas. The Trade Management lesson covers what happens after entry — break-even triggers, partials, trailing and scaling — because structure reading that stops at the entry candle is only half a process.\n\nNone of this predicts anything. It is a framework for making your decisions comparable to each other, so that when you review a month of trades you can see where your process is leaking rather than guessing.\n\nTrading carries risk of loss. Every decision you make is your own, and nothing on this page is financial advice.",
+  "takeaways": [
+    "Market structure is a record of who has been in control and where they lost it. It is descriptive, not predictive.",
+    "A break of structure is a close beyond a prior swing point, not a wick through it. Choose the rule before you trade.",
+    "Equal highs and equal lows are a warning, not an invitation. False breaks at obvious levels are normal behaviour.",
+    "Give each timeframe a job: higher sets context, middle classifies state, lower handles timing only.",
+    "Unclear is a valid classification, and sitting out a session because the chart does not fit your rules is a skill."
+  ],
+  "pullQuote": "Most account damage does not come from being wrong. It comes from being wrong and having no pre-agreed point at which you admit it.",
+  "cover": {
+    "kind": "chart",
+    "title": "Where the story stops being true",
+    "label": "GUIDE · MARKET STRUCTURE",
+    "candles": [
+      "up",
+      "up",
+      "down",
+      "up",
+      "up",
+      "down",
+      "up",
+      "down",
+      "down",
+      "up",
+      "down",
+      "down"
+    ],
+    "levels": []
+  },
+  "visuals": [
+    {
+      "type": "quote",
+      "section": 0,
+      "position": "end",
+      "text": "Structure is the one part of technical reading that can be written down as a rule. If it can be written down, it can be checked."
+    },
+    {
+      "type": "compare",
+      "section": 2,
+      "position": "end",
+      "kicker": "THE BREAK RULE",
+      "left": {
+        "label": "A close",
+        "quote": "A break of structure is a close beyond a prior swing point in the direction of the trend.",
+        "note": "Later, but steadier. Applied the same way every session, so your charts stay comparable.",
+        "highlight": true
+      },
+      "right": {
+        "label": "A wick",
+        "quote": "If you accept wicks as breaks, you will be flipping bias several times a session.",
+        "note": "Wicks through levels are extremely common on gold. Changing rules mid-trade is how a stop-out becomes a revenge trade.",
+        "highlight": false
+      },
+      "caption": "Either rule is defensible. Changing between them mid-trade is not."
+    },
+    {
+      "type": "flow",
+      "section": 3,
+      "position": "end",
+      "kicker": "CLASSIFY FIRST",
+      "root": {
+        "tag": "STATE",
+        "text": "Classify the market before you look for entries: trending, ranging, or unclear."
+      },
+      "branches": [
+        {
+          "tag": "IF · PRIMARY",
+          "iff": "Impulses and pullbacks are making progress in one direction.",
+          "then": "Read swing points normally and apply your close-based break rule.",
+          "highlight": true
+        },
+        {
+          "tag": "IF · RANGING",
+          "iff": "Highs and lows stop making progress and swings become roughly equal.",
+          "then": "Treat breaks inside the range as low weight. The edges matter more than the swings within it.",
+          "highlight": false
+        },
+        {
+          "tag": "NO-TRADE",
+          "iff": "The chart does not fit your rules.",
+          "then": "Wait. Unclear is a valid classification, and sitting out a session is a skill, not a failure.",
+          "highlight": false,
+          "muted": true
+        }
+      ],
+      "caption": "A range produces the same visual pattern as a break, over and over, in both directions."
+    },
+    {
+      "type": "cards",
+      "section": 4,
+      "position": "end",
+      "kicker": "ONE JOB EACH",
+      "items": [
+        {
+          "icon": "map",
+          "title": "Higher timeframe",
+          "text": "Sets direction and context. Mark major swing points, ranges and the levels that would genuinely change the picture. Do it once, early."
+        },
+        {
+          "icon": "scale",
+          "title": "Middle timeframe",
+          "text": "Classifies the current state: trending, ranging, unclear. It tells you whether the higher timeframe story is being respected or is under pressure."
+        },
+        {
+          "icon": "clock",
+          "title": "Lower timeframe",
+          "text": "Timing only. Look for a structural shift in your direction and define entry and invalidation. It does not get a vote on bias."
+        }
+      ],
+      "caption": "Two timeframes, two stories, one position. It cannot end tidily."
+    },
+    {
+      "type": "pipeline",
+      "section": 5,
+      "position": "start",
+      "kicker": "DAILY SOP · EIGHT STEPS",
+      "steps": [
+        {
+          "tag": "01 · MARK",
+          "title": "Mark, then bias",
+          "text": "Mark your levels before you have an opinion. Then form a bias from the higher timeframe."
+        },
+        {
+          "tag": "02 · CLASSIFY",
+          "title": "Classify, then wait",
+          "text": "Classify the current state. Wait for the conditions you defined rather than the ones you want."
+        },
+        {
+          "tag": "03 · CONFIRM",
+          "title": "Confirm, then execute",
+          "text": "Confirm on your timing chart. Execute with predefined invalidation."
+        },
+        {
+          "tag": "04 · MANAGE",
+          "title": "Manage, then journal",
+          "text": "Manage the position by rule, then journal what actually happened."
+        }
+      ],
+      "caption": "The same steps, in the same order, every day. None of this predicts anything."
+    }
+  ]
+}
