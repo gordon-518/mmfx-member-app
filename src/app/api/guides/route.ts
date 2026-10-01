@@ -4,6 +4,7 @@ import {
   GUIDE_COLUMNS,
   guideToRow,
   guideUrl,
+  rowToExport,
   rowToGuide,
   type GuideRow,
 } from "@/lib/guides/store";
@@ -23,6 +24,9 @@ import { parseGuide, summarize } from "@/lib/guides/validate";
 // The read still validates. A row that would not render is dropped from the
 // list with a console.error rather than served half-built or 500ing the index —
 // the whole index must not go down because one row went bad.
+//
+// Two authenticated siblings share the path: POST (the brain publishes) and
+// `?format=export` (the nightly file copy — every row, both statuses).
 
 export const dynamic = "force-dynamic";
 
@@ -36,22 +40,39 @@ function authorized(req: NextRequest): boolean {
   return !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  // `?format=export` is a DIFFERENT endpoint wearing the same path (the design
+  // doc asks for it there): the nightly backup, behind the bearer, every row in
+  // both statuses. Checked before anything else so an unauthenticated caller
+  // gets a 401 rather than quietly falling through to the public summaries —
+  // which would make the export indistinguishable from the index.
+  const isExport = new URL(req.url).searchParams.get("format") === "export";
+  if (isExport && !authorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const db = serviceClient();
 
   // The index on (status, published_on desc) serves this exactly. The second
   // order is the site loader's stable tie-break, so two guides published on the
   // same day never swap places between requests.
-  const { data, error } = await db
-    .from("guides")
-    .select(GUIDE_COLUMNS)
-    .eq("status", "published")
+  let query = db.from("guides").select(GUIDE_COLUMNS);
+  if (!isExport) query = query.eq("status", "published");
+  const { data, error } = await query
     .order("published_on", { ascending: false })
     .order("slug", { ascending: true });
 
   if (error) {
-    console.error("[api/guides] list failed:", error.message);
-    return NextResponse.json({ error: "list failed" }, { status: 500 });
+    console.error(`[api/guides] ${isExport ? "export" : "list"} failed:`, error.message);
+    return NextResponse.json({ error: isExport ? "export failed" : "list failed" }, { status: 500 });
+  }
+
+  if (isExport) {
+    // No cache header: a backup must read the database, not a CDN copy of it.
+    // rowToExport keeps a row that would not validate (and logs it) — the whole
+    // point of a file copy is that it is not missing the row you need.
+    const guides = ((data ?? []) as unknown as GuideRow[]).map(rowToExport);
+    return NextResponse.json({ guides }, { headers: { "Cache-Control": "no-store" } });
   }
 
   const guides = ((data ?? []) as unknown as GuideRow[])

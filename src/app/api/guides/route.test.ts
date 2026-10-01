@@ -291,3 +291,104 @@ describe("POST /api/guides", () => {
     }
   });
 });
+
+/* ===== GET ?format=export ================================================ */
+
+describe("GET /api/guides?format=export", () => {
+  const url = "https://app.test/api/guides?format=export";
+
+  it("needs the bearer — without it, it is not the public index either", async () => {
+    const db = stubDb([row()]);
+    serviceClientMock.mockReturnValue(db);
+    const res = await GET(req(url));
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "Unauthorized" });
+    expect(serviceClientMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a wrong secret", async () => {
+    serviceClientMock.mockReturnValue(stubDb([row()]));
+    expect((await GET(req(url, "Bearer wrong"))).status).toBe(401);
+  });
+
+  it("accepts ORGANIC_CRON_SECRET in preference to CRON_SECRET", async () => {
+    process.env.ORGANIC_CRON_SECRET = "organicsecret";
+    serviceClientMock.mockReturnValue(stubDb([row()]));
+    expect((await GET(req(url, "Bearer organicsecret"))).status).toBe(200);
+    expect((await GET(req(url, "Bearer testsecret"))).status).toBe(401);
+  });
+
+  it("does NOT filter on status — the backup carries both", async () => {
+    const db = stubDb([row(GOLD, { status: "unpublished" }), row(BIAS)]);
+    serviceClientMock.mockReturnValue(db);
+    const res = await GET(req(url, "Bearer testsecret"));
+    expect(res.status).toBe(200);
+    expect(db.calls.eq).toEqual([]);
+    expect(db.calls.order).toEqual([
+      ["published_on", { ascending: false }],
+      ["slug", { ascending: true }],
+    ]);
+    const body = await res.json();
+    expect(body.guides.map((g: { status: string }) => g.status)).toEqual([
+      "unpublished",
+      "published",
+    ]);
+  });
+
+  it("returns full objects plus status and updatedAt", async () => {
+    serviceClientMock.mockReturnValue(
+      stubDb([row(GOLD, { updated_at: "2026-10-01T09:00:00.000Z" })])
+    );
+    const body = await (await GET(req(url, "Bearer testsecret"))).json();
+    expect(Object.keys(body.guides[0]).sort()).toEqual([
+      "bodyMarkdown",
+      "cid",
+      "cover",
+      "description",
+      "feature",
+      "h2s",
+      "publishedOn",
+      "pullQuote",
+      "slug",
+      "status",
+      "takeaways",
+      "title",
+      "updatedAt",
+      "visuals",
+    ]);
+    expect(body.guides[0].updatedAt).toBe("2026-10-01T09:00:00.000Z");
+    expect(body.guides[0].bodyMarkdown).toBe(GOLD.bodyMarkdown);
+  });
+
+  it("is never cached — a backup reads the database, not a CDN copy of it", async () => {
+    serviceClientMock.mockReturnValue(stubDb([row()]));
+    expect((await GET(req(url, "Bearer testsecret"))).headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("keeps a row that does not validate, unlike the public list", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    serviceClientMock.mockReturnValue(stubDb([row(GOLD, { takeaways: [] })]));
+    const body = await (await GET(req(url, "Bearer testsecret"))).json();
+    expect(body.guides).toHaveLength(1);
+    expect(body.guides[0].slug).toBe("what-moves-gold");
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("exporting an invalid row"));
+    spy.mockRestore();
+  });
+
+  it("500s with its own message when the query fails", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    serviceClientMock.mockReturnValue(stubDb([], { message: "connection reset" }));
+    const res = await GET(req(url, "Bearer testsecret"));
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "export failed" });
+    spy.mockRestore();
+  });
+
+  it("leaves any other format value as the public index", async () => {
+    // Only the exact value switches endpoints; ?format=json is the index.
+    serviceClientMock.mockReturnValue(stubDb([row()]));
+    const res = await GET(req("https://app.test/api/guides?format=json"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).guides[0].bodyMarkdown).toBeUndefined();
+  });
+});
