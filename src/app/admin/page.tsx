@@ -132,7 +132,7 @@ export default async function AdminPage({
     );
   }
 
-  const { ok, error, target, q, status, broker, country, content_ok, content_error } =
+  const { ok, error, target, q, status, broker, country, content_ok, content_error, page } =
     await searchParams;
   const notice =
     typeof ok === "string"
@@ -162,13 +162,21 @@ export default async function AdminPage({
       ? country.toUpperCase()
       : "";
 
+  // The member table is paginated (2 Oct). It used to render EVERY profile,
+  // each row carrying its own forms: ~3,800 members came to 58 MB of HTML,
+  // 52k inputs and 90k options, ~15s to first byte and a browser that then had
+  // to hydrate all of it. Fifty rows a page keeps the page small, and the
+  // filters above narrow it when you're looking for someone specific.
+  const PAGE_SIZE = 50;
+  const pageNum = Math.max(1, Number.parseInt(typeof page === "string" ? page : "1", 10) || 1);
+
   const ADMIN_PROFILE_COLUMNS =
     "id, email, full_name, account_status, trial_count, trial_ends_at, downgraded_at, broker, deposit_amount, deposit_verified_at, deposit_verified_by, ib_link_confirmed, is_admin, tradingview_username, country, trading_account_number, grandfathered, lifetime_plan";
 
   function buildQuery() {
     let q = supabase
       .from("profiles")
-      .select(ADMIN_PROFILE_COLUMNS)
+      .select(ADMIN_PROFILE_COLUMNS, { count: "exact" })
       // Secondary tiebreaker on id — created_at alone isn't guaranteed unique,
       // and range-based pagination needs a stable total order or rows can be
       // skipped/duplicated across pages.
@@ -185,103 +193,124 @@ export default async function AdminPage({
     return q;
   }
 
-  // Page past PostgREST's default 1000-row cap — otherwise the member list
-  // silently truncates once the base grows past 1000 signups.
-  const PAGE = 1000;
-  const rows: AdminProfileRow[] = [];
-  let listError: { message: string } | null = null;
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await buildQuery().range(from, from + PAGE - 1);
-    if (error) {
-      listError = error;
-      break;
-    }
-    const page = (data ?? []) as AdminProfileRow[];
-    rows.push(...page);
-    if (page.length < PAGE) break;
-  }
+  const firstRow = (pageNum - 1) * PAGE_SIZE;
+  const {
+    data: pageData,
+    error: pageError,
+    count: totalRows,
+  } = await buildQuery().range(firstRow, firstRow + PAGE_SIZE - 1);
+  const rows = (pageData ?? []) as AdminProfileRow[];
+  const listError: { message: string } | null = pageError;
+  const total = totalRows ?? rows.length;
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // Keep the filters when moving between pages.
+  const pageHref = (n: number) => {
+    const qs = new URLSearchParams();
+    if (emailQuery) qs.set("q", emailQuery);
+    if (statusFilter) qs.set("status", statusFilter);
+    if (brokerFilter) qs.set("broker", brokerFilter);
+    if (countryFilter) qs.set("country", countryFilter);
+    if (n > 1) qs.set("page", String(n));
+    const s = qs.toString();
+    return s ? `/admin?${s}` : "/admin";
+  };
+
+  // Everything else the page needs, started together (2 Oct). These used to
+  // run one after another: the database is in Sydney while the app runs in US
+  // East, so every sequential round trip cost ~250ms and ten of them WERE the
+  // page's load time. Only the ledger has to wait — it's scoped to the member
+  // rows on screen.
+  //
+  // conversion-fix 5.2 — the deposit review queue, oldest first, each proof
+  // behind a one-hour signed URL (admin SELECT on the private bucket).
+  const queuePromise = (async (): Promise<QueueRow[]> => {
+    const { data: pendingData } = await supabase
+      .from("deposit_submissions")
+      .select("id, user_id, amount, broker, trading_account_number, tradingview_username, telegram_username, proof_path, created_at, admin_dm_clicked_at, dm_reminder_sent_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: true })
+      .limit(100);
+    const pending = pendingData ?? [];
+    const pendingUserIds = [...new Set(pending.map((p) => p.user_id as string))];
+    const { data: pendingProfiles } = pendingUserIds.length
+      ? await supabase
+          .from("profiles")
+          .select("id, email, full_name, account_status, trial_ends_at, deposit_amount, grandfathered")
+          .in("id", pendingUserIds)
+      : { data: [] as Record<string, unknown>[] };
+    const pendingProfileById = new Map((pendingProfiles ?? []).map((p) => [p.id as string, p]));
+    return Promise.all(
+      pending.map(async (p) => {
+        const prof = pendingProfileById.get(p.user_id as string);
+        const { data: signed } = await supabase.storage
+          .from("deposit-proofs")
+          .createSignedUrl(p.proof_path as string, 3600);
+        return {
+          id: p.id as string,
+          email: (prof?.email as string | undefined) ?? (p.user_id as string),
+          name: (prof?.full_name as string | null | undefined) ?? null,
+          tier: prof ? tierLabel(tierFor(prof as unknown as TierSnapshot)) : "—",
+          amount: Number(p.amount),
+          broker: p.broker as string,
+          account: p.trading_account_number as string,
+          tradingview: (p.tradingview_username as string | null) ?? null,
+          telegram: (p.telegram_username as string | null) ?? null,
+          ref: depositRef(p.user_id as string),
+          dmClickedAt: (p.admin_dm_clicked_at as string | null) ?? null,
+          reminderSentAt: (p.dm_reminder_sent_at as string | null) ?? null,
+          createdAt: p.created_at as string,
+          proofUrl: signed?.signedUrl ?? null,
+          isTopUp: prof?.account_status === "member_active",
+        };
+      })
+    );
+  })();
 
   // conversion-fix 3.7 — every verified deposit, grouped per member for the
   // ledger under each row (admin SELECT via deposit_events_select_admin).
-  const { data: ledgerData } = await supabase
-    .from("deposit_events")
-    .select("user_id, amount, broker, verified_at, note")
-    .order("verified_at", { ascending: true })
-    .limit(5000);
+  const visibleIds = rows.map((r) => r.id);
+  const ledgerPromise = visibleIds.length
+    ? supabase
+        .from("deposit_events")
+        .select("user_id, amount, broker, verified_at, note")
+        .in("user_id", visibleIds)
+        .order("verified_at", { ascending: true })
+    : Promise.resolve({ data: [] as LedgerRow[] });
+
+  const [ledgerRes, queueRows, hotLeadRes, analysisRes, classRes, tvSession] = await Promise.all([
+    ledgerPromise,
+    queuePromise,
+    // conversion-fix 5.5 — hot leads for manual follow-up (admin-only RPC).
+    supabase.rpc("fn_admin_hot_leads", { p_limit: 200 }),
+    // Admin-managed content (admin sees all rows via the is_admin policy).
+    supabase
+      .from("daily_analysis")
+      .select(
+        "id, published_on, title, gumlet_id, description, bias, session_tag, is_published, cover_path, report_path"
+      )
+      .order("published_on", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("live_classes")
+      .select("id, starts_at, title, zoom_url")
+      .order("starts_at", { ascending: true })
+      .limit(50),
+    getTVSessionInfo(),
+  ]);
+
   const ledgerByUser = new Map<string, LedgerRow[]>();
-  for (const e of (ledgerData ?? []) as LedgerRow[]) {
+  for (const e of (ledgerRes.data ?? []) as LedgerRow[]) {
     const list = ledgerByUser.get(e.user_id) ?? [];
     list.push(e);
     ledgerByUser.set(e.user_id, list);
   }
+  const hotLeads = (hotLeadRes.data ?? []) as HotLead[];
+  const analysisRows = (analysisRes.data ?? []) as AnalysisRow[];
+  const classRows = (classRes.data ?? []) as ClassRow[];
 
-  // conversion-fix 5.2 — the deposit review queue, oldest first, each proof
-  // behind a one-hour signed URL (admin SELECT on the private bucket).
-  const { data: pendingData } = await supabase
-    .from("deposit_submissions")
-    .select("id, user_id, amount, broker, trading_account_number, tradingview_username, telegram_username, proof_path, created_at, admin_dm_clicked_at, dm_reminder_sent_at")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true })
-    .limit(100);
-  const pending = pendingData ?? [];
-  const pendingUserIds = [...new Set(pending.map((p) => p.user_id as string))];
-  const { data: pendingProfiles } = pendingUserIds.length
-    ? await supabase
-        .from("profiles")
-        .select("id, email, full_name, account_status, trial_ends_at, deposit_amount, grandfathered")
-        .in("id", pendingUserIds)
-    : { data: [] as Record<string, unknown>[] };
-  const pendingProfileById = new Map((pendingProfiles ?? []).map((p) => [p.id as string, p]));
-  const queueRows: QueueRow[] = await Promise.all(
-    pending.map(async (p) => {
-      const prof = pendingProfileById.get(p.user_id as string);
-      const { data: signed } = await supabase.storage
-        .from("deposit-proofs")
-        .createSignedUrl(p.proof_path as string, 3600);
-      return {
-        id: p.id as string,
-        email: (prof?.email as string | undefined) ?? (p.user_id as string),
-        name: (prof?.full_name as string | null | undefined) ?? null,
-        tier: prof ? tierLabel(tierFor(prof as unknown as TierSnapshot)) : "—",
-        amount: Number(p.amount),
-        broker: p.broker as string,
-        account: p.trading_account_number as string,
-        tradingview: (p.tradingview_username as string | null) ?? null,
-        telegram: (p.telegram_username as string | null) ?? null,
-        ref: depositRef(p.user_id as string),
-        dmClickedAt: (p.admin_dm_clicked_at as string | null) ?? null,
-        reminderSentAt: (p.dm_reminder_sent_at as string | null) ?? null,
-        createdAt: p.created_at as string,
-        proofUrl: signed?.signedUrl ?? null,
-        isTopUp: prof?.account_status === "member_active",
-      };
-    })
-  );
-
-  // conversion-fix 5.5 — hot leads for manual follow-up (admin-only RPC).
-  const { data: hotLeadData } = await supabase.rpc("fn_admin_hot_leads", { p_limit: 200 });
-  const hotLeads = (hotLeadData ?? []) as HotLead[];
-
-  // Admin-managed content (admin sees all rows via the is_admin policy).
-  const { data: analysisData } = await supabase
-    .from("daily_analysis")
-    .select(
-      "id, published_on, title, gumlet_id, description, bias, session_tag, is_published, cover_path, report_path"
-    )
-    .order("published_on", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(50);
-  const analysisRows = (analysisData ?? []) as AnalysisRow[];
-
-  const { data: classData } = await supabase
-    .from("live_classes")
-    .select("id, starts_at, title, zoom_url")
-    .order("starts_at", { ascending: true })
-    .limit(50);
-  const classRows = (classData ?? []) as ClassRow[];
-
-  // TradingView session status (for the manual-refresh panel).
-  const tvSession = await getTVSessionInfo();
+  // TradingView session status (for the manual-refresh panel) comes from the
+  // batch above.
 
   // Threaded through action forms so a verify/grant keeps the current view.
   const hiddenFilters = (
@@ -296,6 +325,7 @@ export default async function AdminPage({
       {countryFilter && (
         <input type="hidden" name="filter_country" value={countryFilter} />
       )}
+      {pageNum > 1 && <input type="hidden" name="filter_page" value={String(pageNum)} />}
     </>
   );
 
@@ -470,8 +500,27 @@ export default async function AdminPage({
             </a>
           )}
           <span className="ml-auto text-subtle">
-            {rows.length} result{rows.length === 1 ? "" : "s"}
+            {total === 0
+              ? "no results"
+              : `${firstRow + 1}–${firstRow + rows.length} of ${total}`}
           </span>
+          {lastPage > 1 && (
+            <span className="flex items-center gap-1.5">
+              {pageNum > 1 && (
+                <a href={pageHref(pageNum - 1)} className={BTN_GHOST}>
+                  ← prev
+                </a>
+              )}
+              <span className="text-faint">
+                page {pageNum} / {lastPage}
+              </span>
+              {pageNum < lastPage && (
+                <a href={pageHref(pageNum + 1)} className={BTN_GHOST}>
+                  next →
+                </a>
+              )}
+            </span>
+          )}
         </form>
 
         <div className="overflow-x-auto rounded-2xl border border-line bg-card shadow-soft">
