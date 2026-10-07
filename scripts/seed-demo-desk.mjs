@@ -59,6 +59,23 @@ await client.query(
 );
 console.log("admin", ADMIN_EMAIL, adminId);
 
+// --------------------------------------------------------- demo member ----
+// scripts/demo-user.mjs leaves the showcase member on a running trial clock,
+// which resolves to the Desk-equivalent trial tier and cannot open the AI
+// Trading Assistant (Team tier). A prospect must see everything, so the demo
+// member is a funded Team member with the quiz already done.
+const MEMBER_EMAIL = (env.SHOWCASE_DEMO_EMAIL || "").toLowerCase();
+if (MEMBER_EMAIL) {
+  const { rowCount } = await client.query(
+    `update public.profiles
+        set account_status='member_active', deposit_amount=500, deposit_verified_at=now(),
+            trial_ends_at=null, kys_completed_at=now(), kys_archetype='strategist'
+      where lower(email)=$1`,
+    [MEMBER_EMAIL]
+  );
+  console.log(rowCount ? `member ${MEMBER_EMAIL} lifted to Team` : `member ${MEMBER_EMAIL} not found (run demo-user.mjs first)`);
+}
+
 // ------------------------------------------------------------- analyses ----
 if (src) {
   const srcClient = pgClient(src);
