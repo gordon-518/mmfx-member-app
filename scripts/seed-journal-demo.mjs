@@ -183,10 +183,10 @@ async function main() {
     `insert into public.journal_accounts
        (user_id, label, mt5_login, broker_server, state, state_detail,
         balance, equity, currency, last_synced_at, sync_cursor)
-     values ($1,'Demo Account','5099887','MMFX-Demo','deployed','CONNECTED',
-        $2,$2,'USD', now(), now())
+     values ($1,'Demo Account','5099887',$2,'deployed','CONNECTED',
+        $3,$3,'USD', now(), now())
      returning id`,
-    [userId, balance]
+    [userId, `${env.NEXT_PUBLIC_BRAND_SHORT || "MMFX"}-Demo`, balance]
   );
   const accountId = acctRows[0].id;
 
