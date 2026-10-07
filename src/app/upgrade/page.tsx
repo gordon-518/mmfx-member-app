@@ -17,6 +17,7 @@ import { nextTierFor, tierLabel } from "@/lib/tiers";
 import { depositRef } from "@/lib/depositRef";
 import { AmeliaLastStep } from "./AmeliaLastStep";
 import { regionFor } from "@/lib/brokerRegion";
+import { BRAND } from "@/lib/brand";
 
 // Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
 // a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
@@ -166,7 +167,7 @@ export default async function UpgradePage({
       <article className="rise mx-auto max-w-5xl px-6 py-14 sm:py-16">
         {/* Headline */}
         <div className="max-w-2xl">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">Market Makers FX</p>
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{BRAND.name}</p>
           <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
             {headline}
           </h1>

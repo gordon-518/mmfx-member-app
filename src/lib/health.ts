@@ -2,6 +2,7 @@ import "server-only";
 import { checkSmtpAuth } from "@/lib/smtpCheck";
 import { testTVSession } from "@/lib/tv/client";
 import { sendAdminAlert } from "@/lib/notify";
+import { BRAND } from "@/lib/brand";
 
 export interface HealthResult {
   ok: boolean;
@@ -39,7 +40,7 @@ export async function runHealthChecks(): Promise<HealthResult> {
 
   if (failures.length > 0) {
     await sendAdminAlert(
-      `🚨 MMFX health check FAILED (${failures.length} issue${failures.length > 1 ? "s" : ""})`,
+      `🚨 ${BRAND.shortName} health check FAILED (${failures.length} issue${failures.length > 1 ? "s" : ""})`,
       failures.join("\n\n———\n\n") + `\n\nChecked: ${new Date().toISOString()}`
     );
   }

@@ -19,6 +19,10 @@ export interface Brand {
   wordmark: { lead: string; accent: string };
   /** Bare domain, no scheme: "marketmakersfx.net". */
   domain: string;
+  /** Where this desk is served, no trailing slash: "https://app.marketmakersfx.net". */
+  appUrl: string;
+  /** Hostname of appUrl: "app.marketmakersfx.net". */
+  appHost: string;
   supportEmail: string;
   /** The postal line every marketing email must carry. */
   postalLine: string;
@@ -39,6 +43,8 @@ const DEFAULTS: Brand = {
   shortName: "MMFX",
   wordmark: { lead: "Market Makers", accent: "FX" },
   domain: "marketmakersfx.net",
+  appUrl: "https://app.marketmakersfx.net",
+  appHost: "app.marketmakersfx.net",
   supportEmail: "hello@marketmakersfx.net",
   postalLine: "Market Makers FX, Singapore",
   persona: "Don",
@@ -54,6 +60,7 @@ export type BrandEnv = Partial<Record<
   | "NEXT_PUBLIC_BRAND_SHORT"
   | "NEXT_PUBLIC_BRAND_WORDMARK"
   | "NEXT_PUBLIC_BRAND_DOMAIN"
+  | "NEXT_PUBLIC_APP_URL"
   | "NEXT_PUBLIC_BRAND_SUPPORT_EMAIL"
   | "NEXT_PUBLIC_BRAND_POSTAL"
   | "NEXT_PUBLIC_BRAND_PERSONA"
@@ -92,12 +99,23 @@ export function parseFeaturesOff(v: string | undefined): FeatureKey[] {
   return [...new Set(v.split(",").map((s) => s.trim()).filter((s) => known.has(s)))] as FeatureKey[];
 }
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url.replace(/^https?:\/\//, "").split("/")[0];
+  }
+}
+
 export function brandFromEnv(env: BrandEnv): Brand {
+  const appUrl = str(env.NEXT_PUBLIC_APP_URL, DEFAULTS.appUrl).replace(/\/+$/, "");
   return {
     name: str(env.NEXT_PUBLIC_BRAND_NAME, DEFAULTS.name),
     shortName: str(env.NEXT_PUBLIC_BRAND_SHORT, DEFAULTS.shortName),
     wordmark: parseWordmark(env.NEXT_PUBLIC_BRAND_WORDMARK, DEFAULTS.wordmark),
     domain: str(env.NEXT_PUBLIC_BRAND_DOMAIN, DEFAULTS.domain).replace(/^https?:\/\//, "").replace(/\/+$/, ""),
+    appUrl,
+    appHost: hostOf(appUrl),
     supportEmail: str(env.NEXT_PUBLIC_BRAND_SUPPORT_EMAIL, DEFAULTS.supportEmail),
     postalLine: str(env.NEXT_PUBLIC_BRAND_POSTAL, DEFAULTS.postalLine),
     persona: str(env.NEXT_PUBLIC_BRAND_PERSONA, DEFAULTS.persona),
@@ -116,6 +134,7 @@ export const BRAND: Brand = brandFromEnv({
   NEXT_PUBLIC_BRAND_SHORT: process.env.NEXT_PUBLIC_BRAND_SHORT,
   NEXT_PUBLIC_BRAND_WORDMARK: process.env.NEXT_PUBLIC_BRAND_WORDMARK,
   NEXT_PUBLIC_BRAND_DOMAIN: process.env.NEXT_PUBLIC_BRAND_DOMAIN,
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   NEXT_PUBLIC_BRAND_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_BRAND_SUPPORT_EMAIL,
   NEXT_PUBLIC_BRAND_POSTAL: process.env.NEXT_PUBLIC_BRAND_POSTAL,
   NEXT_PUBLIC_BRAND_PERSONA: process.env.NEXT_PUBLIC_BRAND_PERSONA,

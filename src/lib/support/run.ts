@@ -1,5 +1,6 @@
 import "server-only";
 import { adminDb } from "@/lib/channel/db";
+import { BRAND } from "@/lib/brand";
 import { sendTelegram, escapeHtml } from "@/lib/telegram";
 import * as sendpulse from "./sendpulse";
 import { decide as realDecide, redactForModel } from "./agent";
@@ -42,7 +43,7 @@ export function isDirectChat(chatType: number | null): boolean {
   return chatType !== null && DIRECT_CHAT_TYPES.has(chatType);
 }
 
-export const PREFIX = "MMFX Assistant: ";
+export const PREFIX = `${BRAND.shortName} Assistant: `;
 /**
  * Overall internal-accounting budget for one burst, measured from the top of
  * `runBurst` — it includes the 20s debounce sleep below. This is not itself

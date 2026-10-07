@@ -1,3 +1,4 @@
+import { BRAND } from "@/lib/brand";
 // Per-slide colour for the bold carousel.
 //
 // The template this is ported from works because consecutive slides do NOT look alike:
@@ -7,6 +8,11 @@
 //
 // Colours are the MMFX brand tokens, not the source template's — the point is to borrow
 // its structure, not its palette.
+
+/** The wordmark as drawn into every post: the brand name run together ("MarketMakersFX"). */
+export const WORDMARK = BRAND.name.replace(/\s+/g, "");
+/** The site line drawn into post footers. */
+export const SITE = BRAND.appHost;
 
 export const CAROUSEL_ROLES = ["hook", "context", "mechanism", "proof", "cta"] as const;
 export type CarouselRole = (typeof CAROUSEL_ROLES)[number];

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { friendlyAuthError } from "@/lib/auth/authErrors";
 import { GoogleButton } from "./GoogleButton";
 import { Captcha, type CaptchaHandle } from "./Captcha";
+import { BRAND } from "@/lib/brand";
 
 type Status = "idle" | "sending" | "error";
 
@@ -44,7 +45,7 @@ export function LoginForm() {
         Welcome back
       </h2>
       <p className="rise mt-2 text-[15px] leading-relaxed text-subtle" style={{ animationDelay: "0.08s" }}>
-        Sign in to your Market Makers FX desk.
+        Sign in to your {BRAND.name} desk.
       </p>
 
       <div className="rise mt-8" style={{ animationDelay: "0.12s" }}>
@@ -131,7 +132,7 @@ export function LoginForm() {
       </div>
 
       <p className="rise mt-6 text-center text-[13px] text-subtle" style={{ animationDelay: "0.18s" }}>
-        New to Market Makers FX?{" "}
+        New to {BRAND.name}?{" "}
         <Link href="/signup" className="font-semibold text-orange transition-colors hover:text-accent-ink">
           Start your free trial →
         </Link>

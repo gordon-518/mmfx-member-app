@@ -1,5 +1,6 @@
 import { emailShell, escapeHtml } from "./shell";
 import { fmtMoney, fmtWeek, totals, byLabel, type FunnelRow } from "@/lib/partners/funnel";
+import { BRAND } from "@/lib/brand";
 
 // The partner's Monday email (design 2026-09-25 §2.7). Seven days of the same
 // counts the dashboard shows, on the v2 shell, so the numbers a partner
@@ -31,10 +32,10 @@ export interface PartnerWeeklyEmail {
 
 /** The address a partner replies to when they want the report stopped. */
 const STOP_MAILTO =
-  "mailto:hello@marketmakersfx.net?subject=Stop%20the%20weekly%20partner%20report";
+  `mailto:${BRAND.supportEmail}?subject=Stop%20the%20weekly%20partner%20report`;
 
 const FOOTER_NOTE =
-  "You're getting this because your agency has a partner report with Market Makers FX. ";
+  `You're getting this because your agency has a partner report with ${BRAND.name}. `;
 
 function day(d: Date): string {
   return fmtWeek(d.toISOString().slice(0, 10));
@@ -102,7 +103,7 @@ export function renderPartnerWeekly(p: PartnerWeeklyParams): PartnerWeeklyEmail 
     "7 days of the deposit. The full breakdown and the CSV are on your dashboard",
     "— the link you were given carries your key.",
     "",
-    "Market Makers FX, Singapore",
+    BRAND.postalLine,
   ];
 
   return {

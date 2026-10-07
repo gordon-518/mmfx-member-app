@@ -2,6 +2,7 @@ import { type NextRequest } from "next/server";
 import { requireFeature } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { isDemoUser } from "@/lib/showcase";
+import { BRAND } from "@/lib/brand";
 
 // Gated daily-analysis PDF report. Same pattern as the ebook/slide routes:
 //   1. requireFeature() — locked users redirect to /upgrade before any storage.
@@ -50,7 +51,7 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  const filename = `MMFX_Analysis_${row.published_on ?? id}.pdf`;
+  const filename = `${BRAND.shortName}_Analysis_${row.published_on ?? id}.pdf`;
   return new Response(data, {
     status: 200,
     headers: {

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { LegalShell, LegalHeading } from "@/components/LegalShell";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Market Makers FX",
-  description: "How Market Makers FX collects, uses, and protects your data.",
+  title: `Privacy Policy — ${BRAND.name}`,
+  description: `How ${BRAND.name} collects, uses, and protects your data.`,
 };
 
 const UPDATED = "24 June 2026";
@@ -12,7 +13,7 @@ export default function PrivacyPage() {
   return (
     <LegalShell title="Privacy Policy" updated={UPDATED}>
       <p>
-        This Privacy Policy explains how Market Makers FX (&quot;MMFX&quot;,
+        This Privacy Policy explains how {BRAND.name} (&quot;{BRAND.shortName}&quot;,
         &quot;we&quot;, &quot;us&quot;) collects, uses, and protects your
         information when you use our website, member app, and related services
         (the &quot;Service&quot;). By using the Service you agree to this Policy.
@@ -20,7 +21,7 @@ export default function PrivacyPage() {
 
       <LegalHeading>Who we are</LegalHeading>
       <p>
-        Market Makers FX provides trading education, market analysis, and
+        {BRAND.name} provides trading education, market analysis, and
         trading tools for the foreign-exchange and gold (XAU/USD) markets. We
         are not a broker, financial institution, or licensed financial adviser.
         We operate as an Introducing Broker (IB), meaning we may refer users to
@@ -38,7 +39,7 @@ export default function PrivacyPage() {
       <p>
         We do <strong>not</strong> collect or store your payment-card or
         trading-account credentials. Any broker deposits are made directly with
-        the broker, not with MMFX.
+        the broker, not with {BRAND.shortName}.
       </p>
 
       <LegalHeading>How we use your information</LegalHeading>
@@ -87,8 +88,8 @@ export default function PrivacyPage() {
         Depending on your location, you may have the right to access, correct,
         export, or delete your personal data, and to object to or restrict
         certain processing. To exercise these rights, email{" "}
-        <a className="text-orange hover:text-accent-ink" href="mailto:hello@marketmakersfx.net">
-          hello@marketmakersfx.net
+        <a className="text-orange hover:text-accent-ink" href={`mailto:${BRAND.supportEmail}`}>
+          {BRAND.supportEmail}
         </a>
         .
       </p>
@@ -108,8 +109,8 @@ export default function PrivacyPage() {
       <LegalHeading>Contact</LegalHeading>
       <p>
         Questions about this Policy or your data? Email{" "}
-        <a className="text-orange hover:text-accent-ink" href="mailto:hello@marketmakersfx.net">
-          hello@marketmakersfx.net
+        <a className="text-orange hover:text-accent-ink" href={`mailto:${BRAND.supportEmail}`}>
+          {BRAND.supportEmail}
         </a>
         .
       </p>

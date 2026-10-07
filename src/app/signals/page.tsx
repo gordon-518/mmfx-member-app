@@ -2,6 +2,7 @@ import { requireFeature } from "@/lib/access";
 import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon, SignalsIcon, AnalysisIcon } from "@/components/icons";
+import { BRAND } from "@/lib/brand";
 
 // ---------------------------------------------------------------------------
 // Telegram destinations. VIP is live; the three below are PLACEHOLDERS — Gordon
@@ -90,7 +91,7 @@ export default async function SignalsPage() {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">Live · Telegram</p>
-            <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-ink">MMFX Signals Channel</h2>
+            <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-ink">{BRAND.shortName} Signals Channel</h2>
             <p className="mt-1 text-[14px] leading-relaxed text-subtle">
               The calls post here as they&apos;re taken. Turn notifications on so you don&apos;t miss the window.
             </p>

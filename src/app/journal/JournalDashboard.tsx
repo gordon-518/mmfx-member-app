@@ -27,6 +27,7 @@ import {
   type JournalTradeRow,
 } from "@/lib/journal/types";
 import { DrawdownChart, EquityCurveChart, PnlHistogram, RadarChart } from "./charts";
+import { BRAND } from "@/lib/brand";
 
 // Client half of /journal (Phase 2). Data arrives fully-computed from the server
 // component; mutations go through /api/journal/* and re-render via
@@ -667,7 +668,7 @@ function CoachCard({
             D
           </span>
           <div>
-            <h2 className="font-display text-lg font-bold text-ink">Don’s read</h2>
+            <h2 className="font-display text-lg font-bold text-ink">{BRAND.persona}’s read</h2>
             <p className="text-[12px] text-subtle">
               {report
                 ? `AI coach · ${new Date(report.report_date).toLocaleDateString("en-GB", {

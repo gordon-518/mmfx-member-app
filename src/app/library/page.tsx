@@ -3,6 +3,7 @@ import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon } from "@/components/icons";
 import { EBOOKS, type Ebook, type EbookTone } from "./ebooks";
+import { BRAND } from "@/lib/brand";
 
 const TONE: Record<EbookTone, { wrap: string; title: string; cat: string }> = {
   ink: { wrap: "bg-ink", title: "text-white", cat: "text-faint" },
@@ -22,7 +23,7 @@ function Wordmark({ className }: { className: string }) {
   return (
     <span className="flex items-center gap-1.5">
       <span className="h-3 w-3 rounded-[3px] bg-orange" />
-      <span className={`text-[7px] font-bold uppercase tracking-[0.14em] ${className}`}>Market Makers FX</span>
+      <span className={`text-[7px] font-bold uppercase tracking-[0.14em] ${className}`}>{BRAND.name}</span>
     </span>
   );
 }

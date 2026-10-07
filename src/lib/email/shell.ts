@@ -22,6 +22,7 @@
 // escaped here.
 
 import { EMAIL_ASSET_BASE } from "./ui";
+import { BRAND } from "@/lib/brand";
 
 /** HTML-escape a string for interpolation into an email body. */
 export function escapeHtml(s: string): string {
@@ -34,11 +35,11 @@ export function escapeHtml(s: string): string {
 
 /** Why-am-I-getting-this line, unless the caller has a narrower one. */
 export const DEFAULT_FOOTER_NOTE =
-  "You're getting this because you have a Market Makers FX account.";
+  `You're getting this because you have a ${BRAND.name} account.`;
 
 /** The postal identification every bulk sender's footer needs (decision §8.1:
  *  ship the minimum). */
-export const POSTAL_LINE = "Market Makers FX, Singapore";
+export const POSTAL_LINE = BRAND.postalLine;
 
 /**
  * The band under the header.
@@ -118,8 +119,8 @@ export function emailShell(p: EmailShellParams): string {
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:100%;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e3dfd8">
         <tr><td style="background:#000000;padding:${headerPad}">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-            <td width="30" style="padding-right:12px"><img src="${EMAIL_ASSET_BASE}/mark@2x.png" alt="Market Makers FX" width="30" height="18" style="display:block;border:0"></td>
-            <td style="font:700 13px/1 ${DISPLAY};letter-spacing:.14em;color:#F5F5F5;white-space:nowrap">MARKET MAKERS FX</td>
+            <td width="30" style="padding-right:12px"><img src="${EMAIL_ASSET_BASE}/mark@2x.png" alt="${escapeHtml(BRAND.name)}" width="30" height="18" style="display:block;border:0"></td>
+            <td style="font:700 13px/1 ${DISPLAY};letter-spacing:.14em;color:#F5F5F5;white-space:nowrap">${escapeHtml(BRAND.name.toUpperCase())}</td>
             ${context}
           </tr></table>
         </td></tr>

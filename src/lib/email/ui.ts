@@ -18,10 +18,12 @@
 // EMAIL_ASSET_BASE from here, and a one-way edge is worth four duplicated
 // lines of escaping.
 
+import { BRAND_SITE_URL } from "@/lib/brand";
+
 /** Where the icon set lives. Versioned, so a redesign never breaks an email
  *  already sitting in someone's inbox (design §3, "Icon set"). */
 export const EMAIL_ASSET_BASE = (
-  process.env.EMAIL_ASSET_BASE?.trim() || "https://marketmakersfx.net/email/v1"
+  process.env.EMAIL_ASSET_BASE?.trim() || `${BRAND_SITE_URL}/email/v1`
 ).replace(/\/+$/, "");
 
 /** Both renderings of one module. */

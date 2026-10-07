@@ -5,6 +5,7 @@ import { fetchAllGrowthProfiles } from "@/lib/growth/profiles";
 import { buildNarrative, type PriorSnapshot } from "@/lib/growth/narrative";
 import { sendTelegram, escapeHtml } from "@/lib/telegram";
 import { supportLine, supportStats } from "@/lib/support/summary";
+import { BRAND } from "@/lib/brand";
 
 // Daily growth-stats snapshot. Triggered at 09:00 SGT (01:00 UTC) by a
 // Supabase pg_cron + pg_net job that POSTs here with the CRON_SECRET bearer.
@@ -41,7 +42,7 @@ function fmtDelta(current: number, prior?: number | null): string {
 function buildTelegram(m: GrowthMetrics, narrative: string | null, yest?: PriorSnapshot | null, support?: string | null): string {
   const b = m.broker_split;
   const lines = [
-    `<b>📈 MMFX growth — ${m.date}</b>`,
+    `<b>📈 ${BRAND.shortName} growth — ${m.date}</b>`,
     "",
     `<b>Signups:</b> ${m.signups_today} today${fmtDelta(m.signups_today, yest?.signups_today)} · ${m.signups_7d} 7d · ${m.signups_30d} 30d`,
     `<b>Active trials:</b> ${m.trials_active}${fmtDelta(m.trials_active, yest?.trials_active)}`,

@@ -3,6 +3,7 @@ import { serviceClient } from "@/lib/journal/api";
 import { sendEmail } from "@/lib/sendpulse";
 import { depositDmReminderEmail } from "@/lib/depositEmails";
 import { depositRef } from "@/lib/depositRef";
+import { BRAND } from "@/lib/brand";
 
 // The 24-hour "message Admin Amelia" reminder (Gordon, 15 Sep). A member who
 // submitted a deposit but hasn't clicked "Message Admin Amelia" within 24
@@ -14,7 +15,7 @@ import { depositRef } from "@/lib/depositRef";
 // can't double-send. A failed send is logged, not retried: it's one
 // best-effort nudge, and the /upgrade pending notice keeps the reminder too.
 
-const FROM = { name: "Market Makers FX", email: "hello@marketmakersfx.net" };
+const FROM = { name: BRAND.name, email: BRAND.supportEmail };
 
 interface DueReminder {
   submission_id: string;

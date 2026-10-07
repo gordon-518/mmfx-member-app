@@ -13,6 +13,7 @@
 // must never reach the renderer, and one bad row must never take out the index.
 
 import { guideErrors, validateGuide, type GuideV2 } from "./validate";
+import { BRAND_SITE_URL } from "@/lib/brand";
 
 /** The guides table, exactly as Postgres spells it. */
 export interface GuideRow {
@@ -39,7 +40,7 @@ export const GUIDE_COLUMNS =
   "takeaways, pull_quote, cover, visuals, status, created_at, updated_at";
 
 /** Where a published guide lives. The site's own origin, not this app's. */
-export const GUIDES_ORIGIN = "https://marketmakersfx.net";
+export const GUIDES_ORIGIN = BRAND_SITE_URL;
 
 /** The public URL of a guide — what POST hands back to the brain. */
 export function guideUrl(slug: string): string {

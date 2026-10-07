@@ -12,11 +12,10 @@
 // Satori subset rules apply throughout: flexbox only, explicit `display` on every
 // element, no transforms worth trusting. The asterisk is an inline data-URI SVG because
 // that is the one vector path Satori renders predictably.
-import { slideTheme, type SlideTheme, CAROUSEL_ROLES } from "./slideTheme";
+import { slideTheme, type SlideTheme, CAROUSEL_ROLES, SITE, WORDMARK } from "./slideTheme";
 import { DISPLAY, BODY } from "./renderFonts";
 
 const PAD = 72;
-const SITE = "app.marketmakersfx.net";
 
 /** The eight-point asterisk, as a data URI so Satori rasterises it predictably. */
 function markUrl(color: string): string {
@@ -37,7 +36,7 @@ function Wordmark({ t }: { t: SlideTheme }) {
     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ display: "flex", width: 30, height: 30, borderRadius: 9, background: t.accent }} />
       <div style={{ display: "flex", fontFamily: DISPLAY, fontSize: 26, fontWeight: 700, color: t.ink }}>
-        MarketMakersFX
+        {WORDMARK}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { signOut } from "@/app/dashboard/actions";
 import type { AccountStatus } from "@/lib/trial/status";
 import { tierLabel, tierUnlockLabel, type MemberTier } from "@/lib/tiers";
 import { canAccess, featureForHref, FEATURE_MIN_TIER, type Viewer } from "@/lib/access/features";
+import { BRAND } from "@/lib/brand";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
   AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon, TelegramIcon,
@@ -95,7 +96,13 @@ export function Wordmark({ iconOnly = false }: { iconOnly?: boolean }) {
       </span>
       {!iconOnly && (
         <span className="font-display text-[15px] font-bold tracking-tight text-ink whitespace-nowrap">
-          Market Makers <span className="text-orange">FX</span>
+          {BRAND.wordmark.lead}
+          {BRAND.wordmark.accent ? (
+            <>
+              {" "}
+              <span className="text-orange">{BRAND.wordmark.accent}</span>
+            </>
+          ) : null}
         </span>
       )}
     </div>

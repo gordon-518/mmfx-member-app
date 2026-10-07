@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { MetaPixel } from "@/components/MetaPixel";
+import { BRAND } from "@/lib/brand";
 
 // Display — characterful, warm, modern. Body — clean, friendly, legible.
 const display = Bricolage_Grotesque({
@@ -16,9 +17,9 @@ const sans = Hanken_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Market Makers FX — Member Access",
+  title: `${BRAND.name} — Member Access`,
   description:
-    "Member access for Market Makers FX — gold trading education, signals, and community.",
+    `Member access for ${BRAND.name} — gold trading education, signals, and community.`,
 };
 
 export const viewport: Viewport = {

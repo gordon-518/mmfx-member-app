@@ -5,6 +5,7 @@ import { renderLifecycle, templateFor } from "@/lib/email/lifecycle";
 import type { LifecycleCopy, LifecycleCtx, LifecycleEmail } from "@/lib/email/lifecycle/types";
 import { tierFor } from "@/lib/tiers";
 import type { AccountStatus } from "@/lib/trial/status";
+import { BRAND } from "@/lib/brand";
 
 // The lifecycle rail's worker (design doc 2026-09-21 §4). Every five minutes,
 // via Supabase pg_cron + pg_net (job 'email-lifecycle', snippet in the
@@ -21,8 +22,8 @@ import type { AccountStatus } from "@/lib/trial/status";
 
 export const maxDuration = 300;
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.marketmakersfx.net";
-const DEFAULT_FROM = "Market Makers FX <hello@marketmakersfx.net>";
+const APP_URL = BRAND.appUrl;
+const DEFAULT_FROM = `${BRAND.name} <${BRAND.supportEmail}>`;
 
 /** A claimed row: one due email, with everything its template needs. */
 interface ClaimedSend {
@@ -68,10 +69,10 @@ export function parseSender(raw: string | undefined): EmailAddress {
   const value = (raw ?? "").trim() || DEFAULT_FROM;
   const m = value.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
   if (m && m[2].includes("@")) {
-    return { name: m[1].replace(/^"|"$/g, "").trim() || "Market Makers FX", email: m[2].trim() };
+    return { name: m[1].replace(/^"|"$/g, "").trim() || BRAND.name, email: m[2].trim() };
   }
-  if (value.includes("@")) return { name: "Market Makers FX", email: value };
-  return { name: "Market Makers FX", email: "hello@marketmakersfx.net" };
+  if (value.includes("@")) return { name: BRAND.name, email: value };
+  return { name: BRAND.name, email: BRAND.supportEmail };
 }
 
 /** `SPOTLIGHT_DAY` as an ISO day-of-week number. Default Saturday: the one
