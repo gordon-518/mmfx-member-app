@@ -6,6 +6,7 @@
 // (decision 5). Thresholds from the plan's tier table.
 
 import { accessTier, type AccountStatus } from "@/lib/trial/status";
+import { BRAND } from "@/lib/brand";
 
 export type PaidTier = "foundation" | "desk" | "team";
 
@@ -102,7 +103,7 @@ const LABELS: Readonly<Record<MemberTier, string>> = {
   trial: "Trial",
   foundation: "Foundation",
   desk: "Desk",
-  team: "Team MM",
+  team: BRAND.topTierLabel,
 };
 
 export function tierLabel(t: MemberTier): string {

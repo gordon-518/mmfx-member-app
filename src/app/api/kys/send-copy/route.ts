@@ -3,6 +3,7 @@ import { getAccess } from "@/lib/access";
 import { canAccess } from "@/lib/access/features";
 import { sendEmail, addContactToBook } from "@/lib/sendpulse";
 import { createClient } from "@/lib/supabase/server";
+import { BRAND } from "@/lib/brand";
 
 // "Send me a copy" from the Know Your Style bot. KYS posts the user's finished
 // result HTML up to us; we email it to the LOGGED-IN account's own address.
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
       name: access.profile.full_name || access.profile.email,
       email: access.profile.email,
     },
-    from: { name: "Market Makers FX", email: "hello@marketmakersfx.net" },
+    from: { name: BRAND.name, email: BRAND.supportEmail },
     subject: `Your Know Your Style result — ${archetype}`,
     html: resultHtml,
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BRAND } from "@/lib/brand";
 
 // Team MM — the private VIP desk, for funded members. Invites are added BY HAND
 // (the desk verifies + sends a personal invite) so the link can't be forwarded.
@@ -52,7 +53,7 @@ export function TeamMMMember({ firstName }: { firstName: string }) {
         </h1>
         <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-subtle">
           The private desk. Higher-conviction signals, member-only calls, and direct
-          updates from Don — kept small and kept private.
+          updates from {BRAND.persona} — kept small and kept private.
         </p>
       </div>
 

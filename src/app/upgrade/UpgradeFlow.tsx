@@ -11,20 +11,25 @@ import {
   OCTA_SIGNUP, DUPOIN_SIGNUP, OCTA_CHANGE_IB, ELEV8_CHANGE_IB, IB_NUMBER, SWITCH_REASON,
 } from "@/lib/brokerLinks";
 import type { Region } from "@/lib/brokerRegion";
+import { BRAND } from "@/lib/brand";
+import { tierLabel } from "@/lib/tiers";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 export type { Region } from "@/lib/brokerRegion";
 
 // --- Funnel links (see memory mmfx-broker-funnel) ----------------------------
 const WHATSAPP_URL =
-  "https://wa.me/6588035858?text=Hi%20MMFX%2C%20requesting%20upgrade.%20Broker%3A%20%5BOcta%2FDupoin%5D%20Account%23%3A%20%5Bnumber%5D%20Tier%3A%20%5BTeam%20MM%2FMentorship%5D";
+  "https://wa.me/6588035858?text=" +
+  encodeURIComponent(
+    `Hi ${BRAND.shortName}, requesting upgrade. Broker: [Octa/Dupoin] Account#: [number] Tier: [${tierLabel("team")}/Mentorship]`
+  );
 const TELEGRAM_SWITCH = ADMIN_TELEGRAM_URL;
 // US/UK contact path — these visitors can't open a partnered broker account, so
 // the WhatsApp message + Telegram thread are dedicated to arranging access.
 const CONTACT_WHATSAPP_URL =
   "https://wa.me/6588035858?text=" +
   encodeURIComponent(
-    "Hi MMFX, I'd like full access. I'm in the US/UK and can't open a partnered broker account — how can I get set up?"
+    `Hi ${BRAND.shortName}, I'd like full access. I'm in the US/UK and can't open a partnered broker account — how can I get set up?`
   );
 const CONTACT_TELEGRAM_URL = "https://t.me/m/GIf6KqN9ZWZl";
 // -----------------------------------------------------------------------------
@@ -56,7 +61,7 @@ type Step = {
 
 function CtaButton({ cta }: { cta: Cta }) {
   const cls = cta.primary
-    ? "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto"
+    ? "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg sm:w-auto"
     : "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto";
   const Icon = cta.icon;
   // "#…" jumps to a section of this page, so it stays in the same tab.
@@ -154,7 +159,7 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 // (conversion-fix tiers: Foundation $50, Desk $200, Team MM $500).
 const TIER_LADDER = (
   <>
-    $50 opens Foundation, $200 the Desk and $500 Team MM, and every top-up counts toward the next tier.
+    $50 opens Foundation, $200 the Desk and $500 {tierLabel("team")}, and every top-up counts toward the next tier.
   </>
 );
 
@@ -290,7 +295,7 @@ function ContactCard() {
           The partnered brokers can&apos;t operate where you are — so we set you up personally. Reach out and we&apos;ll take it from there.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" onClick={track({ event: "upgrade_contact_clicked", props: { channel: "whatsapp" } })} className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto">
+          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" onClick={track({ event: "upgrade_contact_clicked", props: { channel: "whatsapp" } })} className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg sm:w-auto">
             <WhatsAppIcon className="h-[17px] w-[17px]" />
             Contact us on WhatsApp
           </a>

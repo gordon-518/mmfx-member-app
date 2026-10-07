@@ -13,6 +13,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // A tenant without SendPulse has no audience to stamp: skip, don't 500.
+  if (!process.env.SENDPULSE_API_ID || !process.env.SENDPULSE_API_SECRET) {
+    return NextResponse.json({ skipped: "sendpulse not configured" });
+  }
+
   const result = await syncSendpulseAudiences();
 
   // Health check runs regardless of sync outcome; it alerts on its own.

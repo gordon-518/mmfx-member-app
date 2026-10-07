@@ -3,6 +3,7 @@ import { adminDb } from "@/lib/channel/db";
 import { houseMarkdownToHtml } from "@/lib/channel/markdown";
 import { sendChannelText, sendChannelPhoto } from "@/lib/channel/sender";
 import type { ChannelPostRow } from "@/lib/channel/types";
+import { BRAND } from "@/lib/brand";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ const CAPTION_LIMIT = 1024;
 // attributed back to the post (and library item) that earned them.
 function buildButtons(row: ChannelPostRow): unknown | undefined {
   if (!row.button_set || row.button_set.length === 0) return undefined;
-  const base = process.env.APP_URL || "https://app.marketmakersfx.net";
+  const base = process.env.APP_URL || BRAND.appUrl;
   return row.button_set.map((b) => [{ text: b.text, url: `${base}/go/${b.slug}?p=${row.id}` }]);
 }
 

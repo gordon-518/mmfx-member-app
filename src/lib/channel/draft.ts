@@ -1,5 +1,6 @@
 import "server-only";
 import type { LibraryKind } from "@/lib/channel/types";
+import { BRAND } from "@/lib/brand";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 // Marketing copy quality matters here, so use a stronger model than the
@@ -18,13 +19,13 @@ export interface Winner {
 }
 
 const SYSTEM = [
-  "You write short educational/mindset and light-CTA posts for MarketMakersFX,",
+  `You write short educational/mindset and light-CTA posts for ${BRAND.name},`,
   "a gold (XAU/USD) trading education + broker-IB brand, for its Telegram channel.",
   "House voice: disciplined, calm, no hype. Start the first line with the ⚜️ mark.",
   "House markdown only: **bold**, __italic__, `code`. Each post 40–90 words.",
   "COMPLIANCE — NEVER: promise or guarantee returns; mention broker payouts,",
   "per-lot rebates, IB numbers/links, or any 'no fee' claim; give financial advice.",
-  "CTA posts may invite a free 14-day trial at app.marketmakersfx.net framed as",
+  `CTA posts may invite a free 14-day trial at ${BRAND.appHost} framed as`,
   "'the whole desk, free to try'. Educational posts end on a discipline line.",
 ].join(" ");
 

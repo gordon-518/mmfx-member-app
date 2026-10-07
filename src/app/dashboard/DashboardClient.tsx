@@ -271,7 +271,7 @@ export function DashboardClient({
 
             {head.cta ? (
               head.cta.kind === "push" ? (
-                <Link href={head.cta.href} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg">
+                <Link href={head.cta.href} className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg">
                   {head.cta.label} <ArrowIcon width={16} height={16} />
                 </Link>
               ) : (

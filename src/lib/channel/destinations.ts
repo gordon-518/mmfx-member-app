@@ -1,3 +1,4 @@
+import { BRAND } from "@/lib/brand";
 // Allowlist of button destinations → app paths. The /go redirect ONLY forwards
 // to a slug in this map, so a crafted ?url can never turn it into an open
 // redirect. Add new CTA targets here.
@@ -25,7 +26,7 @@ export const DESTINATIONS: Record<string, string> = {
   "know-your-style": "/bots/know-your-style",
 };
 
-const APP_BASE = "https://app.marketmakersfx.net";
+const APP_BASE = BRAND.appUrl;
 
 // Resolve a slug to its absolute URL, or null if it is not allowlisted.
 // Values may be an app path ("/signals") or a full external URL — either way

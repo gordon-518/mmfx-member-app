@@ -5,7 +5,8 @@ import { CopyBridge } from "./CopyBridge";
 
 // ?app=1 puts the desk in embedded mode: its "Send me a copy" button posts to
 // CopyBridge instead of calling its own (now-retired) Make webhook.
-const BOT_URL = "https://api.marketmakersfx.net/?app=1";
+// A tenant can point at its own desk host; the default is MMFX's.
+const BOT_URL = process.env.NEXT_PUBLIC_FUNDAMENTAL_BOT_URL?.trim() || "https://api.marketmakersfx.net/?app=1";
 
 export default async function FundamentalPage() {
   // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.

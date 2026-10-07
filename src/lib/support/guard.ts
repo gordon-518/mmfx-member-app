@@ -1,4 +1,5 @@
 import { normaliseUrl, RISK_FOOTER } from "./facts";
+import { BRAND } from "@/lib/brand";
 import type { FactSheet, MemberContext, Topic } from "./types";
 
 // Pure checks on a drafted reply. An empty array means it may be sent. Every
@@ -198,7 +199,7 @@ const CLAIM_VETO_RE = /\b(not|no|n't|isn't|hasn't|haven't|once|when|after|until|
 const APPROVAL_PROMISE_RE = /\b(?:will|'ll|going to|gonna)\s+(?:\w+\s+){0,2}approve\b|\bis\s+approving\b/i;
 const APPROVAL_PROMISE_VETO_RE = /\b(?:nobody|no\s?one|never|not)\b/i;
 
-const APP_ORIGIN = "https://app.marketmakersfx.net";
+const APP_ORIGIN = BRAND.appUrl;
 
 interface AmountMatch {
   value: number;
@@ -310,7 +311,7 @@ function urlAllowed(raw: string, facts: FactSheet): boolean {
  * allow-listed URL, plus the app's own host (already covered separately by
  * urlAllowed/APP_PATHS, but the bare-host scan works on hosts alone). */
 function allowedHosts(f: FactSheet): Set<string> {
-  const hosts = new Set<string>(["app.marketmakersfx.net"]);
+  const hosts = new Set<string>([BRAND.appHost]);
   for (const raw of f.allow.urls) {
     const normalised = normaliseUrl(raw);
     if (normalised === null) continue;

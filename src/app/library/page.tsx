@@ -3,6 +3,7 @@ import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon } from "@/components/icons";
 import { EBOOKS, type Ebook, type EbookTone } from "./ebooks";
+import { BRAND } from "@/lib/brand";
 
 const TONE: Record<EbookTone, { wrap: string; title: string; cat: string }> = {
   ink: { wrap: "bg-ink", title: "text-white", cat: "text-faint" },
@@ -22,7 +23,7 @@ function Wordmark({ className }: { className: string }) {
   return (
     <span className="flex items-center gap-1.5">
       <span className="h-3 w-3 rounded-[3px] bg-orange" />
-      <span className={`text-[7px] font-bold uppercase tracking-[0.14em] ${className}`}>Market Makers FX</span>
+      <span className={`text-[7px] font-bold uppercase tracking-[0.14em] ${className}`}>{BRAND.name}</span>
     </span>
   );
 }
@@ -66,7 +67,7 @@ function ReadDownload({ slug, compact }: { slug: string; compact?: boolean }) {
   }
   return (
     <div className="mt-5 flex flex-wrap gap-2.5">
-      <a href={`/api/ebooks/${slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg">
+      <a href={`/api/ebooks/${slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg">
         Read in browser <ExternalIcon width={15} height={15} />
       </a>
       <a href={`/api/ebooks/${slug}`} download={`${slug}.pdf`} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-accent-soft px-5 py-3 text-[14px] font-semibold text-accent-ink transition-colors hover:bg-orange hover:text-white">

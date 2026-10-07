@@ -32,7 +32,7 @@ export const TIER_CONTENT: Readonly<Record<PaidTier, TierContent>> = {
   },
   team: {
     persona: "For traders taking the desk's calls",
-    adds: "The private Team MM channel, where the desk's calls go out, and the AI Trading Assistant.",
+    adds: `The private ${tierLabel("team")} channel, where the desk's calls go out, and the AI Trading Assistant.`,
     badge: "Most complete",
     note: "We don't send calls to an account that can't survive them.",
   },
@@ -53,7 +53,7 @@ export const CARD_ROWS: readonly CardRow[] = [
   { key: "strategies", label: "Strategy scripts", min: "desk" },
   { key: "live-classes", label: "Live classes with the desk", min: "desk" },
   { key: "fundamental-desk", label: "The Fundamental Desk", min: "desk" },
-  { key: "team-mm", label: "The private Team MM channel: the desk's calls", min: "team" },
+  { key: "team-mm", label: `The private ${tierLabel("team")} channel: the desk's calls`, min: "team" },
   { key: "ai-trading-assistant", label: "The AI Trading Assistant", min: "team" },
 ];
 
@@ -77,7 +77,7 @@ const GRID_LABEL: Readonly<Record<FeatureKey, string>> = {
   strategies: "Strategy scripts",
   "live-classes": "Live classes",
   "fundamental-desk": "The Fundamental Desk",
-  "team-mm": "The private Team MM channel",
+  "team-mm": `The private ${tierLabel("team")} channel`,
   "ai-trading-assistant": "The AI Trading Assistant",
 };
 

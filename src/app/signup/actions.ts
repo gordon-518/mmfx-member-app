@@ -6,6 +6,7 @@ import { sendSignupConversions, fbcFromFbclid, splitName } from "@/lib/meta-capi
 import { recordSignupIp } from "@/lib/signupIp";
 import { serviceClient } from "@/lib/journal/api";
 import { recordTouch } from "@/lib/attribution/touch";
+import { BRAND } from "@/lib/brand";
 
 // Fires the signup conversions for the in-page email-OTP flow (SignupForm's
 // client-side verifyOtp never hits /auth/confirm, so the events have to be sent
@@ -90,7 +91,7 @@ export async function recordSignupConversion(): Promise<void> {
         fbp,
       },
       { feature: attr.feature, cid: attr.cid, geo: attr.geo },
-      "https://app.marketmakersfx.net/signup",
+      `${BRAND.appUrl}/signup`,
     );
   } catch (e) {
     console.error("[meta-capi] recordSignupConversion failed:", e);

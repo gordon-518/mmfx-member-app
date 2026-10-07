@@ -4,6 +4,7 @@
 // owns only the card's contents. All interpolated text is escaped.
 
 import { emailShell, escapeHtml as esc } from "@/lib/email/shell";
+import { BRAND } from "@/lib/brand";
 
 export function interventionEmailHtml(p: {
   headline: string;
@@ -25,6 +26,6 @@ export function interventionEmailHtml(p: {
     bodyHtml,
     unsubUrl: p.unsubUrl,
     // The journal's own consent scope, not the marketing one.
-    footerNote: "You're getting this because you track your trading with Market Makers FX.",
+    footerNote: `You're getting this because you track your trading with ${BRAND.name}.`,
   });
 }

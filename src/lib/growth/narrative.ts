@@ -1,6 +1,7 @@
 import "server-only";
 import type { GrowthMetrics } from "@/lib/growth/metrics";
 import { deltaPct } from "@/lib/growth/metrics";
+import { BRAND } from "@/lib/brand";
 
 // Turns the day's aggregate numbers into a short written growth read via the
 // Anthropic API, and formats the Telegram digest. Best-effort: the narrative
@@ -42,7 +43,7 @@ export function buildPrompt(ctx: NarrativeContext): string {
   const { today, yesterday, lastWeek } = ctx;
   const brokers = today.broker_split;
   return [
-    "You are the growth analyst for MarketMakersFX, a forex/gold education + broker-IB business.",
+    `You are the growth analyst for ${BRAND.name}, a forex/gold education + broker-IB business.`,
     "Write a SHORT daily growth read (3–5 sentences, plain text, no markdown headings) for the founder.",
     "Lead with the most important movement, call out anything actionable (e.g. trials expiring soon → nudge them),",
     "and be specific with the numbers. Do not invent data beyond what is given. No preamble.",

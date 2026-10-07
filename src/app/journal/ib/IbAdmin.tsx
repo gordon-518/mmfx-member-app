@@ -26,7 +26,7 @@ type MemberAudit = { notUnderIb: MemberRow[]; lowBalance: MemberRow[] };
 const card =
   "rounded-2xl border border-line-strong bg-card p-5 shadow-soft space-y-3";
 const btn =
-  "cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#f24e12] disabled:opacity-50";
+  "cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white hover:bg-orange-hover disabled:opacity-50";
 const ghost =
   "cursor-pointer rounded-xl border border-line-strong px-3 py-2 text-[13px] font-semibold text-ink hover:border-orange/40 disabled:opacity-50";
 

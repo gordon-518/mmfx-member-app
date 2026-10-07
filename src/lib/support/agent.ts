@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { tierLabel } from "@/lib/tiers";
+import { BRAND } from "@/lib/brand";
 import { TOPICS, type ContactInfo, type Decision, type FactSheet, type MemberContext, type ThreadMessage } from "./types";
 
 export const DecisionSchema = z
@@ -24,7 +25,7 @@ export const DecisionSchema = z
 
 export const MODEL = process.env.SUPPORT_AGENT_MODEL || "claude-opus-5";
 
-const RULES = `You are the MMFX Assistant. You reply on Telegram to people contacting Market Makers FX (MMFX), a forex and gold trading education community.
+const RULES = `You are the ${BRAND.shortName} Assistant. You reply on Telegram to people contacting ${BRAND.name} (${BRAND.shortName}), a forex and gold trading education community.
 
 How to write:
 - Reply in the member's language. Warm, plain, and as short as the question deserves — a greeting gets one or two lines, not a pitch. Under 500 characters unless you are genuinely listing steps.
@@ -140,14 +141,14 @@ export function buildUserContent(args: {
 }): string {
   const { thread, contact, member, retryReasons } = args;
   const lines = thread.map((m) =>
-    `${m.direction === "in" ? "[member]" : m.fromFlow ? "[bot flow]" : "[MMFX]"} ${redactForModel(m.text) || "(no text: media or button)"}`);
+    `${m.direction === "in" ? "[member]" : m.fromFlow ? "[bot flow]" : `[${BRAND.shortName}]`} ${redactForModel(m.text) || "(no text: media or button)"}`);
   const memberLine = !member
     ? "MEMBER: not identified. Don't state any member-specific status."
     : member.attested
       ? `MEMBER: identified by ${member.matchedBy === "ref" ? "reference code" : "Telegram username"}; tier: ${tierLabel(member.tier)}; trial ends: ${member.trialEndsAt ?? "n/a"}; latest deposit submission: ${member.submission ? member.submission.status : "none"}`
       : "MEMBER: a reference code was mentioned, but the Telegram account sending this isn't confirmed here. You may say the code was noted, but never say whether it matched anything. Don't state their tier, trial or deposit status — point them to the upgrade page, where they're signed in and can see it.";
   return [
-    `CHAT: ${contact.isBusiness ? "sent to Admin Amelia's account (@MM_3000)" : "chat with the MMFX bot"}. First name: ${contact.firstName || "unknown"}. Tags: ${describeTags(contact.tags)}.`,
+    `CHAT: ${contact.isBusiness ? "sent to Admin Amelia's account (@MM_3000)" : `chat with the ${BRAND.shortName} bot`}. First name: ${contact.firstName || "unknown"}. Tags: ${describeTags(contact.tags)}.`,
     memberLine,
     "THREAD (oldest first; answer the member's latest message):",
     ...lines,

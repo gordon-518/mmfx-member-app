@@ -69,7 +69,7 @@ export function TradingAccountBar({ current }: { current: string | null }) {
             <button
               type="submit"
               disabled={busy}
-              className="rounded-lg bg-orange px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#f24e12] disabled:opacity-60"
+              className="rounded-lg bg-orange px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-orange-hover disabled:opacity-60"
             >
               {busy ? "…" : "Save"}
             </button>

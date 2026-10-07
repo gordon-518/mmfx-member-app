@@ -236,7 +236,7 @@ function RulesEditor({
         <button
           onClick={save}
           disabled={busy}
-          className="cursor-pointer rounded-lg bg-orange px-4 py-2 text-[13px] font-semibold text-white transition-all hover:bg-[#f24e12] disabled:opacity-50"
+          className="cursor-pointer rounded-lg bg-orange px-4 py-2 text-[13px] font-semibold text-white transition-all hover:bg-orange-hover disabled:opacity-50"
         >
           {busy ? "Saving…" : "Save rules"}
         </button>

@@ -4,6 +4,8 @@
 // instead of depositing through our IB. Copy says what each plan opens, never
 // what it earns.
 
+import { BRAND } from "@/lib/brand";
+
 export type LifetimePlan = "team" | "team_mentorship";
 
 export interface LifetimePlanInfo {
@@ -58,7 +60,7 @@ export const CONTACT_TELEGRAM_URL = "https://t.me/m/GIf6KqN9ZWZl";
 export function lifetimeWhatsAppUrl(plan: LifetimePlan, current: LifetimePlan | null = null): string {
   const text =
     current === "team" && plan === "team_mentorship"
-      ? "Hi MMFX, I have Team MM Access and I'd like to add the Mentorship."
-      : `Hi MMFX, I'm in the US/UK and I'd like the ${LIFETIME_PLANS[plan].name} lifetime plan (${lifetimePrice(plan)}).`;
+      ? `Hi ${BRAND.shortName}, I have Team MM Access and I'd like to add the Mentorship.`
+      : `Hi ${BRAND.shortName}, I'm in the US/UK and I'd like the ${LIFETIME_PLANS[plan].name} lifetime plan (${lifetimePrice(plan)}).`;
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
 }

@@ -17,6 +17,7 @@ import { brandFonts, DISPLAY, BODY } from "@/lib/organic/renderFonts";
 import { BoldCarouselSlide } from "@/lib/organic/boldCarousel";
 import { StatCard, disclaimerError } from "@/lib/organic/statCard";
 import { HowToSlide } from "@/lib/organic/howToSlide";
+import { SITE, WORDMARK } from "@/lib/organic/slideTheme";
 import {
   anchorFor,
   anchorStyle,
@@ -81,7 +82,7 @@ function Wordmark() {
     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
       <div style={{ width: 34, height: 34, borderRadius: 10, background: ORANGE, display: "flex" }} />
       <div style={{ display: "flex", fontSize: 26, fontWeight: 700, color: INK, fontFamily: DISPLAY }}>
-        MarketMakersFX
+        {WORDMARK}
       </div>
     </div>
   );
@@ -165,7 +166,7 @@ export async function POST(req: NextRequest) {
             {s.context ?? ""}
           </div>
         </div>
-        <Footer text="app.marketmakersfx.net" />
+        <Footer text={SITE} />
       </Frame>
     );
   } else if (body.template === "calendar-card") {
@@ -246,7 +247,7 @@ export async function POST(req: NextRequest) {
             {s.attribution ?? ""}
           </div>
         </div>
-        <Footer text="app.marketmakersfx.net" />
+        <Footer text={SITE} />
       </Frame>
     );
   } else if (body.template === "stat-card") {

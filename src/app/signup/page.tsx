@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { SignupForm } from "@/components/auth/SignupForm";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Start your free trial — Market Makers FX",
+  title: `Start your free trial — ${BRAND.name}`,
   description:
-    "Create your Market Makers FX account — 14 days of full access to the MM System for gold, free.",
+    `Create your ${BRAND.name} account — 14 days of full access to the MM System for gold, free.`,
 };
 
 export default async function SignupPage() {

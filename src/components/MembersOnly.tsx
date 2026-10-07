@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { tierLabel } from "@/lib/tiers";
 
 /** Reusable "members-only" lock/upsell panel. Any member-exclusive page renders
  *  this in place of its content when the viewer isn't a funded member. Drives to
@@ -12,7 +13,7 @@ export interface Perk {
 
 const DEFAULT_PERKS: Perk[] = [
   {
-    label: "Team MM — the private VIP signals channel",
+    label: `${tierLabel("team")} — the private VIP signals channel`,
     icon: (
       <path d="M4 11l16-7-7 16-2.5-6.5L4 11Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     ),
@@ -96,7 +97,7 @@ export function MembersOnly({
 
           <Link
             href="/upgrade"
-            className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+            className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
           >
             Become a member
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="transition-transform group-hover:translate-x-0.5">
