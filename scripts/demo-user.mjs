@@ -1,24 +1,14 @@
 // Throwaway demo user for signed-in previews. Usage:
 //   node scripts/demo-user.mjs setup [status]   (default member_active)
 //   node scripts/demo-user.mjs delete
-import pg from "pg";
-import fs from "node:fs";
+import { loadEnv, pgClient } from "./lib/env.mjs";
 
-const env = fs.readFileSync(".env.local", "utf8");
-const pw = (env.match(/DATABASE_URL=postgresql:\/\/postgres:([^@]+)@/) || [])[1];
-const password = decodeURIComponent(pw);
+const env = loadEnv();
 
-const client = new pg.Client({
-  host: "aws-1-ap-southeast-2.pooler.supabase.com",
-  port: 5432,
-  user: "postgres.dldrcitoeoxzfctsqlmo",
-  password,
-  database: "postgres",
-  ssl: { rejectUnauthorized: false },
-});
+const client = pgClient(env);
 
-const EMAIL = "demo@mmfx.test";
-const PASS = "mmfx-demo-2026";
+const EMAIL = (env.SHOWCASE_DEMO_EMAIL || "demo@mmfx.test").toLowerCase();
+const PASS = env.SHOWCASE_DEMO_PASSWORD || "mmfx-demo-2026";
 
 const mode = process.argv[2] || "setup";
 const status = process.argv[3] || "member_active";

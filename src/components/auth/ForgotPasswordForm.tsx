@@ -116,7 +116,7 @@ export function ForgotPasswordForm() {
           </div>
           <button
             type="submit" disabled={status === "sending"}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
             {status === "sending" ? "Sending…" : "Send reset code"}
           </button>
@@ -145,7 +145,7 @@ export function ForgotPasswordForm() {
           {status === "error" && <p role="alert" className="mt-2.5 text-sm text-red-600">{errorMsg}</p>}
           <button
             type="submit" disabled={status === "sending" || code.length < 6}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
             {status === "sending" ? "Verifying…" : "Verify code"}
           </button>
@@ -189,7 +189,7 @@ export function ForgotPasswordForm() {
         {status === "error" && <p role="alert" className="mt-2.5 text-sm text-red-600">{errorMsg}</p>}
         <button
           type="submit" disabled={status === "sending"}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
+          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
         >
           {status === "sending" ? "Saving…" : "Set password & sign in"}
         </button>

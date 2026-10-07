@@ -10,31 +10,13 @@
 //         (defaults to gordon@marketmakersfx.net)
 //
 // Idempotent: deletes the previous "Demo Account" for that user, then rebuilds.
-import { readFileSync } from "node:fs";
-import pg from "pg";
+import { loadEnv, pgClient } from "./lib/env.mjs";
 
-const raw = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
-const env = Object.fromEntries(
-  raw
-    .split("\n")
-    .filter((l) => l.includes("=") && !l.trim().startsWith("#"))
-    .map((l) => {
-      const i = l.indexOf("=");
-      return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
-    })
-);
+const env = loadEnv();
 
 const email = process.argv[2] || "gordon@marketmakersfx.net";
-const password = decodeURIComponent(new URL(env.DATABASE_URL).password);
 
-const client = new pg.Client({
-  host: "aws-1-ap-southeast-2.pooler.supabase.com",
-  port: 5432,
-  user: "postgres.dldrcitoeoxzfctsqlmo",
-  password,
-  database: "postgres",
-  ssl: { rejectUnauthorized: false },
-});
+const client = pgClient(env);
 
 // --- Trade generation ------------------------------------------------------
 

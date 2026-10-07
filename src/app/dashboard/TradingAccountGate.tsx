@@ -74,7 +74,7 @@ export function TradingAccountGate() {
           <button
             type="submit"
             disabled={busy}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
             {busy ? "Saving…" : "Save & open my desk"}
           </button>

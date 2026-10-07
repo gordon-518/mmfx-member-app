@@ -96,7 +96,7 @@ export function MembersOnly({
 
           <Link
             href="/upgrade"
-            className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+            className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
           >
             Become a member
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="transition-transform group-hover:translate-x-0.5">

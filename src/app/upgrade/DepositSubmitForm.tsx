@@ -31,7 +31,7 @@ function SubmitButton({ isTopUp }: { isTopUp: boolean }) {
     <button
       type="submit"
       disabled={pending}
-      className="w-full cursor-pointer rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-colors hover:bg-[#f24e12] disabled:cursor-wait disabled:opacity-70 sm:w-auto"
+      className="w-full cursor-pointer rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-colors hover:bg-orange-hover disabled:cursor-wait disabled:opacity-70 sm:w-auto"
     >
       {pending ? "Uploading…" : isTopUp ? "Submit my top-up" : "Submit my deposit"}
     </button>

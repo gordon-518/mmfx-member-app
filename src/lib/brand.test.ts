@@ -66,6 +66,7 @@ describe("brandCssVars", () => {
       "--color-orange": "#0d9488",
       "--color-accent-soft": "#ffece2",
       "--color-accent-ink": "#c2410c",
+      "--color-orange-hover": "#c2410c",
     });
   });
 });

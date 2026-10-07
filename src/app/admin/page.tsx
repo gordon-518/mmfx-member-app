@@ -68,7 +68,7 @@ const BROKERS = ["octa", "dupoin", "elev8"] as const;
 const INPUT =
   "rounded-lg border border-line bg-paper px-2 py-1.5 text-ink placeholder:text-faint focus:border-orange/40 focus:outline-none focus:ring-2 focus:ring-orange/15";
 const BTN_PRIMARY =
-  "cursor-pointer rounded-lg bg-orange px-3 py-1.5 font-semibold text-white transition-colors hover:bg-[#f24e12]";
+  "cursor-pointer rounded-lg bg-orange px-3 py-1.5 font-semibold text-white transition-colors hover:bg-orange-hover";
 const BTN_GHOST =
   "cursor-pointer rounded-lg border border-line-strong px-2 py-1 font-medium text-subtle transition-colors hover:border-orange/40 hover:text-accent-ink";
 

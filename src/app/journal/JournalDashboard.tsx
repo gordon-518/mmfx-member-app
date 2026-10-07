@@ -143,7 +143,7 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
             <button
               onClick={syncNow}
               disabled={busy !== null || account.state !== "deployed"}
-              className="cursor-pointer rounded-lg bg-orange px-3 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-[#f24e12] disabled:cursor-not-allowed disabled:opacity-50"
+              className="cursor-pointer rounded-lg bg-orange px-3 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-orange-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy === "sync" ? "Queuing…" : "Sync"}
             </button>
@@ -419,7 +419,7 @@ function NotesEditor({
       <button
         onClick={save}
         disabled={busy}
-        className="cursor-pointer rounded-lg bg-orange px-4 py-2 text-[13px] font-semibold text-white transition-all hover:bg-[#f24e12] disabled:opacity-50"
+        className="cursor-pointer rounded-lg bg-orange px-4 py-2 text-[13px] font-semibold text-white transition-all hover:bg-orange-hover disabled:opacity-50"
       >
         {busy ? "Saving…" : "Save journal"}
       </button>
@@ -690,7 +690,7 @@ function CoachCard({
           <button
             onClick={generate}
             disabled={busy || outOfQuota || !hasClosedTrades}
-            className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] disabled:cursor-not-allowed disabled:opacity-50"
+            className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy
               ? "Analysing…"
@@ -1216,7 +1216,7 @@ export function JournalDashboard({
           </p>
           <Link
             href="/journal/connect"
-            className="mt-5 inline-block cursor-pointer rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+            className="mt-5 inline-block cursor-pointer rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
           >
             Connect MT5
           </Link>

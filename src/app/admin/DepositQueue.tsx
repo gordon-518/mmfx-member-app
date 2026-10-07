@@ -108,7 +108,7 @@ export function DepositQueue({ rows, hiddenFilters }: { rows: QueueRow[]; hidden
                   </label>
                   <button
                     type="submit"
-                    className="cursor-pointer rounded-lg bg-orange px-3 py-1.5 font-semibold text-white transition-colors hover:bg-[#f24e12]"
+                    className="cursor-pointer rounded-lg bg-orange px-3 py-1.5 font-semibold text-white transition-colors hover:bg-orange-hover"
                   >
                     Verify
                   </button>

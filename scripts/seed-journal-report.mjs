@@ -4,32 +4,15 @@
 // ANTHROPIC_API_KEY + structured-output path work.
 //
 // Usage: node scripts/seed-journal-report.mjs [user-email]
-import { readFileSync } from "node:fs";
-import pg from "pg";
+import { loadEnv, pgClient } from "./lib/env.mjs";
 
-const raw = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
-const env = Object.fromEntries(
-  raw
-    .split("\n")
-    .filter((l) => l.includes("=") && !l.trim().startsWith("#"))
-    .map((l) => {
-      const i = l.indexOf("=");
-      return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
-    })
-);
+const env = loadEnv();
 
 const email = process.argv[2] || "gordon@marketmakersfx.net";
 const KEY = env.ANTHROPIC_API_KEY;
 if (!KEY) throw new Error("ANTHROPIC_API_KEY missing from .env.local");
 
-const client = new pg.Client({
-  host: "aws-1-ap-southeast-2.pooler.supabase.com",
-  port: 5432,
-  user: "postgres.dldrcitoeoxzfctsqlmo",
-  password: decodeURIComponent(new URL(env.DATABASE_URL).password),
-  database: "postgres",
-  ssl: { rejectUnauthorized: false },
-});
+const client = pgClient(env);
 
 const REPORT_SCHEMA = {
   type: "object",

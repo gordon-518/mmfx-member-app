@@ -162,5 +162,6 @@ export function brandCssVars(b: Brand = BRAND): Record<string, string> | undefin
     "--color-orange": b.accent,
     "--color-accent-soft": b.accentSoft,
     "--color-accent-ink": b.accentInk,
+    "--color-orange-hover": b.accentInk,
   };
 }

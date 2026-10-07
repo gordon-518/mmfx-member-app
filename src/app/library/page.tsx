@@ -67,7 +67,7 @@ function ReadDownload({ slug, compact }: { slug: string; compact?: boolean }) {
   }
   return (
     <div className="mt-5 flex flex-wrap gap-2.5">
-      <a href={`/api/ebooks/${slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg">
+      <a href={`/api/ebooks/${slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg">
         Read in browser <ExternalIcon width={15} height={15} />
       </a>
       <a href={`/api/ebooks/${slug}`} download={`${slug}.pdf`} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-accent-soft px-5 py-3 text-[14px] font-semibold text-accent-ink transition-colors hover:bg-orange hover:text-white">

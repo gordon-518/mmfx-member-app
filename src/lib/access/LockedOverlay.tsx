@@ -39,7 +39,7 @@ export function LockedOverlay({
         </span>
         <Link
           href={safeHref}
-          className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+          className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
         >
           {ctaLabel}
         </Link>

@@ -96,7 +96,7 @@ export default async function SignalsPage() {
               The calls post here as they&apos;re taken. Turn notifications on so you don&apos;t miss the window.
             </p>
           </div>
-          <span className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all group-hover:bg-[#f24e12]">
+          <span className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all group-hover:bg-orange-hover">
             Open the channel <ExternalIcon width={15} height={15} />
           </span>
         </a>

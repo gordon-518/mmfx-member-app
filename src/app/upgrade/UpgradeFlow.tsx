@@ -60,7 +60,7 @@ type Step = {
 
 function CtaButton({ cta }: { cta: Cta }) {
   const cls = cta.primary
-    ? "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto"
+    ? "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg sm:w-auto"
     : "inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto";
   const Icon = cta.icon;
   // "#…" jumps to a section of this page, so it stays in the same tab.
@@ -294,7 +294,7 @@ function ContactCard() {
           The partnered brokers can&apos;t operate where you are — so we set you up personally. Reach out and we&apos;ll take it from there.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" onClick={track({ event: "upgrade_contact_clicked", props: { channel: "whatsapp" } })} className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto">
+          <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" onClick={track({ event: "upgrade_contact_clicked", props: { channel: "whatsapp" } })} className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg sm:w-auto">
             <WhatsAppIcon className="h-[17px] w-[17px]" />
             Contact us on WhatsApp
           </a>
