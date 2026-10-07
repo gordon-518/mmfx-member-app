@@ -28,6 +28,8 @@ export interface Brand {
   postalLine: string;
   /** The first-person voice of the desk ("Don"). */
   persona: string;
+  /** What this desk calls its top paid tier ("Team MM"). */
+  topTierLabel: string;
   /** Accent colour trio, mapped onto --color-orange / -accent-soft / -accent-ink. */
   accent: string;
   accentSoft: string;
@@ -48,6 +50,7 @@ const DEFAULTS: Brand = {
   supportEmail: "hello@marketmakersfx.net",
   postalLine: "Market Makers FX, Singapore",
   persona: "Don",
+  topTierLabel: "Team MM",
   accent: "#ff5a1f",
   accentSoft: "#ffece2",
   accentInk: "#c2410c",
@@ -64,6 +67,7 @@ export type BrandEnv = Partial<Record<
   | "NEXT_PUBLIC_BRAND_SUPPORT_EMAIL"
   | "NEXT_PUBLIC_BRAND_POSTAL"
   | "NEXT_PUBLIC_BRAND_PERSONA"
+  | "NEXT_PUBLIC_BRAND_TOP_TIER"
   | "NEXT_PUBLIC_BRAND_ACCENT"
   | "NEXT_PUBLIC_BRAND_ACCENT_SOFT"
   | "NEXT_PUBLIC_BRAND_ACCENT_INK"
@@ -119,6 +123,7 @@ export function brandFromEnv(env: BrandEnv): Brand {
     supportEmail: str(env.NEXT_PUBLIC_BRAND_SUPPORT_EMAIL, DEFAULTS.supportEmail),
     postalLine: str(env.NEXT_PUBLIC_BRAND_POSTAL, DEFAULTS.postalLine),
     persona: str(env.NEXT_PUBLIC_BRAND_PERSONA, DEFAULTS.persona),
+    topTierLabel: str(env.NEXT_PUBLIC_BRAND_TOP_TIER, DEFAULTS.topTierLabel),
     accent: colour(env.NEXT_PUBLIC_BRAND_ACCENT, DEFAULTS.accent),
     accentSoft: colour(env.NEXT_PUBLIC_BRAND_ACCENT_SOFT, DEFAULTS.accentSoft),
     accentInk: colour(env.NEXT_PUBLIC_BRAND_ACCENT_INK, DEFAULTS.accentInk),
@@ -138,6 +143,7 @@ export const BRAND: Brand = brandFromEnv({
   NEXT_PUBLIC_BRAND_SUPPORT_EMAIL: process.env.NEXT_PUBLIC_BRAND_SUPPORT_EMAIL,
   NEXT_PUBLIC_BRAND_POSTAL: process.env.NEXT_PUBLIC_BRAND_POSTAL,
   NEXT_PUBLIC_BRAND_PERSONA: process.env.NEXT_PUBLIC_BRAND_PERSONA,
+  NEXT_PUBLIC_BRAND_TOP_TIER: process.env.NEXT_PUBLIC_BRAND_TOP_TIER,
   NEXT_PUBLIC_BRAND_ACCENT: process.env.NEXT_PUBLIC_BRAND_ACCENT,
   NEXT_PUBLIC_BRAND_ACCENT_SOFT: process.env.NEXT_PUBLIC_BRAND_ACCENT_SOFT,
   NEXT_PUBLIC_BRAND_ACCENT_INK: process.env.NEXT_PUBLIC_BRAND_ACCENT_INK,

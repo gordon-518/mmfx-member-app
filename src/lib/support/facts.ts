@@ -1,4 +1,4 @@
-import { TIER_THRESHOLDS, type PaidTier } from "@/lib/tiers";
+import { TIER_THRESHOLDS, tierLabel, type PaidTier } from "@/lib/tiers";
 import { FEATURE_MIN_TIER, type FeatureMinTier } from "@/lib/access/features";
 import { LIFETIME_PLANS, LIFETIME_PLAN_ORDER } from "@/lib/lifetimePlans";
 import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_HANDLE, ADMIN_TELEGRAM_URL } from "@/lib/depositRef";
@@ -29,7 +29,7 @@ const FEATURE_LABEL: Record<FeatureKey, string> = {
   "live-classes": "Live Classes",
   "fundamental-desk": "the Fundamental Desk",
   "ai-trading-assistant": "the AI Trading Assistant",
-  "team-mm": "the private Team MM channel",
+  "team-mm": `the private ${tierLabel("team")} channel`,
 };
 
 // A tier-specific phrase to bolt onto featuresFor()'s list for a fact that
@@ -141,9 +141,9 @@ export function buildFactSheet(s: SupportSettings, now: Date = new Date()): Fact
     `- Free (after the trial): ${featuresFor("free")}.`,
     `- Foundation, from $${TIER_THRESHOLDS.foundation}: adds ${featuresFor("foundation")} and ${TIER_EXTRA_LABEL.foundation ?? ""}.`,
     `- Desk, from $${TIER_THRESHOLDS.desk}: adds ${featuresFor("desk")}.`,
-    `- Team MM, from $${TIER_THRESHOLDS.team}: adds ${featuresFor("team")}.`,
+    `- ${tierLabel("team")}, from $${TIER_THRESHOLDS.team}: adds ${featuresFor("team")}.`,
     `RISK: ${RISK_FOOTER} Never tell anyone their money is safe or protected.`,
-    `TRIAL: ${TRIAL_DAYS} days of Desk-level access for new signups — everything except ${featuresFor("team")}. If their verified deposits add up to Team MM ($${TIER_THRESHOLDS.team}) during the trial, Team MM opens as soon as the deposit is approved. Otherwise trial access continues until the trial ends, then they move to the tier their verified deposits reached (Free below $${TIER_THRESHOLDS.foundation}).`,
+    `TRIAL: ${TRIAL_DAYS} days of Desk-level access for new signups — everything except ${featuresFor("team")}. If their verified deposits add up to ${tierLabel("team")} ($${TIER_THRESHOLDS.team}) during the trial, ${tierLabel("team")} opens as soon as the deposit is approved. Otherwise trial access continues until the trial ends, then they move to the tier their verified deposits reached (Free below $${TIER_THRESHOLDS.foundation}).`,
     `US AND UK: partner brokers can't take them. Two lifetime plans, paid once: ${plans}. Payment is arranged in chat on the upgrade page.`,
     `BROKERS: Dupoin for exactly these countries: ${DUPOIN_COUNTRY_NAMES}. US and UK: the lifetime plans (see US AND UK). Every other country: Octa or Elev8. The upgrade page picks automatically from the member's country. If the member's country isn't known, send the upgrade page and never guess.`,
     `HOW TO JOIN, always in this order: 0) if they don't have an ${BRAND.shortName} account yet, they sign up first at ${APP}/signup — it's free and starts the ${TRIAL_DAYS}-day trial. The upgrade page only works when they're signed in (it redirects to the login page otherwise), so never send the upgrade page on its own to someone who hasn't said they have an account. 1) open a broker account through the upgrade page (Octa: ${OCTA_SIGNUP}, Dupoin: ${DUPOIN_SIGNUP}). Send the direct broker link only when the member's country is known (they said it, or a country tag shows it) and matches that broker; otherwise send the upgrade page. 2) top up from $${TIER_THRESHOLDS.foundation}; 3) submit the deposit details on the upgrade page (broker, account number, amount, screenshot, TradingView and Telegram usernames); 4) the page then shows a reference code (MM- plus 6 characters) — message ${ADMIN_DISPLAY_NAME} (@${ADMIN_TELEGRAM_HANDLE}) with it as the last step; 5) the team checks it and emails them when it's approved. The form comes BEFORE messaging ${ADMIN_DISPLAY_NAME}: the reference code only appears once the deposit is submitted, so never tell anyone to message her before they've topped up and submitted.`,

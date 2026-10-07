@@ -52,7 +52,7 @@ const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
       { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
       { label: "Know Your Style", href: "/bots/know-your-style", icon: StyleIcon },
       { label: "AI Trading Assistant", href: "/journal", icon: JournalIcon },
-      { label: "Team MM", href: "/team-mm", icon: TelegramIcon },
+      { label: tierLabel("team"), href: "/team-mm", icon: TelegramIcon },
     ],
   },
   {

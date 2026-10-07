@@ -13,6 +13,7 @@ describe("brandFromEnv", () => {
     expect(b.supportEmail).toBe("hello@marketmakersfx.net");
     expect(b.postalLine).toBe("Market Makers FX, Singapore");
     expect(b.persona).toBe("Don");
+    expect(b.topTierLabel).toBe("Team MM");
     expect([b.accent, b.accentSoft, b.accentInk]).toEqual(["#ff5a1f", "#ffece2", "#c2410c"]);
     expect(b.demo).toBe(false);
     expect(b.featuresOff).toEqual([]);
@@ -25,6 +26,7 @@ describe("brandFromEnv", () => {
       NEXT_PUBLIC_BRAND_WORDMARK: "Summit|Desk",
       NEXT_PUBLIC_BRAND_DOMAIN: "https://summit.example/",
       NEXT_PUBLIC_APP_URL: "https://ib-demo-desk.vercel.app/",
+      NEXT_PUBLIC_BRAND_TOP_TIER: " Inner Circle ",
       NEXT_PUBLIC_BRAND_ACCENT: "#0D9488",
       NEXT_PUBLIC_BRAND_ACCENT_SOFT: "not-a-colour",
       NEXT_PUBLIC_BRAND_DEMO: "TRUE",
@@ -36,6 +38,7 @@ describe("brandFromEnv", () => {
     expect(b.domain).toBe("summit.example");
     expect(b.appUrl).toBe("https://ib-demo-desk.vercel.app");
     expect(b.appHost).toBe("ib-demo-desk.vercel.app");
+    expect(b.topTierLabel).toBe("Inner Circle");
     expect(b.accent).toBe("#0d9488");
     expect(b.accentSoft).toBe("#ffece2");
     expect(b.demo).toBe(true);

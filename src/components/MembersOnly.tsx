@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { tierLabel } from "@/lib/tiers";
 
 /** Reusable "members-only" lock/upsell panel. Any member-exclusive page renders
  *  this in place of its content when the viewer isn't a funded member. Drives to
@@ -12,7 +13,7 @@ export interface Perk {
 
 const DEFAULT_PERKS: Perk[] = [
   {
-    label: "Team MM — the private VIP signals channel",
+    label: `${tierLabel("team")} — the private VIP signals channel`,
     icon: (
       <path d="M4 11l16-7-7 16-2.5-6.5L4 11Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
     ),

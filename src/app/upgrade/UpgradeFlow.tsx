@@ -12,6 +12,7 @@ import {
 } from "@/lib/brokerLinks";
 import type { Region } from "@/lib/brokerRegion";
 import { BRAND } from "@/lib/brand";
+import { tierLabel } from "@/lib/tiers";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 export type { Region } from "@/lib/brokerRegion";
@@ -20,7 +21,7 @@ export type { Region } from "@/lib/brokerRegion";
 const WHATSAPP_URL =
   "https://wa.me/6588035858?text=" +
   encodeURIComponent(
-    `Hi ${BRAND.shortName}, requesting upgrade. Broker: [Octa/Dupoin] Account#: [number] Tier: [Team MM/Mentorship]`
+    `Hi ${BRAND.shortName}, requesting upgrade. Broker: [Octa/Dupoin] Account#: [number] Tier: [${tierLabel("team")}/Mentorship]`
   );
 const TELEGRAM_SWITCH = ADMIN_TELEGRAM_URL;
 // US/UK contact path — these visitors can't open a partnered broker account, so
@@ -158,7 +159,7 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 // (conversion-fix tiers: Foundation $50, Desk $200, Team MM $500).
 const TIER_LADDER = (
   <>
-    $50 opens Foundation, $200 the Desk and $500 Team MM, and every top-up counts toward the next tier.
+    $50 opens Foundation, $200 the Desk and $500 {tierLabel("team")}, and every top-up counts toward the next tier.
   </>
 );
 

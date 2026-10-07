@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getAccess, type AccessProfile } from "@/lib/access/getAccess";
 import { canAccess } from "@/lib/access/features";
-import { tierFor } from "@/lib/tiers";
+import { tierFor, tierLabel } from "@/lib/tiers";
 
 // Shared helpers for the journal API routes.
 
@@ -66,7 +66,7 @@ export async function requireMemberApi(): Promise<
   const viewer = { tier: tierFor(guard.profile), isAdmin: guard.profile.is_admin };
   if (!canAccess("ai-trading-assistant", viewer)) {
     return {
-      response: NextResponse.json({ error: "Team MM only" }, { status: 403 }),
+      response: NextResponse.json({ error: `${tierLabel("team")} only` }, { status: 403 }),
     };
   }
   return guard;

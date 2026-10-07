@@ -19,6 +19,7 @@
 // lines of escaping.
 
 import { BRAND_SITE_URL } from "@/lib/brand";
+import { tierLabel } from "@/lib/tiers";
 
 /** Where the icon set lives. Versioned, so a redesign never breaks an email
  *  already sitting in someone's inbox (design §3, "Icon set"). */
@@ -240,7 +241,7 @@ const RUNGS: { name: string; amount: string; line: string }[] = [
   { name: "Free", amount: "no deposit", line: "Daily Analysis, Know Your Style, calendar, news, Module 1" },
   { name: "Foundation", amount: "$50", line: "the full course and the MM Library" },
   { name: "Desk", amount: "$200", line: "indicators, strategies, live classes, Fundamental Desk" },
-  { name: "Team MM", amount: "$500", line: "the Team MM channel and the AI Trading Assistant" },
+  { name: tierLabel("team"), amount: "$500", line: `the ${tierLabel("team")} channel and the AI Trading Assistant` },
 ];
 
 const LADDER_NOTE =

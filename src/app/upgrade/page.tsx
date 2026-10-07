@@ -111,7 +111,7 @@ export default async function UpgradePage({
   const assurances = isContact ? ASSURANCES_CONTACT : ASSURANCES_BROKER;
 
   const headline = lifetimePlan === "team"
-    ? "You have Team MM. The full Mentorship is one message away."
+    ? `You have ${tierLabel("team")}. The full Mentorship is one message away.`
     : earnedTier === "team"
       ? "You have the whole desk."
       : isPaid && next
@@ -124,7 +124,7 @@ export default async function UpgradePage({
       ? `Your ${LIFETIME_PLANS.team.name} plan covers everything except the full course. Add the Mentorship whenever you're ready.`
       : `Your ${LIFETIME_PLANS.team_mentorship.name} plan covers everything, for life.`
     : earnedTier === "team"
-      ? "Team MM is the top tier: nothing left to unlock."
+      ? `${tierLabel("team")} is the top tier: nothing left to unlock.`
       : isPaid
         ? `You've deposited $${cumulative.toLocaleString("en-US")} so far, and it stays yours. Tiers count everything you've deposited, never your balance.`
         : onFree

@@ -656,8 +656,8 @@ export default async function AdminPage({
                             <option value="" disabled>
                               lifetime plan
                             </option>
-                            <option value="team">Team MM · USD 588</option>
-                            <option value="team_mentorship">Team MM + Mentorship · USD 1,588</option>
+                            <option value="team">{tierLabel("team")} · USD 588</option>
+                            <option value="team_mentorship">{tierLabel("team")} + Mentorship · USD 1,588</option>
                           </select>
                           <button type="submit" className={BTN_GHOST}>
                             Grant
