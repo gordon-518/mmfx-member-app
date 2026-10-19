@@ -67,7 +67,7 @@ export function BotPage({
             href={botUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+            className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
           >
             Open in new tab <ExternalIcon width={15} height={15} />
           </a>
@@ -100,7 +100,7 @@ export function BotPage({
                 href={botUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
               >
                 Launch {title} <ExternalIcon width={16} height={16} />
               </a>

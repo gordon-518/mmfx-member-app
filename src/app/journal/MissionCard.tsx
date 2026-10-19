@@ -45,7 +45,7 @@ export function MissionCard({
         <button
           type="button"
           onClick={scrollToRules}
-          className="cursor-pointer whitespace-nowrap rounded-xl bg-orange px-5 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-[#f24e12]"
+          className="cursor-pointer whitespace-nowrap rounded-xl bg-orange px-5 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-orange-hover"
         >
           View plan
         </button>

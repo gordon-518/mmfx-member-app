@@ -6,6 +6,7 @@ import { logEventAfter } from "@/lib/events";
 import { canAccess, type Viewer } from "./features";
 import type { FeatureKey } from "./featureKeys";
 import type { AccessTier } from "@/lib/trial/status";
+import { featureOff } from "@/lib/brand";
 
 export interface FeatureGate {
   profile: AccessProfile;
@@ -38,6 +39,10 @@ export async function requireFeature(
   opts: { onLocked?: "preview" | "redirect"; log?: boolean } = {}
 ): Promise<FeatureGate> {
   const { onLocked = "preview", log = true } = opts;
+  // Switched off for this tenant: not locked, not previewed, simply absent.
+  if (featureOff(feature)) {
+    redirect("/dashboard");
+  }
   const access = await getAccess();
 
   if (!access.signedIn) {

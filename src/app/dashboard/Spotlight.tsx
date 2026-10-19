@@ -92,7 +92,7 @@ export function Spotlight({ slides }: { slides: SpotlightSlide[] }) {
           <div className="mt-5 flex items-center gap-4">
             <Link
               href={active.cta.href}
-              className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+              className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
             >
               {active.cta.label} <ArrowIcon width={16} height={16} />
             </Link>

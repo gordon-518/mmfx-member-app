@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { BRAND } from "@/lib/brand";
 
 // Plain, readable shell for the public legal pages (privacy / terms). Server
 // component — no auth, warm-premium styling to match the app.
@@ -29,7 +30,13 @@ export function LegalShell({
             </svg>
           </span>
           <span className="font-display text-[15px] font-bold tracking-tight text-ink">
-            Market Makers <span className="text-orange">FX</span>
+            {BRAND.wordmark.lead}
+            {BRAND.wordmark.accent ? (
+              <>
+                {" "}
+                <span className="text-orange">{BRAND.wordmark.accent}</span>
+              </>
+            ) : null}
           </span>
         </Link>
       </header>
@@ -49,11 +56,11 @@ export function LegalShell({
             <Link href="/privacy" className="hover:text-accent-ink">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-accent-ink">Terms of Service</Link>
             <Link href="/login" className="hover:text-accent-ink">Sign in</Link>
-            <a href="mailto:hello@marketmakersfx.net" className="hover:text-accent-ink">
-              hello@marketmakersfx.net
+            <a href={`mailto:${BRAND.supportEmail}`} className="hover:text-accent-ink">
+              {BRAND.supportEmail}
             </a>
           </nav>
-          <p className="mt-4">© {updated.slice(-4)} Market Makers FX. All rights reserved.</p>
+          <p className="mt-4">© {updated.slice(-4)} {BRAND.name}. All rights reserved.</p>
         </footer>
       </article>
     </main>

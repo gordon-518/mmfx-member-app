@@ -13,6 +13,7 @@
 // signature.
 
 import { emailShell } from "@/lib/email/shell";
+import { BRAND } from "@/lib/brand";
 import type { LifecycleCtx, LifecycleEmail } from "./types";
 
 /**
@@ -23,7 +24,7 @@ export const COMPLIANCE_LINE =
   "Trading involves risk, including the possible loss of capital. Nothing here is financial advice.";
 
 /** Why-am-I-getting-this, for the global marketing scope. */
-export const FOOTER_NOTE = "You're getting this because you have a Market Makers FX account.";
+export const FOOTER_NOTE = `You're getting this because you have a ${BRAND.name} account.`;
 
 /**
  * The mono label in the top-right of the black header. It is orientation, not

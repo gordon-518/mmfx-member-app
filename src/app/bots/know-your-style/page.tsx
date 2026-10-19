@@ -6,11 +6,11 @@ import { KysCopyBridge } from "./KysCopyBridge";
 // Canonical alias — always the latest KYS build. Frames inline only on origins
 // allowed by the KYS app's frame-ancestors CSP (localhost:3000 + the member
 // app's production domain once added there).
-const BOT_URL = "https://mmfx-know-your-style.vercel.app/";
+const BOT_URL = process.env.NEXT_PUBLIC_KYS_BOT_URL?.trim() || "https://mmfx-know-your-style.vercel.app/";
 // ?app=1 puts KYS in embedded mode: its "Send me a copy" button posts the
 // result up to KysCopyBridge instead of emailing via the retired Make path.
 // The "Open in new tab" launcher stays on the plain BOT_URL.
-const EMBED_URL = "https://mmfx-know-your-style.vercel.app/?app=1";
+const EMBED_URL = `${BOT_URL}?app=1`;
 
 export default async function KnowYourStylePage() {
   // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.

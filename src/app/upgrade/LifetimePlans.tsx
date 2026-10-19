@@ -60,7 +60,7 @@ export function LifetimePlans({ currentPlan }: { currentPlan: LifetimePlan | nul
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={track("whatsapp")}
-                  className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto"
+                  className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg sm:w-auto"
                 >
                   <WhatsAppIcon className="h-[17px] w-[17px]" />
                   {isAddOn ? "Add the Mentorship" : `Get ${info.name}`}

@@ -16,11 +16,12 @@
 import { paragraph } from "@/lib/email/ui";
 import type { EmailPart } from "@/lib/email/ui";
 import type { LifecycleCopy, LifecycleCtx } from "./types";
+import { BRAND } from "@/lib/brand";
 
 /** The one accent colour. */
 export const ORANGE = "#FF5A1F";
 
-export const SIGNOFF = "— Don, Market Makers FX";
+export const SIGNOFF = `— ${BRAND.persona}, ${BRAND.name}`;
 
 export function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

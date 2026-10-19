@@ -63,7 +63,7 @@ export function PlanFinder({ archetype, isMember }: { archetype: string | null; 
           {rec.startNote && <p className="mt-1.5 text-[13.5px] leading-relaxed text-subtle">{rec.startNote}</p>}
           <a
             href={isMember ? "#submit-deposit" : "#get-started"}
-            className="mt-4 inline-block rounded-xl bg-orange px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-soft transition-colors hover:bg-[#f24e12]"
+            className="mt-4 inline-block rounded-xl bg-orange px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-soft transition-colors hover:bg-orange-hover"
           >
             {isMember ? "Submit a top-up" : "Open your account"}
           </a>

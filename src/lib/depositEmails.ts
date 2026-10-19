@@ -4,6 +4,7 @@
 
 import { tierLabel, type MemberTier } from "@/lib/tiers";
 import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_URL, adminDmMessage } from "@/lib/depositRef";
+import { BRAND } from "@/lib/brand";
 
 export interface DepositEmail {
   subject: string;
@@ -11,7 +12,8 @@ export interface DepositEmail {
   text: string;
 }
 
-const APP = "https://app.marketmakersfx.net";
+const APP = BRAND.appUrl;
+const SIGNOFF = `— ${BRAND.persona}, ${BRAND.name}`;
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -39,14 +41,14 @@ export function depositVerifiedEmail(opts: {
     hi,
     `Your ${usd(opts.amount)} ${what} is verified. You're on ${tier}, with ${usd(opts.cumulative)} in deposits so far, and your desk is open now.`,
     `Everything on your tier is unlocked. Open the desk: ${APP}/dashboard`,
-    "— Don, Market Makers FX",
+    SIGNOFF,
   ];
   return {
     subject: `Verified: you're on ${tier}`,
     text: lines.join("\n\n") + "\n\nTrading involves risk, including the possible loss of capital. No returns are guaranteed.",
     html: wrap(
       `<p>${esc(hi)}</p><p>Your <b>${esc(usd(opts.amount))}</b> ${what} is verified. You're on <b>${esc(tier)}</b>, with ${esc(usd(opts.cumulative))} in deposits so far, and your desk is open now.</p>` +
-        `<p><a href="${APP}/dashboard" style="color:#ea580c;font-weight:600">Open your desk →</a></p><p>— Don, Market Makers FX</p>`
+        `<p><a href="${APP}/dashboard" style="color:#ea580c;font-weight:600">Open your desk →</a></p><p>${esc(SIGNOFF)}</p>`
     ),
   };
 }
@@ -62,7 +64,7 @@ export function depositDmReminderEmail(opts: { name: string | null; amount: numb
     `Your ${usd(opts.amount)} deposit is in for review. One step is left: send ${ADMIN_DISPLAY_NAME} a message on Telegram. ${why}`,
     `Message ${ADMIN_DISPLAY_NAME}: ${chat}`,
     `Your reference is ${opts.ref}. It's already in the message.`,
-    "— Don, Market Makers FX",
+    SIGNOFF,
   ];
   return {
     subject: `One last step for your ${usd(opts.amount)} deposit`,
@@ -70,7 +72,7 @@ export function depositDmReminderEmail(opts: { name: string | null; amount: numb
     html: wrap(
       `<p>${esc(hi)}</p><p>Your <b>${esc(usd(opts.amount))}</b> deposit is in for review. One step is left: send ${esc(ADMIN_DISPLAY_NAME)} a message on Telegram. ${esc(why)}</p>` +
         `<p><a href="${esc(chat)}" style="color:#ea580c;font-weight:600">Message ${esc(ADMIN_DISPLAY_NAME)} on Telegram →</a></p>` +
-        `<p>Your reference is <b>${esc(opts.ref)}</b>. It's already in the message.</p><p>— Don, Market Makers FX</p>`
+        `<p>Your reference is <b>${esc(opts.ref)}</b>. It's already in the message.</p><p>${esc(SIGNOFF)}</p>`
     ),
   };
 }
@@ -81,7 +83,7 @@ export function depositRejectedEmail(opts: { name: string | null; amount: number
     hi,
     `We couldn't verify your ${usd(opts.amount)} deposit yet: ${opts.reason}`,
     `You can submit it again from ${APP}/upgrade, or message us on WhatsApp or Telegram and we'll sort it out with you.`,
-    "— Don, Market Makers FX",
+    SIGNOFF,
   ];
   return {
     subject: "About your deposit submission",
@@ -89,7 +91,7 @@ export function depositRejectedEmail(opts: { name: string | null; amount: number
     html: wrap(
       `<p>${esc(hi)}</p><p>We couldn't verify your <b>${esc(usd(opts.amount))}</b> deposit yet: ${esc(opts.reason)}</p>` +
         `<p><a href="${APP}/upgrade#submit-deposit" style="color:#ea580c;font-weight:600">Submit it again →</a></p>` +
-        `<p>Or message us on WhatsApp or Telegram and we'll sort it out with you.</p><p>— Don, Market Makers FX</p>`
+        `<p>Or message us on WhatsApp or Telegram and we'll sort it out with you.</p><p>${esc(SIGNOFF)}</p>`
     ),
   };
 }

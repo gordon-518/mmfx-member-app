@@ -42,7 +42,7 @@ export function KnowYourStyleOnboarding() {
           <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link
               href="/bots/know-your-style"
-              className="group inline-flex items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+              className="group inline-flex items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
             >
               Discover your style
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="transition-transform group-hover:translate-x-0.5">

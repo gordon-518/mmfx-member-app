@@ -17,6 +17,7 @@ import { nextTierFor, tierLabel } from "@/lib/tiers";
 import { depositRef } from "@/lib/depositRef";
 import { AmeliaLastStep } from "./AmeliaLastStep";
 import { regionFor } from "@/lib/brokerRegion";
+import { BRAND } from "@/lib/brand";
 
 // Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
 // a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
@@ -110,7 +111,7 @@ export default async function UpgradePage({
   const assurances = isContact ? ASSURANCES_CONTACT : ASSURANCES_BROKER;
 
   const headline = lifetimePlan === "team"
-    ? "You have Team MM. The full Mentorship is one message away."
+    ? `You have ${tierLabel("team")}. The full Mentorship is one message away.`
     : earnedTier === "team"
       ? "You have the whole desk."
       : isPaid && next
@@ -123,7 +124,7 @@ export default async function UpgradePage({
       ? `Your ${LIFETIME_PLANS.team.name} plan covers everything except the full course. Add the Mentorship whenever you're ready.`
       : `Your ${LIFETIME_PLANS.team_mentorship.name} plan covers everything, for life.`
     : earnedTier === "team"
-      ? "Team MM is the top tier: nothing left to unlock."
+      ? `${tierLabel("team")} is the top tier: nothing left to unlock.`
       : isPaid
         ? `You've deposited $${cumulative.toLocaleString("en-US")} so far, and it stays yours. Tiers count everything you've deposited, never your balance.`
         : onFree
@@ -166,7 +167,7 @@ export default async function UpgradePage({
       <article className="rise mx-auto max-w-5xl px-6 py-14 sm:py-16">
         {/* Headline */}
         <div className="max-w-2xl">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">Market Makers FX</p>
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{BRAND.name}</p>
           <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
             {headline}
           </h1>

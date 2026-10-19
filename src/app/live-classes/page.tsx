@@ -88,7 +88,7 @@ export default async function LiveClassesPage() {
                     href={c.zoom_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+                    className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
                   >
                     Join the live class <ExternalIcon width={15} height={15} />
                   </a>

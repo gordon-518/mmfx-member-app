@@ -1,3 +1,4 @@
+import { BRAND } from "@/lib/brand";
 // The admin's "new deposit submission" alert (conversion-fix 5.3).
 //
 // One builder, two channels (17 Sep): a Telegram message to the alert bot and
@@ -26,7 +27,7 @@ export interface DepositAlert {
   text: string;
 }
 
-const ADMIN_URL = "https://app.marketmakersfx.net/admin";
+const ADMIN_URL = `${BRAND.appUrl}/admin`;
 
 function usd(n: number): string {
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

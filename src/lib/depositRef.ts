@@ -9,6 +9,8 @@
 // message was sent. It records the click, and emails a reminder after 24
 // hours without one (/api/cron/deposit-dm-reminder).
 
+import { BRAND } from "@/lib/brand";
+
 export const ADMIN_TELEGRAM_HANDLE = "MM_3000";
 export const ADMIN_TELEGRAM_URL = `https://t.me/${ADMIN_TELEGRAM_HANDLE}`;
 /** How members see the @MM_3000 account (Gordon, 15 Sep). */
@@ -42,5 +44,5 @@ export function adminDmMessage(d: AdminDmDetails): string {
     d.account ? `trading account ${d.account}` : null,
   ].filter((x): x is string => x !== null);
   const middle = details.length > 0 ? ` My ${details.join(", ")}.` : "";
-  return `Hi Amelia, I've just submitted ${what} on the MMFX app.${middle} My reference is ${d.ref}.`;
+  return `Hi Amelia, I've just submitted ${what} on the ${BRAND.shortName} app.${middle} My reference is ${d.ref}.`;
 }

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { LockedOverlay } from "@/lib/access/LockedOverlay";
 import { FEATURE_HREF, FEATURE_MIN_TIER } from "@/lib/access/features";
-import { tierUnlockLabel } from "@/lib/tiers";
+import { tierLabel, tierUnlockLabel } from "@/lib/tiers";
 import type { FeatureKey } from "@/lib/access/featureKeys";
 import type { FeatureGate } from "@/lib/access/requireFeature";
 
@@ -59,16 +59,16 @@ const COPY: Partial<Record<FeatureKey, LockedCopy>> = {
     image: { src: "/dashboard/spotlight-fundamental.jpg", width: 1200, height: 675 },
   },
   "ai-trading-assistant": {
-    eyebrow: "Team MM · AI",
+    eyebrow: `${tierLabel("team")} · AI`,
     title: "AI Trading Assistant",
     pitch: "Connect your trading account and get a coach that reviews every trade you take against the MM System.",
     points: ["Every trade reviewed automatically", "Patterns in your own trading, spotted for you", "Built around the MM System"],
   },
   "team-mm": {
-    eyebrow: "Team MM · Community",
-    title: "Team MM",
-    pitch: "The private Team MM channel, with the desk.",
-    points: ["Straight from the desk", "Team MM members only", "On Telegram"],
+    eyebrow: `${tierLabel("team")} · Community`,
+    title: tierLabel("team"),
+    pitch: `The private ${tierLabel("team")} channel, with the desk.`,
+    points: ["Straight from the desk", `${tierLabel("team")} members only`, "On Telegram"],
   },
 };
 

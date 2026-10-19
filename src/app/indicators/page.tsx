@@ -93,7 +93,7 @@ export default async function IndicatorsPage({
                 />
                 <button
                   type="submit"
-                  className="cursor-pointer rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+                  className="cursor-pointer rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
                 >
                   Request access
                 </button>

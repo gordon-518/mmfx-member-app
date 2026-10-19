@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient as createSupabaseAdmin, type SupabaseClient } from "@supabase/supabase-js";
 import { sendAdminAlert } from "@/lib/notify";
+import { BRAND } from "@/lib/brand";
 import { planPermanentGrant, type TvGrant } from "./grantPlan";
 
 // All MM invite-only scripts. The pine_id the permissions API expects is the
@@ -387,7 +388,7 @@ async function maybeAlert(tvUsername: string, result: TVSyncResult): Promise<voi
   lastAlertAt = now;
 
   const sample = result.failed[0]?.error ?? "unknown error";
-  const subject = `⚠️ MMFX TradingView ${result.action} failed (${result.failed.length}/${PINE_SCRIPTS.length})`;
+  const subject = `⚠️ ${BRAND.shortName} TradingView ${result.action} failed (${result.failed.length}/${PINE_SCRIPTS.length})`;
   const text =
     `TradingView ${result.action} failed for "${tvUsername}".\n\n` +
     `${result.succeeded} succeeded, ${result.failed.length} failed.\n` +

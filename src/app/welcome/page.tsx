@@ -8,9 +8,10 @@ import { AppShell } from "@/components/AppShell";
 import { TradingAccountGate } from "../dashboard/TradingAccountGate";
 import { RoadmapJourney } from "./RoadmapJourney";
 import { EnterDeskButton } from "./EnterDeskButton";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Your roadmap — Market Makers FX",
+  title: `Your roadmap — ${BRAND.name}`,
   description: "Your path from reading the market to managing trades like a pro.",
 };
 

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { LegalShell, LegalHeading } from "@/components/LegalShell";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — Market Makers FX",
-  description: "The terms governing your use of Market Makers FX.",
+  title: `Terms of Service — ${BRAND.name}`,
+  description: `The terms governing your use of ${BRAND.name}.`,
 };
 
 const UPDATED = "24 June 2026";
@@ -13,7 +14,7 @@ export default function TermsPage() {
     <LegalShell title="Terms of Service" updated={UPDATED}>
       <p>
         These Terms of Service (&quot;Terms&quot;) govern your access to and use
-        of the Market Makers FX (&quot;MMFX&quot;, &quot;we&quot;, &quot;us&quot;)
+        of the {BRAND.name} (&quot;{BRAND.shortName}&quot;, &quot;we&quot;, &quot;us&quot;)
         website, member app, and related services (the &quot;Service&quot;). By
         creating an account or using the Service, you agree to these Terms. If
         you do not agree, do not use the Service.
@@ -21,7 +22,7 @@ export default function TermsPage() {
 
       <LegalHeading>1. What we provide</LegalHeading>
       <p>
-        MMFX provides trading <strong>education</strong>, market analysis,
+        {BRAND.shortName} provides trading <strong>education</strong>, market analysis,
         commentary, and trading tools for the foreign-exchange and gold markets.
         We are <strong>not</strong> a broker, financial institution, fund, or
         licensed financial adviser, and we do not hold client funds.
@@ -60,7 +61,7 @@ export default function TermsPage() {
         New members receive a free trial period of full access. Continued access
         after the trial is obtained by funding a trading account with one of our
         partner brokers through our referral link — the deposited funds remain
-        your own trading capital held by the broker, not a payment to MMFX. In
+        your own trading capital held by the broker, not a payment to {BRAND.shortName}. In
         certain regions, access is instead offered as a one-time membership
         arranged directly. We may change access terms, features, or pricing at
         any time.
@@ -68,7 +69,7 @@ export default function TermsPage() {
 
       <LegalHeading>6. Introducing Broker disclosure</LegalHeading>
       <p>
-        MMFX operates as an Introducing Broker (IB). When you open or link a
+        {BRAND.shortName} operates as an Introducing Broker (IB). When you open or link a
         broker account through us, we may receive commissions from that broker
         based on your trading activity. This does not change the fees you pay the
         broker. Your relationship for trading and deposits is with the broker,
@@ -87,7 +88,7 @@ export default function TermsPage() {
       <LegalHeading>8. Intellectual property</LegalHeading>
       <p>
         All content, courses, indicators, strategies, branding, and materials
-        are owned by MMFX or its licensors and are protected by law. We grant you
+        are owned by {BRAND.shortName} or its licensors and are protected by law. We grant you
         a limited, personal, non-transferable, revocable licence to access them
         for your own use while your membership is active.
       </p>
@@ -103,7 +104,7 @@ export default function TermsPage() {
       <p>
         The Service is provided &quot;as is&quot; and &quot;as available&quot;
         without warranties of any kind. To the maximum extent permitted by law,
-        MMFX is not liable for any trading losses or for any indirect,
+        {BRAND.shortName} is not liable for any trading losses or for any indirect,
         incidental, special, or consequential damages arising from your use of
         the Service. Nothing in these Terms excludes liability that cannot be
         excluded by law.
@@ -124,10 +125,10 @@ export default function TermsPage() {
 
       <LegalHeading>13. Governing law &amp; contact</LegalHeading>
       <p>
-        These Terms are governed by the laws of the jurisdiction in which MMFX is
+        These Terms are governed by the laws of the jurisdiction in which {BRAND.shortName} is
         established, without regard to conflict-of-laws rules. Questions? Email{" "}
-        <a className="text-orange hover:text-accent-ink" href="mailto:hello@marketmakersfx.net">
-          hello@marketmakersfx.net
+        <a className="text-orange hover:text-accent-ink" href={`mailto:${BRAND.supportEmail}`}>
+          {BRAND.supportEmail}
         </a>
         .
       </p>

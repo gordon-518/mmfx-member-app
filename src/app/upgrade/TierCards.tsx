@@ -93,7 +93,7 @@ export function TierCards({
                   href={isMember ? "#submit-deposit" : "#get-started"}
                   className={`block rounded-xl px-4 py-2.5 text-center text-[13.5px] font-semibold transition-colors ${
                     tier === "team"
-                      ? "bg-orange text-white shadow-soft hover:bg-[#f24e12]"
+                      ? "bg-orange text-white shadow-soft hover:bg-orange-hover"
                       : "border border-line-strong bg-card text-ink hover:border-orange/40 hover:text-accent-ink"
                   }`}
                 >

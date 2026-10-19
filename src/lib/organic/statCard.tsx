@@ -14,7 +14,7 @@
 // The disclaimer is a REQUIRED slot, enforced in the renderer. A template that can omit
 // it eventually will.
 import { DISPLAY, BODY } from "./renderFonts";
-import { ORANGE } from "./slideTheme";
+import { ORANGE, SITE, WORDMARK } from "./slideTheme";
 
 const PAPER = "#F5F4F2";
 const INK = "#141210";
@@ -142,7 +142,7 @@ export function StatCard({
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ display: "flex", width: 30, height: 30, borderRadius: 9, background: ORANGE }} />
           <div style={{ display: "flex", fontFamily: DISPLAY, fontSize: 26, fontWeight: 700, color: INK }}>
-            MarketMakersFX
+            {WORDMARK}
           </div>
         </div>
         {slots.eyebrow ? (
@@ -188,7 +188,7 @@ export function StatCard({
             color: SUB,
           }}
         >
-          app.marketmakersfx.net
+          {SITE}
         </div>
       </div>
     </div>

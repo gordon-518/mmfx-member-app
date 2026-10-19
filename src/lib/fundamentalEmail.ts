@@ -3,6 +3,8 @@
 // greeting, the instrument ticker, what's inside, and the compliance line.
 // Pure string builder — safe to import anywhere.
 
+import { BRAND } from "@/lib/brand";
+
 // Obsidian ground + single Signal-Orange accent, JetBrains-mono ticker.
 const OBSIDIAN = "#0B0B0F";
 const PANEL = "#141419";
@@ -22,7 +24,7 @@ export function fundamentalEmailHtml(instrumentDisplay: string): string {
 
   return `<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MMFX Fundamental Dispatch</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${BRAND.shortName} Fundamental Dispatch</title></head>
 <body style="margin:0;padding:0;background:${OBSIDIAN};">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${OBSIDIAN};">
     <tr><td align="center" style="padding:32px 16px;">
@@ -30,7 +32,7 @@ export function fundamentalEmailHtml(instrumentDisplay: string): string {
 
         <!-- header -->
         <tr><td style="padding:26px 32px 18px;border-bottom:1px solid ${HAIRLINE};">
-          <div style="font:600 11px/1 ${MONO};letter-spacing:.22em;text-transform:uppercase;color:${ORANGE};">Market Makers FX</div>
+          <div style="font:600 11px/1 ${MONO};letter-spacing:.22em;text-transform:uppercase;color:${ORANGE};">${BRAND.name}</div>
           <div style="margin-top:6px;font:600 13px/1 ${MONO};letter-spacing:.14em;text-transform:uppercase;color:${MUTE};">Terminal Dispatch · Fundamental Desk</div>
         </td></tr>
 
@@ -52,7 +54,7 @@ export function fundamentalEmailHtml(instrumentDisplay: string): string {
         </td></tr>
 
       </table>
-      <div style="max-width:520px;margin:16px auto 0;font:400 11px/1.5 ${SANS};color:${MUTE};">You're receiving this because you requested a copy from the Fundamental Desk inside your Market Makers FX account.</div>
+      <div style="max-width:520px;margin:16px auto 0;font:400 11px/1.5 ${SANS};color:${MUTE};">You're receiving this because you requested a copy from the Fundamental Desk inside your ${BRAND.name} account.</div>
     </td></tr>
   </table>
 </body>

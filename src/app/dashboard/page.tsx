@@ -27,7 +27,7 @@ function Centered({
         {cta && (
           <Link
             href={cta.href}
-            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
           >
             {cta.label} →
           </Link>

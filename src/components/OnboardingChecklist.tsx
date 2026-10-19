@@ -62,7 +62,7 @@ export function OnboardingChecklist({
           </div>
           <Link
             href={next.href}
-            className="shrink-0 rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-colors hover:bg-[#f24e12]"
+            className="shrink-0 rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-colors hover:bg-orange-hover"
           >
             Start
           </Link>
@@ -125,7 +125,7 @@ export function OnboardingChecklist({
                   href={s.href}
                   className={`shrink-0 rounded-xl px-3.5 py-2 text-[13px] font-semibold transition-colors ${
                     isNext
-                      ? "bg-orange text-white shadow-soft hover:bg-[#f24e12]"
+                      ? "bg-orange text-white shadow-soft hover:bg-orange-hover"
                       : "border border-line-strong text-subtle hover:border-orange/40 hover:text-accent-ink"
                   }`}
                 >

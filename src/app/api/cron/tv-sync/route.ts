@@ -38,6 +38,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // A tenant without a TradingView account (every white-label desk until the
+  // neutral engine brand exists) has nothing to reconcile: say so, don't 500.
+  if (!process.env.TV_USERNAME || !process.env.TV_PASSWORD) {
+    return NextResponse.json({ skipped: "tradingview not configured" });
+  }
+
   // Service role bypasses RLS — acceptable here because this is a server-only
   // cron route, never reachable by a browser, and only reads profiles.
   const admin = createClient(

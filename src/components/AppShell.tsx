@@ -8,6 +8,7 @@ import { signOut } from "@/app/dashboard/actions";
 import type { AccountStatus } from "@/lib/trial/status";
 import { tierLabel, tierUnlockLabel, type MemberTier } from "@/lib/tiers";
 import { canAccess, featureForHref, FEATURE_MIN_TIER, type Viewer } from "@/lib/access/features";
+import { BRAND, featureOff } from "@/lib/brand";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
   AnalysisIcon, SignalsIcon, LiveIcon, StyleIcon, DeskIcon, LogoutIcon, NewsIcon, CalendarIcon, TelegramIcon,
@@ -51,7 +52,7 @@ const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
       { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
       { label: "Know Your Style", href: "/bots/know-your-style", icon: StyleIcon },
       { label: "AI Trading Assistant", href: "/journal", icon: JournalIcon },
-      { label: "Team MM", href: "/team-mm", icon: TelegramIcon },
+      { label: tierLabel("team"), href: "/team-mm", icon: TelegramIcon },
     ],
   },
   {
@@ -95,7 +96,13 @@ export function Wordmark({ iconOnly = false }: { iconOnly?: boolean }) {
       </span>
       {!iconOnly && (
         <span className="font-display text-[15px] font-bold tracking-tight text-ink whitespace-nowrap">
-          Market Makers <span className="text-orange">FX</span>
+          {BRAND.wordmark.lead}
+          {BRAND.wordmark.accent ? (
+            <>
+              {" "}
+              <span className="text-orange">{BRAND.wordmark.accent}</span>
+            </>
+          ) : null}
         </span>
       )}
     </div>
@@ -145,9 +152,18 @@ function NavLinks({
       </Link>
     );
   };
+  // A tenant can switch a surface off (BRAND.featuresOff); it leaves the nav
+  // entirely rather than showing locked, and its route bounces to /dashboard.
+  const sections = NAV_SECTIONS.map((sec) => ({
+    ...sec,
+    items: sec.items.filter((n) => {
+      const f = featureForHref(n.href);
+      return f == null || !featureOff(f);
+    }),
+  })).filter((sec) => sec.items.length > 0);
   return (
     <>
-      {NAV_SECTIONS.map((sec) => (
+      {sections.map((sec) => (
         <div key={sec.title ?? "top"} className={`space-y-0.5 ${sec.title ? "pt-3" : ""}`}>
           {sec.title && (
             <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
@@ -211,7 +227,7 @@ function UpgradeCta({ variant, onNavigate }: { variant: "bar" | "panel"; onNavig
       <Link
         href="/upgrade"
         onClick={onNavigate}
-        className="flex h-9 items-center gap-1.5 rounded-lg bg-orange px-3 text-[12.5px] font-semibold text-white shadow-soft transition-colors hover:bg-[#f24e12]"
+        className="flex h-9 items-center gap-1.5 rounded-lg bg-orange px-3 text-[12.5px] font-semibold text-white shadow-soft transition-colors hover:bg-orange-hover"
       >
         <SparkIcon className="h-3.5 w-3.5" />
         Upgrade
@@ -222,7 +238,7 @@ function UpgradeCta({ variant, onNavigate }: { variant: "bar" | "panel"; onNavig
     <Link
       href="/upgrade"
       onClick={onNavigate}
-      className="flex items-center justify-center gap-2 rounded-xl bg-orange px-3 py-2.5 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+      className="flex items-center justify-center gap-2 rounded-xl bg-orange px-3 py-2.5 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg"
     >
       <SparkIcon className="h-4 w-4" />
       Upgrade now
@@ -302,6 +318,12 @@ export function AppShell({
 
       {/* ---------------- Main ---------------- */}
       <main className="min-w-0">
+        {BRAND.demo && (
+          <div className="flex items-center justify-center gap-2 bg-ink px-4 py-1.5 text-center text-[12px] font-medium text-white/90">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-orange" aria-hidden />
+            Demo desk · sample content · this desk re-brands to yours in minutes
+          </div>
+        )}
         {/* Mobile top bar */}
         <div className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-card/80 px-5 py-4 backdrop-blur lg:hidden">
           <div className="flex items-center gap-1.5">

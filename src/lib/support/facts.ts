@@ -1,4 +1,4 @@
-import { TIER_THRESHOLDS, type PaidTier } from "@/lib/tiers";
+import { TIER_THRESHOLDS, tierLabel, type PaidTier } from "@/lib/tiers";
 import { FEATURE_MIN_TIER, type FeatureMinTier } from "@/lib/access/features";
 import { LIFETIME_PLANS, LIFETIME_PLAN_ORDER } from "@/lib/lifetimePlans";
 import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_HANDLE, ADMIN_TELEGRAM_URL } from "@/lib/depositRef";
@@ -7,11 +7,12 @@ import {
   BOT_LINK, DUPOIN_SIGNUP, ELEV8_CHANGE_IB, IB_NUMBER, OCTA_CHANGE_IB, OCTA_SIGNUP, SWITCH_REASON,
 } from "@/lib/brokerLinks";
 import type { FactSheet, SupportSettings } from "./types";
+import { BRAND } from "@/lib/brand";
 
 /** New-signup trial length. Source of truth: handle_new_user (supabase/migrations). */
 export const TRIAL_DAYS = 14;
 
-const APP = "https://app.marketmakersfx.net";
+const APP = BRAND.appUrl;
 const APP_PATHS = ["/", "/signup", "/login", "/upgrade", "/indicators", "/team-mm", "/course", "/daily-analysis"];
 
 type FeatureKey = keyof typeof FEATURE_MIN_TIER;
@@ -28,7 +29,7 @@ const FEATURE_LABEL: Record<FeatureKey, string> = {
   "live-classes": "Live Classes",
   "fundamental-desk": "the Fundamental Desk",
   "ai-trading-assistant": "the AI Trading Assistant",
-  "team-mm": "the private Team MM channel",
+  "team-mm": `the private ${tierLabel("team")} channel`,
 };
 
 // A tier-specific phrase to bolt onto featuresFor()'s list for a fact that
@@ -136,16 +137,16 @@ export function buildFactSheet(s: SupportSettings, now: Date = new Date()): Fact
     : [{ handle: ADMIN_TELEGRAM_HANDLE, label: ADMIN_DISPLAY_NAME }, ...cleanedAccounts];
 
   const text = [
-    "PLANS (tiers count cumulative verified deposits into the member's own trading account, in their name, never balance; every top-up counts toward the next tier; the deposit is never paid to MMFX; no fee for these broker tiers — the US/UK lifetime plans are a one-off payment instead, see US AND UK):",
+    `PLANS (tiers count cumulative verified deposits into the member's own trading account, in their name, never balance; every top-up counts toward the next tier; the deposit is never paid to ${BRAND.shortName}; no fee for these broker tiers — the US/UK lifetime plans are a one-off payment instead, see US AND UK):`,
     `- Free (after the trial): ${featuresFor("free")}.`,
     `- Foundation, from $${TIER_THRESHOLDS.foundation}: adds ${featuresFor("foundation")} and ${TIER_EXTRA_LABEL.foundation ?? ""}.`,
     `- Desk, from $${TIER_THRESHOLDS.desk}: adds ${featuresFor("desk")}.`,
-    `- Team MM, from $${TIER_THRESHOLDS.team}: adds ${featuresFor("team")}.`,
+    `- ${tierLabel("team")}, from $${TIER_THRESHOLDS.team}: adds ${featuresFor("team")}.`,
     `RISK: ${RISK_FOOTER} Never tell anyone their money is safe or protected.`,
-    `TRIAL: ${TRIAL_DAYS} days of Desk-level access for new signups — everything except ${featuresFor("team")}. If their verified deposits add up to Team MM ($${TIER_THRESHOLDS.team}) during the trial, Team MM opens as soon as the deposit is approved. Otherwise trial access continues until the trial ends, then they move to the tier their verified deposits reached (Free below $${TIER_THRESHOLDS.foundation}).`,
+    `TRIAL: ${TRIAL_DAYS} days of Desk-level access for new signups — everything except ${featuresFor("team")}. If their verified deposits add up to ${tierLabel("team")} ($${TIER_THRESHOLDS.team}) during the trial, ${tierLabel("team")} opens as soon as the deposit is approved. Otherwise trial access continues until the trial ends, then they move to the tier their verified deposits reached (Free below $${TIER_THRESHOLDS.foundation}).`,
     `US AND UK: partner brokers can't take them. Two lifetime plans, paid once: ${plans}. Payment is arranged in chat on the upgrade page.`,
     `BROKERS: Dupoin for exactly these countries: ${DUPOIN_COUNTRY_NAMES}. US and UK: the lifetime plans (see US AND UK). Every other country: Octa or Elev8. The upgrade page picks automatically from the member's country. If the member's country isn't known, send the upgrade page and never guess.`,
-    `HOW TO JOIN, always in this order: 0) if they don't have an MMFX account yet, they sign up first at ${APP}/signup — it's free and starts the ${TRIAL_DAYS}-day trial. The upgrade page only works when they're signed in (it redirects to the login page otherwise), so never send the upgrade page on its own to someone who hasn't said they have an account. 1) open a broker account through the upgrade page (Octa: ${OCTA_SIGNUP}, Dupoin: ${DUPOIN_SIGNUP}). Send the direct broker link only when the member's country is known (they said it, or a country tag shows it) and matches that broker; otherwise send the upgrade page. 2) top up from $${TIER_THRESHOLDS.foundation}; 3) submit the deposit details on the upgrade page (broker, account number, amount, screenshot, TradingView and Telegram usernames); 4) the page then shows a reference code (MM- plus 6 characters) — message ${ADMIN_DISPLAY_NAME} (@${ADMIN_TELEGRAM_HANDLE}) with it as the last step; 5) the team checks it and emails them when it's approved. The form comes BEFORE messaging ${ADMIN_DISPLAY_NAME}: the reference code only appears once the deposit is submitted, so never tell anyone to message her before they've topped up and submitted.`,
+    `HOW TO JOIN, always in this order: 0) if they don't have an ${BRAND.shortName} account yet, they sign up first at ${APP}/signup — it's free and starts the ${TRIAL_DAYS}-day trial. The upgrade page only works when they're signed in (it redirects to the login page otherwise), so never send the upgrade page on its own to someone who hasn't said they have an account. 1) open a broker account through the upgrade page (Octa: ${OCTA_SIGNUP}, Dupoin: ${DUPOIN_SIGNUP}). Send the direct broker link only when the member's country is known (they said it, or a country tag shows it) and matches that broker; otherwise send the upgrade page. 2) top up from $${TIER_THRESHOLDS.foundation}; 3) submit the deposit details on the upgrade page (broker, account number, amount, screenshot, TradingView and Telegram usernames); 4) the page then shows a reference code (MM- plus 6 characters) — message ${ADMIN_DISPLAY_NAME} (@${ADMIN_TELEGRAM_HANDLE}) with it as the last step; 5) the team checks it and emails them when it's approved. The form comes BEFORE messaging ${ADMIN_DISPLAY_NAME}: the reference code only appears once the deposit is submitted, so never tell anyone to message her before they've topped up and submitted.`,
     `ALREADY WITH OCTA OR ELEV8: keep the account and switch partner: Octa ${OCTA_CHANGE_IB} or Elev8 ${ELEV8_CHANGE_IB}, IB number ${IB_NUMBER}, reason to paste exactly: "${SWITCH_REASON}" Then hold at least $${TIER_THRESHOLDS.foundation} and submit on the upgrade page. Existing Dupoin clients send ${ADMIN_DISPLAY_NAME} their full name and Dupoin UID.`,
     `BONUS: Dupoin's 100% deposit bonus is shown in the app. ${bonusCode ? `Octa/Elev8 bonus code: ${bonusCode} (valid until ${s.bonus_code_expires}).` : "There is no Octa/Elev8 bonus code right now; hand off bonus-code requests."}`,
     `LINKS YOU MAY USE: ${APP_PATHS.filter((p) => p !== "/").map((p) => APP + p).join(", ")}, ${ADMIN_TELEGRAM_URL}.`,

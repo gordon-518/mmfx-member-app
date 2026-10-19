@@ -4,6 +4,7 @@ import { partnerDb } from "@/lib/partners/client";
 import { fetchFunnel } from "@/lib/partners/funnel";
 import { renderPartnerWeekly } from "@/lib/email/partnerWeekly";
 import { sendEmail, type EmailAddress } from "@/lib/sendpulse";
+import { BRAND } from "@/lib/brand";
 
 // The partner's Monday email (design 2026-09-25 §2.7). Scheduled by pg_cron +
 // pg_net at 01:00 UTC on Mondays — 09:00 SGT — with the snippet in
@@ -20,7 +21,7 @@ import { sendEmail, type EmailAddress } from "@/lib/sendpulse";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const DEFAULT_FROM = "Market Makers FX <hello@marketmakersfx.net>";
+const DEFAULT_FROM = `${BRAND.name} <${BRAND.supportEmail}>`;
 const WEEK_MS = 7 * 86_400_000;
 
 interface PartnerRow {
@@ -39,10 +40,10 @@ export function parseSender(raw: string | undefined): EmailAddress {
   const value = (raw ?? "").trim() || DEFAULT_FROM;
   const m = value.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
   if (m && m[2].includes("@")) {
-    return { name: m[1].replace(/^"|"$/g, "").trim() || "Market Makers FX", email: m[2].trim() };
+    return { name: m[1].replace(/^"|"$/g, "").trim() || BRAND.name, email: m[2].trim() };
   }
-  if (value.includes("@")) return { name: "Market Makers FX", email: value };
-  return { name: "Market Makers FX", email: "hello@marketmakersfx.net" };
+  if (value.includes("@")) return { name: BRAND.name, email: value };
+  return { name: BRAND.name, email: BRAND.supportEmail };
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {

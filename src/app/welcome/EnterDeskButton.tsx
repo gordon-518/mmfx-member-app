@@ -23,7 +23,7 @@ export function EnterDeskButton() {
       type="button"
       onClick={enter}
       disabled={loading}
-      className="group inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
+      className="group inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
     >
       {loading ? "Opening…" : "Enter your desk"}
       {!loading && (

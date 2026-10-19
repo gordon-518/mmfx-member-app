@@ -2,9 +2,9 @@
 // sequence and the thing they need first is "where am I".
 import { themeForRole, stepIndex, howToSlides } from "./howTo";
 import { DISPLAY, BODY } from "./renderFonts";
+import { SITE, WORDMARK } from "./slideTheme";
 
 const PAD = 72;
-const SITE = "app.marketmakersfx.net";
 
 function markUrl(color: string): string {
   const d =
@@ -63,7 +63,7 @@ export function HowToSlide({
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ display: "flex", width: 30, height: 30, borderRadius: 9, background: t.accent }} />
           <div style={{ display: "flex", fontFamily: DISPLAY, fontSize: 26, fontWeight: 700, color: t.ink }}>
-            MarketMakersFX
+            {WORDMARK}
           </div>
         </div>
         <div style={{ display: "flex", fontFamily: DISPLAY, fontSize: 26, fontWeight: 700, color: t.body }}>

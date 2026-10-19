@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/channel/db";
 import { parseTelegramTxt } from "@/lib/channel/analysisPosts";
+import { BRAND } from "@/lib/brand";
 
 export const runtime = "nodejs";
 
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
     {
       kind: "analysis_daily", status: "queued", body: daily,
       image_url: pub("analysis-covers", `cover-${date}.png`),
-      link_url: "https://app.marketmakersfx.net/daily-analysis",
+      link_url: `${BRAND.appUrl}/daily-analysis`,
       dedupe_key: `analysis_daily:${date}`, scheduled_for: now,
     },
     {

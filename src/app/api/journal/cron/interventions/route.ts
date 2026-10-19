@@ -9,6 +9,7 @@ import {
 } from "@/lib/journal/interventions";
 import { interventionEmailHtml } from "@/lib/journal/interventionEmail";
 import { sendEmail } from "@/lib/sendpulse";
+import { BRAND } from "@/lib/brand";
 
 // Daily proactive-intervention worker. Scheduled by Supabase pg_cron + pg_net
 // (same convention/secret as journal-sync). Per connected user: reuse the coach
@@ -17,8 +18,8 @@ import { sendEmail } from "@/lib/sendpulse";
 
 export const maxDuration = 300;
 
-const FROM = { name: "Market Makers FX", email: "hello@marketmakersfx.net" };
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.marketmakersfx.net";
+const FROM = { name: BRAND.name, email: BRAND.supportEmail };
+const APP_URL = BRAND.appUrl;
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.JOURNAL_CRON_SECRET;

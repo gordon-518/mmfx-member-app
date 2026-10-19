@@ -16,7 +16,7 @@ const inputCls =
   "w-full rounded-xl border border-line-strong bg-card px-4 py-2.5 text-[14px] text-ink placeholder:text-subtle/70 focus:border-orange/60 focus:outline-none";
 const labelCls = "block text-[13px] font-semibold text-ink";
 const primaryBtn =
-  "cursor-pointer rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-50";
+  "cursor-pointer rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-orange-hover hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-50";
 import { knownServersFor } from "@/lib/journal/brokerServers";
 
 const secondaryBtn =

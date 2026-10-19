@@ -7,6 +7,7 @@
 @theme {
   /* Brand accent */
   --color-orange: #ff5a1f;
+  --color-orange-hover: #f24e12; /* pressed/hover state of the accent */
   --color-accent-soft: #ffece2; /* soft peach fill for tints/states */
   --color-accent-ink: #c2410c; /* deeper orange for text on light */
 

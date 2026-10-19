@@ -4,7 +4,13 @@ import {
   LiveIcon, StyleIcon, CourseIcon, LibraryIcon,
 } from "@/components/icons";
 
+import { featureOff } from "@/lib/brand";
+import type { FeatureKey } from "@/lib/access/featureKeys";
+
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
+
+/** Drop the cards for surfaces this tenant has switched off. */
+const on = (cards: RailCard[]) => cards.filter((c) => !featureOff(c.key as FeatureKey));
 
 export interface RailCard {
   key: string;
@@ -24,7 +30,7 @@ export interface RailStage {
 // The dashboard's spine: the profitable-trader workflow. The three stages sell
 // the hook — MMFX gives a trader everything from read to execution to managing
 // the open position. Foundations is the skill that sits under all three.
-export const STAGES: RailStage[] = [
+const ALL_STAGES: RailStage[] = [
   {
     n: 1,
     label: "Analysis",
@@ -55,7 +61,11 @@ export const STAGES: RailStage[] = [
   },
 ];
 
-export const FOUNDATIONS: RailCard[] = [
+export const STAGES: RailStage[] = ALL_STAGES.map((st) => ({ ...st, cards: on(st.cards) })).filter(
+  (st) => st.cards.length > 0
+);
+
+export const FOUNDATIONS: RailCard[] = on([
   { key: "course", title: "The MM System Course", blurb: "Basic to advanced · 19 lessons", href: "/course", icon: CourseIcon },
   { key: "library", title: "eBook Library", blurb: "The written system & references", href: "/library", icon: LibraryIcon },
-];
+]);

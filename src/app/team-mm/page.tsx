@@ -5,9 +5,10 @@ import { canAccess } from "@/lib/access/features";
 import { AppShell } from "@/components/AppShell";
 import { MembersOnly } from "@/components/MembersOnly";
 import { TeamMMMember } from "./TeamMMMember";
+import { BRAND } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Team MM — Market Makers FX",
+  title: `Team MM — ${BRAND.name}`,
   description: "The private MM desk — VIP signals for funded members.",
 };
 
@@ -37,7 +38,7 @@ export default async function TeamMMPage() {
       ) : (
         <MembersOnly
           feature="Team MM"
-          blurb="Team MM is our private desk — a VIP channel where Don sends extra, higher-conviction signals and member-only calls. It unlocks at Team MM: $500 in cumulative deposits to your own trading account."
+          blurb={`Team MM is our private desk — a VIP channel where ${BRAND.persona} sends extra, higher-conviction signals and member-only calls. It unlocks at Team MM: $500 in cumulative deposits to your own trading account.`}
         />
       )}
     </AppShell>

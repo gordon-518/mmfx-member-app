@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { BRAND } from "@/lib/brand";
 import { grantTVAccess, revokeTVAccess, setTVSession, testTVSession } from "@/lib/tv/client";
 import { syncSendpulseAudiences } from "@/lib/sendpulseSync";
 import { sendCapiEvent } from "@/lib/meta-capi";
@@ -136,7 +137,7 @@ async function afterVerify(
       await sendCapiEvent({
         eventName: "Purchase",
         actionSource: "website",
-        eventSourceUrl: "https://app.marketmakersfx.net/upgrade",
+        eventSourceUrl: `${BRAND.appUrl}/upgrade`,
         user: { email: targetEmail, externalId: targetUserId },
         customData: { value: amount, currency: "USD", content_name: "funded_account", broker },
       });
@@ -432,7 +433,7 @@ export async function deleteUser(email: string, confirmEmail: string): Promise<U
 // the same afterVerify path as the manual form runs; either way the member is
 // emailed. Emails are best-effort: sendEmail never throws.
 
-const FROM_MEMBERS = { name: "Market Makers FX", email: "hello@marketmakersfx.net" };
+const FROM_MEMBERS = { name: BRAND.name, email: BRAND.supportEmail };
 
 export async function reviewSubmission(formData: FormData) {
   const submissionId = String(formData.get("submission_id") ?? "");
@@ -581,7 +582,7 @@ export async function grantLifetime(formData: FormData) {
       await sendCapiEvent({
         eventName: "Purchase",
         actionSource: "website",
-        eventSourceUrl: "https://app.marketmakersfx.net/upgrade",
+        eventSourceUrl: `${BRAND.appUrl}/upgrade`,
         user: { email: targetEmail, externalId: targetUserId },
         customData: { value: LIFETIME_PLANS[plan].priceUsd, currency: "USD", content_name: `lifetime_${plan}` },
       });

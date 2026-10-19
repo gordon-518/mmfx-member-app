@@ -11,6 +11,7 @@
 // Telegram sits outside the 90-day support_events purge.
 
 import { depositRef } from "@/lib/depositRef";
+import { BRAND } from "@/lib/brand";
 import { tierLabel } from "@/lib/tiers";
 import type { MemberContext } from "./types";
 
@@ -68,6 +69,6 @@ export function memberPingHtml(member: MemberContext | null, now: Date = new Dat
     lines.push("⚠️ <i>Matched by the code they typed, not their Telegram account — check before acting.</i>");
   }
 
-  lines.push('<a href="https://app.marketmakersfx.net/admin">Open the admin queue</a>');
+  lines.push(`<a href="${BRAND.appUrl}/admin">Open the admin queue</a>`);
   return `\n\n${lines.join("\n")}`;
 }

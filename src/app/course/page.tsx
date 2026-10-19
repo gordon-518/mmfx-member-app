@@ -3,6 +3,7 @@ import { requireFeature } from "@/lib/access";
 import { canWatchLesson } from "@/lib/access/course";
 import { AppShell } from "@/components/AppShell";
 import { LockedFeature } from "@/components/LockedFeature";
+import { tierLabel } from "@/lib/tiers";
 import { LESSONS, MODULES } from "./courseData";
 import { CourseClient, type ClientLesson } from "./CourseClient";
 
@@ -51,7 +52,7 @@ export default async function CoursePage() {
             <p className="text-[13.5px] leading-relaxed text-ink">
               <span className="font-semibold">Module 1 is open on your plan.</span>{" "}
               {viewer.noMentorship
-                ? `The other ${lockedCount} lessons are in the Team MM + Mentorship plan.`
+                ? `The other ${lockedCount} lessons are in the ${tierLabel("team")} + Mentorship plan.`
                 : `The other ${lockedCount} lessons unlock when you fund your account.`}
             </p>
             <Link
