@@ -43,4 +43,50 @@ describe("GET /go/[slug]", () => {
     expect(loc).not.toContain("utm_");
     expect(rpcMock).toHaveBeenCalledWith("increment_post_clicks", { post_id: "post-9" });
   });
+
+  it("appends the ORG-tg cid to app destinations and stamps the attribution cookie", async () => {
+    const res = await GET(new Request("https://app.test/go/signup?p=post-1"), ctx("signup"));
+    const loc = res.headers.get("location")!;
+    expect(loc).toContain(`cid=${encodeURIComponent("ORG-tg-signup.post-1")}`);
+    const setCookie = res.headers.get("set-cookie")!;
+    expect(setCookie).toContain("mmfx_attr=");
+    const value = decodeURIComponent(setCookie.match(/mmfx_attr=([^;]+)/)![1]);
+    const attr = JSON.parse(value);
+    expect(attr.cid).toBe("ORG-tg-signup.post-1");
+    expect(attr.feature).toBe("signup");
+    expect(typeof attr.ts).toBe("number");
+  });
+
+  it("without a post id, the cid is the bare slug form", async () => {
+    const res = await GET(new Request("https://app.test/go/upgrade"), ctx("upgrade"));
+    expect(res.headers.get("location")).toContain(`cid=${encodeURIComponent("ORG-tg-upgrade")}`);
+  });
+
+  it("never overwrites an existing cid (first touch keeps the credit)", async () => {
+    const existing = encodeURIComponent(JSON.stringify({ cid: "CRT-meta-ad-7", fbclid: "fb.1" }));
+    const res = await GET(
+      new Request("https://app.test/go/signup?p=post-1", { headers: { cookie: `mmfx_attr=${existing}` } }),
+      ctx("signup")
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("fills in a cookie that has fields but no cid, preserving them", async () => {
+    const existing = encodeURIComponent(JSON.stringify({ geo: "MY", fbclid: "fb.2" }));
+    const res = await GET(
+      new Request("https://app.test/go/signup?p=post-1", { headers: { cookie: `mmfx_attr=${existing}` } }),
+      ctx("signup")
+    );
+    const value = decodeURIComponent(res.headers.get("set-cookie")!.match(/mmfx_attr=([^;]+)/)![1]);
+    const attr = JSON.parse(value);
+    expect(attr.cid).toBe("ORG-tg-signup.post-1");
+    expect(attr.geo).toBe("MY");
+    expect(attr.fbclid).toBe("fb.2");
+  });
+
+  it("stamps the cookie on external destinations too", async () => {
+    const res = await GET(new Request("https://app.test/go/teammm?p=post-9"), ctx("teammm"));
+    expect(res.headers.get("set-cookie")).toContain("mmfx_attr=");
+  });
 });
