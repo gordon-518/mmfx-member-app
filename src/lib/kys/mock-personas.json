@@ -1,0 +1,52 @@
+[
+  {
+    "label": "reckless_gambler_pure",
+    "answers": { "q1": "b", "q2": "a", "q3": "f", "q4": "c", "q5": "b", "q6": "c", "q7": "b", "q8": "a" },
+    "expected": "reckless_gambler"
+  },
+  {
+    "label": "analysis_paralyser_classic",
+    "answers": { "q1": "d", "q2": "c", "q3": "a", "q4": "a", "q5": "a", "q6": "b", "q7": "d", "q8": "c" },
+    "expected": "analysis_paralyser"
+  },
+  {
+    "label": "signal_dependent_blind",
+    "answers": { "q1": "b", "q2": "b", "q3": "b", "q4": "a", "q5": "c", "q6": "a", "q7": "a", "q8": "b" },
+    "expected": "signal_dependent"
+  },
+  {
+    "label": "indicator_stacker_classic",
+    "answers": { "q1": "c", "q2": "c", "q3": "c", "q4": "a", "q5": "f", "q6": "c", "q7": "a", "q8": "d" },
+    "expected": "indicator_stacker"
+  },
+  {
+    "label": "emotional_revenge_trader_classic",
+    "answers": { "q1": "b", "q2": "a", "q3": "e", "q4": "d", "q5": "d", "q6": "c", "q7": "b", "q8": "a" },
+    "expected": "emotional_revenge_trader"
+  },
+  {
+    "label": "news_trader_classic",
+    "answers": { "q1": "d", "q2": "b", "q3": "d", "q4": "b", "q5": "c", "q6": "b", "q7": "a", "q8": "d" },
+    "expected": "news_trader"
+  },
+  {
+    "label": "system_hopper_classic",
+    "answers": { "q1": "c", "q2": "c", "q3": "a", "q4": "a", "q5": "e", "q6": "c", "q7": "d", "q8": "a" },
+    "expected": "system_hopper"
+  },
+  {
+    "label": "brand_new_beginner_classic",
+    "answers": { "q1": "a", "q2": "e", "q3": "e", "q4": "e", "q5": "g", "q6": "d", "q7": "e", "q8": "e" },
+    "expected": "brand_new_beginner"
+  },
+  {
+    "label": "brand_new_beginner_short_circuit",
+    "answers": { "q1": "a", "q2": "e", "q3": "a", "q4": "a", "q5": "g", "q6": "d", "q7": "e", "q8": "f" },
+    "expected": "brand_new_beginner"
+  },
+  {
+    "label": "tied_pair_resolved_by_q5",
+    "answers": { "q1": "c", "q2": "c", "q3": "c", "q4": "a", "q5": "f", "q6": "d", "q7": "a", "q8": "d" },
+    "expected": "indicator_stacker"
+  }
+]
