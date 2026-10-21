@@ -23,7 +23,7 @@ export function Analysing() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center py-10 text-center">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-line bg-card py-12 text-center shadow-soft">
       <div className="relative h-24 w-24">
         <motion.span
           className="absolute inset-0 rounded-full border-2 border-orange/25 border-t-orange"

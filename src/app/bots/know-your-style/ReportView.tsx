@@ -93,19 +93,24 @@ export function ReportView({
 
   return (
     <div className="w-full">
-      <div className="text-center">
-        <motion.p {...rise(0)} className="text-[11px] font-semibold uppercase tracking-[0.3em] text-orange">
+      {/* The result reads as a panel in the app, not a landing-page hero:
+          same card, same left-aligned eyebrow/title as every other page. */}
+      <motion.header
+        {...rise(0)}
+        className="rounded-2xl border border-line bg-card p-6 shadow-soft sm:p-7"
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-orange">
           Your trading style
-        </motion.p>
+        </p>
         <motion.h2
           {...rise(0.12)}
-          className="mt-2.5 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl"
+          className="mt-1.5 font-display text-3xl font-bold leading-tight tracking-tight text-ink sm:text-[34px]"
         >
           {archetypeName}
         </motion.h2>
         <motion.span
           {...(reduce ? {} : { initial: { scaleX: 0 }, animate: { scaleX: 1 }, transition: { duration: 0.5, delay: 0.4 } })}
-          className="mx-auto mt-4 block h-0.5 w-20 origin-center rounded-full bg-orange"
+          className="mt-3.5 block h-0.5 w-16 origin-left rounded-full bg-orange"
         />
         {takenAt && (
           <p className="mt-3 text-[12.5px] text-faint">
@@ -113,11 +118,11 @@ export function ReportView({
           </p>
         )}
         <SendCopy archetypeName={archetypeName} dimensions={dimensions} markdown={markdown} />
-      </div>
+      </motion.header>
 
       <motion.article
         {...rise(0.5)}
-        className="mt-7 rounded-2xl border border-line bg-card p-6 shadow-soft sm:p-7"
+        className="mt-5 rounded-2xl border border-line bg-card p-6 shadow-soft sm:p-7"
       >
         <h3 className="font-display text-[17px] font-bold tracking-tight text-ink">Your profile</h3>
         <p className="mb-5 mt-1 text-[13px] leading-relaxed text-subtle">
@@ -164,13 +169,13 @@ export function ReportView({
               </Link>
             ))}
           </div>
-          <p className="mt-3 text-center text-[11px] text-faint">
+          <p className="mt-3 text-[11px] text-faint">
             Chosen from your archetype and your two weakest dimensions
           </p>
         </div>
       )}
 
-      <div className="mt-8 text-center">
+      <div className="mt-8">
         <button
           type="button"
           onClick={onRetake}
