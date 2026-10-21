@@ -1,0 +1,307 @@
+[
+  {
+    "id": "reckless_gambler",
+    "name": "The Reckless Gambler",
+    "summary": "High risk tolerance, no system, chases price, blows accounts and reloads.",
+    "strengths": [
+      "Bold and takes action",
+      "Isn't afraid of the market",
+      "High engagement"
+    ],
+    "weaknesses": [
+      "No edge",
+      "No risk management",
+      "No patience"
+    ],
+    "common_mistakes": [
+      "Revenge trading after losses",
+      "Doubling down on losing positions",
+      "Sizing up to chase a feeling"
+    ],
+    "focus": [
+      "Build a system before sizing up",
+      "Capital preservation comes before profit",
+      "Pre-defined position sizing rules"
+    ],
+    "mmfx_path": {
+      "resources": [
+        "MM System eBook"
+      ],
+      "tier": "team_mm",
+      "cta_text": "Start with the MM System eBook to learn the framework, then open a Team MM tier account with the broker to lock in accountability and structure."
+    },
+    "keystone": {
+      "path": "/course",
+      "label": "Managing & Routine module",
+      "why": "Build the risk rules first — fixed sizing and hard stops before anything else."
+    }
+  },
+  {
+    "id": "analysis_paralyser",
+    "name": "The Analysis Paralyser",
+    "summary": "Over-thinks every setup, demands 100% confirmation, misses 80% of valid trades.",
+    "strengths": [
+      "Thorough",
+      "Low impulsivity",
+      "Rarely takes obviously bad trades"
+    ],
+    "weaknesses": [
+      "Hesitation costs opportunities",
+      "Chronic FOMO regret after missed moves",
+      "Decision-paralysis at the chart"
+    ],
+    "common_mistakes": [
+      "Requiring more confirmation signals than the market ever gives",
+      "Waiting for the 'perfect' setup that never arrives",
+      "Talking themselves out of valid trades"
+    ],
+    "focus": [
+      "Probabilistic thinking — no setup is ever 100%",
+      "Defined entry criteria with a maximum count of conditions",
+      "Trade execution practice on demo, not endless backtesting"
+    ],
+    "mmfx_path": {
+      "resources": [
+        "Decision Tree eBook"
+      ],
+      "tier": "mentorship",
+      "cta_text": "Read the Decision Tree eBook to externalise your entry criteria, then join MM Mentorship for accountability on actually executing those decisions live."
+    },
+    "keystone": {
+      "path": "/strategies",
+      "label": "Backtest a strategy",
+      "why": "Prove your rules work, so you stop demanding certainty that never comes."
+    }
+  },
+  {
+    "id": "signal_dependent",
+    "name": "The Signal Dependent",
+    "summary": "Trades entirely off signals, no independent analysis skill.",
+    "strengths": [
+      "Humble about own ability",
+      "Willing to follow proven systems",
+      "Disciplined when given clear instructions"
+    ],
+    "weaknesses": [
+      "No transferable skill",
+      "Lost when signals are absent",
+      "Can't tell good signals from bad ones"
+    ],
+    "common_mistakes": [
+      "Taking signals without understanding why they were given",
+      "Following multiple signal providers with contradictory calls",
+      "Blaming the signal provider when trades lose"
+    ],
+    "focus": [
+      "Learning to validate signals against own analysis before executing",
+      "Building independent reasoning, not just execution",
+      "Understanding the structure behind each signal"
+    ],
+    "mmfx_path": {
+      "resources": [
+        "Free signals feed",
+        "MM System eBook",
+        "Cheat Sheet eBook"
+      ],
+      "tier": "team_mm",
+      "cta_text": "Keep using the free signals, but pair them with the MM System eBook and Cheat Sheet so you can read the structure behind each call. Team MM is the structured path that turns signal-following into actual trading skill."
+    },
+    "keystone": {
+      "path": "/course",
+      "label": "Start the MM System Course",
+      "why": "Turn signal-following into a skill you actually own."
+    }
+  },
+  {
+    "id": "indicator_stacker",
+    "name": "The Indicator Stacker",
+    "summary": "Trades from a chart covered in 8+ indicators, mistakes complexity for edge, never sees clean price action.",
+    "strengths": [
+      "Analytical",
+      "Willing to study",
+      "Comfortable with technical concepts"
+    ],
+    "weaknesses": [
+      "Lagging indicators describe the past, they don't predict price",
+      "Confluence becomes paralysis",
+      "Can't read raw structure"
+    ],
+    "common_mistakes": [
+      "Refusing to enter unless RSI, MACD, Stochastic and a moving average all agree",
+      "Adding more indicators when a system stops working",
+      "Mistaking indicator confluence for market confluence"
+    ],
+    "focus": [
+      "Reading raw market structure — highs, lows, order flow, liquidity",
+      "Deleting indicators that don't change your decision",
+      "Trusting price over derivatives of price"
+    ],
+    "mmfx_path": {
+      "resources": [
+        "MM System eBook"
+      ],
+      "tier": "team_mm",
+      "cta_text": "Read the MM System eBook — specifically the price-action and structure modules — and open a Team MM tier account to retrain on a clean-chart, SMC-based approach."
+    },
+    "keystone": {
+      "path": "/course",
+      "label": "Reading Price module",
+      "why": "Trade clean structure instead of a wall of contradicting indicators."
+    }
+  },
+  {
+    "id": "emotional_revenge_trader",
+    "name": "The Emotional Revenge Trader",
+    "summary": "Wins lead to overconfidence, losses lead to tilt, account swings wildly between green and red.",
+    "strengths": [
+      "Highly engaged",
+      "Learns fast when not on tilt",
+      "Honest about own emotional pattern when calm"
+    ],
+    "weaknesses": [
+      "Poor emotional regulation under drawdown",
+      "Risk management collapses when emotional",
+      "Sizes up to recover losses"
+    ],
+    "common_mistakes": [
+      "Increasing position size after losses to 'win it back'",
+      "Trading immediately after a loss instead of stepping back",
+      "Treating one losing trade as a sign the whole system is broken"
+    ],
+    "focus": [
+      "Pre-defined daily loss limits with mandatory cool-down",
+      "Mandatory break after two consecutive losses",
+      "Journaling emotional state alongside trade outcomes"
+    ],
+    "mmfx_path": {
+      "resources": [
+        "If-Then eBook",
+        "Decision Tree eBook"
+      ],
+      "tier": "mentorship",
+      "cta_text": "Read the If-Then eBook and Decision Tree, then join MM Mentorship for the accountability and psychology framework that turns rules into actual behaviour."
+    },
+    "keystone": {
+      "path": "/library",
+      "label": "Read the If-Then eBook",
+      "why": "Pre-commit your reactions so a loss cannot hijack you."
+    }
+  },
+  {
+    "id": "news_trader",
+    "name": "The News Trader",
+    "summary": "Lives for NFP, FOMC, CPI — trades the volatility around scheduled events, sits on hands the rest of the time.",
+    "strengths": [
+      "Understands macro drivers",
+      "Comfortable in fast markets",
+      "Real edge during high-impact releases"
+    ],
+    "weaknesses": [
+      "Boredom-induced overtrading outside news windows",
+      "Gets caught by stop hunts in the first 30 seconds of a release",
+      "Treats every red headline as a tradable event"
+    ],
+    "common_mistakes": [
+      "Entering market orders into a news spike before liquidity returns",
+      "Filling at the worst possible price after a stop run",
+      "Holding through the second leg of a reversal because the news 'should have' moved it the other way"
+    ],
+    "focus": [
+      "Layering structure-based entries on top of news catalysts",
+      "Waiting for the post-news pullback rather than chasing the initial spike",
+      "Defining 'no-trade' windows around the release itself"
+    ],
+    "mmfx_path": {
+      "resources": [
+        "MM System eBook",
+        "Decision Tree eBook"
+      ],
+      "tier": "mentorship",
+      "cta_text": "Read the MM System eBook for structure entries and the Decision Tree for execution rules, then join MM Mentorship to combine macro and structure into one playbook."
+    },
+    "keystone": {
+      "path": "/calendar",
+      "label": "Economic Calendar",
+      "why": "Plan around the catalysts instead of chasing every headline."
+    }
+  },
+  {
+    "id": "system_hopper",
+    "name": "The System Hopper",
+    "summary": "Tries a new strategy every couple of weeks because nothing seems to work long enough to compound. Owns five courses, finished none.",
+    "strengths": [
+      "High learning appetite",
+      "Willing to invest in education",
+      "Technically literate"
+    ],
+    "weaknesses": [
+      "Mistakes normal drawdown for 'the system doesn't work'",
+      "Never gives any approach the sample size it needs to prove itself",
+      "Lacks the patience to compound an edge"
+    ],
+    "common_mistakes": [
+      "Abandoning a strategy after 5–10 trades",
+      "Buying the next course before finishing the current one",
+      "Treating every losing streak as a signal to switch frameworks"
+    ],
+    "focus": [
+      "Pick one framework and trade it for 100+ trades minimum before judging",
+      "Journal every trade so you have real data, not feelings, to evaluate against",
+      "Stop buying the next thing until this one is finished"
+    ],
+    "mmfx_path": {
+      "resources": [
+        "MM System eBook",
+        "Cheat Sheet eBook"
+      ],
+      "tier": "mentorship",
+      "cta_text": "Commit to the MM System eBook and Cheat Sheet as your one framework. Join MM Mentorship for the accountability you'll need to actually stick with it."
+    },
+    "keystone": {
+      "path": "/course",
+      "label": "Commit to one system",
+      "why": "One framework, traded long enough to actually compound."
+    }
+  },
+  {
+    "id": "brand_new_beginner",
+    "name": "The Brand New Beginner",
+    "summary": "No system, no losses yet, exploring trading for the first time.",
+    "strengths": [
+      "Open mind",
+      "No entrenched bad habits",
+      "Low capital at risk"
+    ],
+    "weaknesses": [
+      "No foundation",
+      "Susceptible to 'guru' marketing",
+      "Underestimates the learning curve"
+    ],
+    "common_mistakes": [
+      "Starting real-money trading before understanding basic price action",
+      "Skipping the demo phase to 'feel the real pressure'",
+      "Following the loudest voice on social media"
+    ],
+    "focus": [
+      "Foundational education before any live trading",
+      "Demo account for 30+ days minimum",
+      "Learning to read structure before learning entries"
+    ],
+    "mmfx_path": {
+      "resources": [
+        "Free signals feed",
+        "MM System eBook",
+        "Cheat Sheet eBook",
+        "Decision Tree eBook",
+        "If-Then eBook"
+      ],
+      "tier": "free",
+      "cta_text": "Stay in the free tier. Read the four eBooks in order: MM System first for the framework, Cheat Sheet for quick reference, Decision Tree for entries, If-Then for psychology. Use the free signals to study real setups while you learn."
+    },
+    "keystone": {
+      "path": "/course",
+      "label": "Start at Foundations",
+      "why": "Build the base before you put any real money at risk."
+    }
+  }
+]
