@@ -15,7 +15,7 @@ function Tile({ row, delay }: { row: SummaryInstrument; delay: number }) {
     <>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-display text-[19px] font-bold tracking-tight text-ink">
+          <p className="font-display text-[19px] font-bold tracking-tight text-ink transition-colors group-hover:text-accent-ink">
             {row.display}
           </p>
           <p className="mt-0.5 text-[12px] font-medium text-faint">
@@ -48,21 +48,26 @@ function Tile({ row, delay }: { row: SummaryInstrument; delay: number }) {
     </>
   );
 
-  const shell = "rise block h-full rounded-2xl border border-line bg-card p-4 shadow-soft";
+  // The entrance animation lives on the <li>, not the tile: `.rise` ends on
+  // `transform: none` with fill-mode forwards, and an animation's own value
+  // wins over a hover rule, so a lift on the same element would never show.
+  const shell = "block h-full overflow-hidden rounded-2xl border border-line bg-card p-4 shadow-soft";
   return (
-    <li>
+    <li className="rise" style={{ animationDelay: `${delay}s` }}>
       {open ? (
         <Link
           href={`/bots/fundamental?instrument=${row.id}`}
-          style={{ animationDelay: `${delay}s` }}
-          className={`${shell} transition-all hover:border-orange/40 hover:shadow-soft-lg`}
+          className={`group relative ${shell} transition-all duration-200 hover:-translate-y-0.5 hover:border-orange/45 hover:bg-accent-soft/60 hover:shadow-soft-lg focus-visible:border-orange/45 focus-visible:bg-accent-soft/60 motion-reduce:transition-none motion-reduce:hover:translate-y-0`}
         >
+          {/* Colour on approach: a rail that draws itself across the top. */}
+          <span
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-[3px] origin-left scale-x-0 bg-orange transition-transform duration-300 ease-out group-hover:scale-x-100 group-focus-visible:scale-x-100 motion-reduce:transition-none"
+          />
           {body}
         </Link>
       ) : (
-        <div className={`${shell} opacity-60`} style={{ animationDelay: `${delay}s` }}>
-          {body}
-        </div>
+        <div className={`${shell} opacity-60`}>{body}</div>
       )}
     </li>
   );
