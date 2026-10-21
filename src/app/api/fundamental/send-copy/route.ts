@@ -3,28 +3,14 @@ import { getAccess } from "@/lib/access";
 import { canAccess } from "@/lib/access/features";
 import { sendEmail, addContactToBook } from "@/lib/sendpulse";
 import { fundamentalEmailHtml } from "@/lib/fundamentalEmail";
+import { deskInstrument } from "@/lib/fa/types";
 
-// "Send me a copy" from the Fundamental Desk. The desk iframe posts the chosen
+// "Send me a copy" from the Fundamental Desk. The thesis view posts the chosen
 // instrument; we email the desk's PDF to the LOGGED-IN account's own address.
 // No client-supplied recipient is ever trusted.
 
 const DESK_BASE = "https://api.marketmakersfx.net";
 const PDF_TIMEOUT_MS = 15_000;
-
-// The 11 supported instruments → display names. Doubles as the allowlist.
-const INSTRUMENTS: Record<string, string> = {
-  XAUUSD: "XAU/USD",
-  XAGUSD: "XAG/USD",
-  EURUSD: "EUR/USD",
-  GBPUSD: "GBP/USD",
-  USDJPY: "USD/JPY",
-  USDCHF: "USD/CHF",
-  AUDUSD: "AUD/USD",
-  USDCAD: "USD/CAD",
-  NZDUSD: "NZD/USD",
-  BTCUSD: "BTC/USD",
-  ETHUSD: "ETH/USD",
-};
 
 export async function POST(req: Request) {
   // Authorize: must be able to open the desk (the feature map) OR be the admin.
@@ -39,21 +25,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
   }
 
-  // Validate instrument against the allowlist (hasOwn avoids prototype keys).
+  // Validate against the desk's instrument registry — the single allowlist
+  // shared with the page and the price/report proxies.
   let body: unknown;
   try {
     body = await req.json();
   } catch {
     body = null;
   }
-  const instrument = (body as { instrument?: unknown } | null)?.instrument;
-  if (
-    typeof instrument !== "string" ||
-    !Object.prototype.hasOwnProperty.call(INSTRUMENTS, instrument)
-  ) {
+  const requested = (body as { instrument?: unknown } | null)?.instrument;
+  const known = typeof requested === "string" ? deskInstrument(requested) : null;
+  if (!known) {
     return NextResponse.json({ ok: false, reason: "bad_instrument" }, { status: 400 });
   }
-  const display = INSTRUMENTS[instrument];
+  const instrument = known.id;
+  const display = known.display;
 
   // Fetch the public desk PDF with a hard timeout.
   let pdfBase64: string;
