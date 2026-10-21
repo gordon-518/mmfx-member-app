@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { CheckIcon } from "@/components/icons";
 import { QUESTIONS } from "@/lib/kys/questions";
+import { DIMENSIONS } from "@/lib/kys/dimensions";
 import { ARCHETYPES } from "@/lib/kys/archetypes";
 import { selectMoves } from "@/lib/kys/moves";
 import { Analysing } from "./Analysing";
@@ -24,6 +26,12 @@ import type {
 // starting from scratch.
 
 type Phase = "welcome" | "questioning" | "analysing" | "report" | "error";
+
+const WHAT_YOU_GET = [
+  { label: "Your archetype —", detail: "which of eight trader types you actually are." },
+  { label: "Your six dimensions —", detail: "where you sit on each spectrum, scored from your answers." },
+  { label: "Your leak —", detail: "the weakest one, and what it is costing you." },
+] as const;
 
 function archetypeName(id: ArchetypeId | string): string {
   return ARCHETYPES.find((a) => a.id === id)?.name ?? "Your trader profile";
@@ -106,7 +114,7 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
     : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0 }, transition: { duration: 0.3 } };
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="w-full max-w-3xl">
       {phase === "questioning" && (
         <div className="mb-6">
           <Progress current={current + 1} total={QUESTIONS.length} />
@@ -115,36 +123,69 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
 
       <AnimatePresence mode="wait">
         {phase === "welcome" && (
-          <motion.div key="welcome" {...fade} className="py-6 text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-orange">
-              Trader profiling · 14 questions · 6 min
-            </p>
-            <h2 className="mx-auto mt-3 max-w-[34rem] font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
-              Every trader has a <span className="text-orange">tell.</span> Let&apos;s find yours.
-            </h2>
-            <p className="mx-auto mt-4 max-w-[28rem] text-[15px] leading-relaxed text-subtle">
-              Answer honestly. At the end you get a written breakdown of your style, your edge, and
-              the exact leak costing you money. No fluff.
-            </p>
-            <div className="mt-7 flex justify-center gap-8">
-              {[
-                { n: "14", l: "questions" },
-                { n: "~6", l: "minutes" },
-                { n: "1", l: "honest report" },
-              ].map((s) => (
-                <div key={s.l} className="text-[11px] tracking-wide text-faint">
-                  <span className="block font-display text-lg font-bold text-ink">{s.n}</span>
-                  {s.l}
+          <motion.div key="welcome" {...fade}>
+            <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
+              <div className="grid sm:grid-cols-[1.45fr_1fr]">
+                <div className="p-6 sm:p-7">
+                  <h2 className="font-display text-[26px] font-bold leading-tight tracking-tight text-ink sm:text-[30px]">
+                    Every trader has a <span className="text-orange">tell.</span>{" "}
+                    <span className="whitespace-nowrap">Let&apos;s find yours.</span>
+                  </h2>
+                  <p className="mt-3 text-[14.5px] leading-relaxed text-subtle">
+                    Fourteen questions, about six minutes. Answer them honestly — the report is
+                    only as good as what you tell it.
+                  </p>
+
+                  <ul className="mt-5 flex flex-col gap-3">
+                    {WHAT_YOU_GET.map((w) => (
+                      <li key={w.label} className="flex gap-3">
+                        <span
+                          aria-hidden
+                          className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent-ink"
+                        >
+                          <CheckIcon width={13} height={13} strokeWidth={2.4} />
+                        </span>
+                        <span className="text-[13.5px] leading-snug">
+                          <b className="font-semibold text-ink">{w.label}</b>{" "}
+                          <span className="text-subtle">{w.detail}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    type="button"
+                    onClick={() => setPhase("questioning")}
+                    className="mt-6 cursor-pointer rounded-xl bg-orange px-5 py-2.5 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+                  >
+                    Start the assessment →
+                  </button>
+                  <p className="mt-3 text-[12px] text-faint">
+                    Saved to your profile — you can come back to it any time.
+                  </p>
                 </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => setPhase("questioning")}
-              className="mt-8 cursor-pointer rounded-xl bg-orange px-8 py-3.5 font-display text-[15px] font-bold text-white shadow-soft transition-transform hover:-translate-y-0.5"
-            >
-              Start the assessment →
-            </button>
+
+                {/* The six spectra, named up front: it says what the questions
+                    are actually measuring before anyone answers one. */}
+                <aside className="border-t border-line bg-paper p-6 sm:border-l sm:border-t-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+                    What gets measured
+                  </p>
+                  <ul className="mt-3.5 flex flex-col gap-3">
+                    {DIMENSIONS.map((d) => (
+                      <li key={d.id}>
+                        <span className="block text-[13px] font-semibold leading-snug text-ink">
+                          {d.name}
+                        </span>
+                        <span className="text-[11.5px] text-faint">
+                          {d.lowPole} → {d.highPole}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </aside>
+              </div>
+            </section>
           </motion.div>
         )}
 
@@ -177,7 +218,7 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
           <motion.div
             key="error"
             {...fade}
-            className="rounded-2xl border border-line bg-card p-6 text-center shadow-soft"
+            className="rounded-2xl border border-line bg-card p-6 shadow-soft"
           >
             <p className="font-display text-lg font-bold text-ink">That didn&apos;t finish.</p>
             <p className="mt-2 text-[14px] text-subtle">{error}</p>
@@ -185,7 +226,7 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
             <button
               type="button"
               onClick={() => answer(answers[QUESTIONS[QUESTIONS.length - 1].id])}
-              className="mt-5 cursor-pointer rounded-xl bg-orange px-5 py-2.5 font-display text-[14px] font-bold text-white shadow-soft"
+              className="mt-5 cursor-pointer rounded-xl bg-orange px-5 py-2.5 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
             >
               Try again
             </button>
