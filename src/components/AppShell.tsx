@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { signOut } from "@/app/dashboard/actions";
+import { TourHost } from "./tour/GuidedTour";
 import type { AccountStatus } from "@/lib/trial/status";
 import { tierLabel, tierUnlockLabel, type MemberTier } from "@/lib/tiers";
 import { canAccess, featureForHref, FEATURE_MIN_TIER, type Viewer } from "@/lib/access/features";
@@ -21,8 +22,9 @@ type NavItem = { label: string; href: string; icon: Icon };
 // Grouped by trader stage (conversion-fix 4.4): the same spine as the /welcome
 // roadmap and the dashboard rails, so a new user sees where each tool fits
 // instead of a flat list of fifteen.
-const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
+const NAV_SECTIONS: { title?: string; tour: string; items: NavItem[] }[] = [
   {
+    tour: "nav-home",
     items: [
       { label: "Start here", href: "/welcome", icon: SparkIcon },
       { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
@@ -30,6 +32,7 @@ const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
   },
   {
     title: "Read the market",
+    tour: "nav-read",
     items: [
       { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
       { label: "Fundamental Desk", href: "/bots/fundamental", icon: DeskIcon },
@@ -39,6 +42,7 @@ const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
   },
   {
     title: "Execute",
+    tour: "nav-execute",
     items: [
       { label: "Signals", href: "/signals", icon: SignalsIcon },
       { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
@@ -47,6 +51,7 @@ const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
   },
   {
     title: "Manage",
+    tour: "nav-manage",
     items: [
       { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
       { label: "Know Your Style", href: "/bots/know-your-style", icon: StyleIcon },
@@ -56,6 +61,7 @@ const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
   },
   {
     title: "Foundations",
+    tour: "nav-foundations",
     items: [
       { label: "Course", href: "/course", icon: CourseIcon },
       { label: "Library", href: "/library", icon: LibraryIcon },
@@ -148,7 +154,11 @@ function NavLinks({
   return (
     <>
       {NAV_SECTIONS.map((sec) => (
-        <div key={sec.title ?? "top"} className={`space-y-0.5 ${sec.title ? "pt-3" : ""}`}>
+        <div
+          key={sec.title ?? "top"}
+          data-tour={sec.tour}
+          className={`space-y-0.5 ${sec.title ? "pt-3" : ""}`}
+        >
           {sec.title && (
             <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
               {sec.title}
@@ -180,7 +190,7 @@ function UserCard({
   memberTier: MemberTier;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl px-2 py-1.5">
+    <div data-tour="nav-account" className="flex items-center gap-3 rounded-xl px-2 py-1.5">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[13px] font-bold uppercase text-accent-ink">
         {firstName.slice(0, 1)}
       </span>
@@ -286,7 +296,7 @@ export function AppShell({
           <Wordmark />
         </Link>
 
-        <nav className="mt-8 flex-1 space-y-0.5 overflow-y-auto">
+        <nav data-tour="nav" className="mt-8 flex-1 space-y-0.5 overflow-y-auto">
           <NavLinks pathname={pathname} viewer={viewer} />
         </nav>
 
@@ -334,6 +344,10 @@ export function AppShell({
 
         {children}
       </main>
+
+      {/* The "how to use" tour — here because the sidebar (and, on a phone,
+          the drawer it hides in) is what it points at. */}
+      <TourHost onNavOpen={setMenuOpen} />
 
       {/* ---------------- Mobile nav drawer ---------------- */}
       <AnimatePresence>

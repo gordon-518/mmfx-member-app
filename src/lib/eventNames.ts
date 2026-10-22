@@ -43,7 +43,7 @@ const BROKERS = ["octa", "dupoin", "elev8"] as const;
 const FLOWS = ["new", "switch"] as const;
 const CHANNELS = ["whatsapp", "telegram"] as const;
 // Checklist steps a browser may mark (the rest are read from where they happen).
-const CLIENT_STEPS = ["lesson-1"] as const;
+const CLIENT_STEPS = ["lesson-1", "telegram"] as const;
 
 export interface ClientEventProps {
   broker?: (typeof BROKERS)[number];

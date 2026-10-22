@@ -291,7 +291,7 @@ export function DashboardClient({
             nothing once they are. */}
         {onboarding && (
           <div className="rise mt-6" style={{ animationDelay: "0.09s" }}>
-            <OnboardingChecklist state={onboarding} archetype={kysArchetype} variant="card" />
+            <OnboardingChecklist state={onboarding} archetype={kysArchetype} />
           </div>
         )}
 

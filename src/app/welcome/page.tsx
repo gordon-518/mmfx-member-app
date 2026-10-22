@@ -3,11 +3,16 @@ import { redirect } from "next/navigation";
 import { getAccess } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { parseOnboarding } from "@/lib/onboarding";
-import { OnboardingChecklist } from "@/components/OnboardingChecklist";
+import type { DimensionScores } from "@/lib/kys/types";
+import { StartHere } from "./StartHere";
+import { SkillsRadar } from "./SkillsRadar";
+import { DeskCoverage } from "./DeskCoverage";
+import { CourseTrack } from "./CourseTrack";
+import { WhatsInside } from "./WhatsInside";
 import { AppShell } from "@/components/AppShell";
 import { TradingAccountGate } from "../dashboard/TradingAccountGate";
 import { RoadmapJourney } from "./RoadmapJourney";
-import { EnterDeskButton } from "./EnterDeskButton";
+import { EnterDeskButton, MarkRoadmapSeen } from "./EnterDeskButton";
 
 export const metadata: Metadata = {
   title: "Your roadmap — Market Makers FX",
@@ -31,10 +36,28 @@ export default async function WelcomePage() {
     return <TradingAccountGate />;
   }
 
-  // conversion-fix 4.1 — the five-step checklist, read for this user only.
+  // Everything on this page is the member's own data, read for this user
+  // only: the six-step checklist, which tools they have actually opened
+  // (fn_my_features, 20261022000002) and their Know Your Style scores.
   const supabase = await createClient();
-  const { data: onboardingRaw } = await supabase.rpc("fn_my_onboarding");
+  // user_metadata carries the "how to use" flag, the same store as
+  // roadmap_seen — no migration, and it follows the member across devices.
+  const [{ data: onboardingRaw }, { data: featuresRaw }, { data: kys }, { data: auth }] =
+    await Promise.all([
+    supabase.rpc("fn_my_onboarding"),
+    supabase.rpc("fn_my_features"),
+    supabase
+      .from("profiles")
+      .select("kys_dimensions")
+      .eq("id", access.profile!.id)
+      .maybeSingle(),
+    supabase.auth.getUser(),
+  ]);
   const onboarding = parseOnboarding(onboardingRaw);
+  const opened = Array.isArray(featuresRaw) ? (featuresRaw as string[]) : [];
+  const dimensions = (kys?.kys_dimensions as DimensionScores | null) ?? null;
+  const tourSeen = auth?.user?.user_metadata?.tour_done === true;
+  const roadmapSeen = auth?.user?.user_metadata?.roadmap_seen === true;
 
   return (
     <AppShell
@@ -44,12 +67,35 @@ export default async function WelcomePage() {
       isAdmin={access.profile?.is_admin ?? false}
     >
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
-        <OnboardingChecklist state={onboarding} archetype={access.profile?.kys_archetype} />
-        <div className="mt-14 border-t border-line pt-10">
-          <RoadmapJourney />
+        {/* Releases the proxy's first-run gate on arrival, so nobody is held
+            on this page by a button they haven't scrolled to yet. */}
+        {!roadmapSeen && <MarkRoadmapSeen />}
+        <StartHere state={onboarding} archetype={access.profile?.kys_archetype} tourSeen={tourSeen} />
+
+        <div className="mt-12 border-t border-line pt-10">
+          <WhatsInside />
         </div>
-        <div className="mt-10 flex justify-center border-t border-line pt-8">
+
+        <div className="mt-10">
+          <DeskCoverage
+            opened={opened}
+            viewer={{ tier: access.memberTier, isAdmin: access.profile?.is_admin ?? false }}
+          />
+        </div>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <SkillsRadar scores={dimensions} />
+          <CourseTrack startedModule1={onboarding.lesson1} />
+        </div>
+
+        <div className="mt-12 border-t border-line pt-10">
+          <RoadmapJourney state={onboarding} />
+        </div>
+        <div className="mt-10 flex flex-col items-center gap-2 border-t border-line pt-8">
           <EnterDeskButton />
+          <p className="text-[12.5px] text-faint">
+            Everything here stays under &ldquo;Start here&rdquo; in the menu.
+          </p>
         </div>
       </div>
     </AppShell>
