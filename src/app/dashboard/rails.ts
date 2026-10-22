@@ -1,7 +1,7 @@
 import type { ComponentType, SVGProps } from "react";
 import {
   AnalysisIcon, DeskIcon, SignalsIcon, IndicatorsIcon, StrategiesIcon,
-  LiveIcon, StyleIcon, CourseIcon, LibraryIcon,
+  LiveIcon, StyleIcon, CourseIcon, LibraryIcon, JournalIcon,
 } from "@/components/icons";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -51,6 +51,7 @@ export const STAGES: RailStage[] = [
     cards: [
       { key: "live-classes", title: "Live Classes", blurb: "Live on the charts, with the desk", href: "/live-classes", icon: LiveIcon },
       { key: "know-your-style", title: "Know Your Style", blurb: "Find your trader archetype", href: "/bots/know-your-style", icon: StyleIcon },
+      { key: "ai-trading-assistant", title: "AI Trading Assistant", blurb: "Your real trades, reviewed for leaks", href: "/journal", icon: JournalIcon },
     ],
   },
 ];

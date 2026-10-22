@@ -319,7 +319,7 @@ export function DashboardClient({
         <div className="rise mt-10" style={{ animationDelay: "0.18s" }}>
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="font-display text-lg font-bold tracking-tight text-ink">
-              Everything you need to trade profitably
+              Everything you need to trade the system
             </h3>
             {locked && <span className="hidden text-[13px] text-subtle sm:block">Unlock it all with full access</span>}
           </div>
