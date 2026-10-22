@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { STAGES, FOUNDATIONS, type RailCard } from "@/app/dashboard/rails";
+import { CheckIcon } from "@/components/icons";
+import { ONBOARDING_STEPS, type OnboardingState } from "@/lib/onboarding";
 
-// The onboarding roadmap: the trader-development climb, built on the same
-// STAGES/FOUNDATIONS spine as the dashboard. Static guide + promote.
+// The roadmap under the checklist: the trader-development climb, on the same
+// STAGES/FOUNDATIONS spine as the dashboard. Each level now names the first
+// six-step task that belongs to it and whether it's behind you, so the climb
+// and the checklist are visibly the same journey rather than two lists.
+
+/** The checklist step that opens a level — matched on OnboardingStep.stage. */
+function stepForStage(label: string) {
+  return ONBOARDING_STEPS.find((s) => s.stage === label) ?? null;
+}
 
 const STAGE_COPY: Record<number, { title: string; tagline: string }> = {
   1: { title: "Read the market", tagline: "Learn to build the trade — the what, and the why" },
@@ -28,17 +37,17 @@ function FeatureLink({ card }: { card: RailCard }) {
   );
 }
 
-export function RoadmapJourney() {
+export function RoadmapJourney({ state }: { state: OnboardingState }) {
   return (
     <div>
       <div className="max-w-xl">
         <p className="text-[13px] font-semibold uppercase tracking-wider text-orange">Your roadmap</p>
         <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-          The path to trading gold profitably
+          Where the six steps lead
         </h2>
         <p className="mt-3 text-[15px] leading-relaxed text-subtle">
           Three levels take you from reading the market, to executing on your own,
-          to managing trades like a pro. Every tool you need is here — this is the
+          to managing the open position. Every tool you need is here — this is the
           order to use them in.
         </p>
       </div>
@@ -57,6 +66,26 @@ export function RoadmapJourney() {
               <div className="flex-1 rounded-2xl border border-line bg-card p-4 shadow-soft sm:p-5">
                 <h2 className="font-display text-lg font-bold tracking-tight text-ink">{copy.title}</h2>
                 <p className="mt-0.5 text-[13px] font-semibold text-orange">{copy.tagline}</p>
+                {(() => {
+                  const step = stepForStage(stage.label);
+                  if (!step) return null;
+                  const done = state[step.key] === true;
+                  return (
+                    <p className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-paper px-2.5 py-1 text-[12px] text-subtle">
+                      <span
+                        aria-hidden
+                        className={`inline-flex h-4 w-4 items-center justify-center rounded-full ${
+                          done ? "bg-orange text-white" : "border border-line-strong text-faint"
+                        }`}
+                      >
+                        {done ? <CheckIcon width={10} height={10} strokeWidth={3} /> : null}
+                      </span>
+                      {done ? "Your day " : "Day "}
+                      {step.day} step{done ? " is done: " : ": "}
+                      <b className="font-semibold text-ink">{step.title}</b>
+                    </p>
+                  );
+                })()}
                 <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
                   {stage.cards.map((c) => (
                     <FeatureLink key={c.key} card={c} />
@@ -77,8 +106,8 @@ export function RoadmapJourney() {
           </svg>
         </span>
         <div>
-          <p className="font-display text-[17px] font-bold tracking-tight text-white">A profitable, independent trader</p>
-          <p className="text-[13px] text-white/60">Where the roadmap leads.</p>
+          <p className="font-display text-[17px] font-bold tracking-tight text-white">An independent trader with a process</p>
+          <p className="text-[13px] text-white/60">Reading it, trading it and managing it without being told what to do.</p>
         </div>
       </div>
 
