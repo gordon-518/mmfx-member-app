@@ -11,6 +11,7 @@ import {
   type OnboardingState,
 } from "@/lib/onboarding";
 import { markChannelOpened } from "./actions";
+import { TourButton, TourAutoStart } from "@/components/tour/TourButton";
 
 // "Start here", rebuilt as a roadmap (Gordon, 22 Oct): every task carries the
 // goal it unlocks and the target to hit after it, and the member opens one at
@@ -52,9 +53,12 @@ function Ring({ done, total }: { done: number; total: number }) {
 export function StartHere({
   state,
   archetype,
+  tourSeen,
 }: {
   state: OnboardingState;
   archetype?: string | null;
+  /** They've run the "how to use" tour before, so don't run it at them again. */
+  tourSeen: boolean;
 }) {
   const reduce = useReducedMotion();
   // The channel click is recorded server-side, but the page was rendered
@@ -71,10 +75,16 @@ export function StartHere({
 
   return (
     <section>
-      <p className="text-[13px] font-semibold uppercase tracking-wider text-orange">Start here</p>
-      <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-        Your first six steps
-      </h1>
+      {!tourSeen && <TourAutoStart />}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[13px] font-semibold uppercase tracking-wider text-orange">Start here</p>
+          <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+            Your first six steps
+          </h1>
+        </div>
+        <TourButton seen={tourSeen} />
+      </div>
       <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-subtle">
         One a day. Each one opens the next, and each says what you should be able to do once
         it&apos;s behind you.
@@ -106,7 +116,7 @@ export function StartHere({
         </div>
       </div>
 
-      <ol className="mt-6">
+      <ol data-tour="welcome-steps" className="mt-6">
         {p.steps.map((s, i) => {
           const isOpen = open === s.key;
           const isNext = p.next?.key === s.key;

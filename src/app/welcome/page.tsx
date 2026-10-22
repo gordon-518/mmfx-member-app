@@ -40,7 +40,10 @@ export default async function WelcomePage() {
   // only: the six-step checklist, which tools they have actually opened
   // (fn_my_features, 20261022000002) and their Know Your Style scores.
   const supabase = await createClient();
-  const [{ data: onboardingRaw }, { data: featuresRaw }, { data: kys }] = await Promise.all([
+  // user_metadata carries the "how to use" flag, the same store as
+  // roadmap_seen — no migration, and it follows the member across devices.
+  const [{ data: onboardingRaw }, { data: featuresRaw }, { data: kys }, { data: auth }] =
+    await Promise.all([
     supabase.rpc("fn_my_onboarding"),
     supabase.rpc("fn_my_features"),
     supabase
@@ -48,10 +51,12 @@ export default async function WelcomePage() {
       .select("kys_dimensions")
       .eq("id", access.profile!.id)
       .maybeSingle(),
+    supabase.auth.getUser(),
   ]);
   const onboarding = parseOnboarding(onboardingRaw);
   const opened = Array.isArray(featuresRaw) ? (featuresRaw as string[]) : [];
   const dimensions = (kys?.kys_dimensions as DimensionScores | null) ?? null;
+  const tourSeen = auth?.user?.user_metadata?.tour_done === true;
 
   return (
     <AppShell
@@ -61,7 +66,7 @@ export default async function WelcomePage() {
       isAdmin={access.profile?.is_admin ?? false}
     >
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
-        <StartHere state={onboarding} archetype={access.profile?.kys_archetype} />
+        <StartHere state={onboarding} archetype={access.profile?.kys_archetype} tourSeen={tourSeen} />
 
         <div className="mt-12 border-t border-line pt-10">
           <WhatsInside />
