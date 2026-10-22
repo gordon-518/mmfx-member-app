@@ -12,6 +12,7 @@ import {
 } from "@/lib/onboarding";
 import { markChannelOpened } from "./actions";
 import { TourButton, TourAutoStart } from "@/components/tour/TourButton";
+import { EnterDeskButton } from "./EnterDeskButton";
 
 // "Start here", rebuilt as a roadmap (Gordon, 22 Oct): every task carries the
 // goal it unlocks and the target to hit after it, and the member opens one at
@@ -83,7 +84,12 @@ export function StartHere({
             Your first six steps
           </h1>
         </div>
-        <TourButton seen={tourSeen} />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <TourButton seen={tourSeen} />
+          {/* The way in, at the top as well as the bottom: this page got long
+              enough that one button under it all was being missed. */}
+          <EnterDeskButton variant="header" />
+        </div>
       </div>
       <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-subtle">
         One a day. Each one opens the next, and each says what you should be able to do once

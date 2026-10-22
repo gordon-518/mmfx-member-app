@@ -12,7 +12,7 @@ import { WhatsInside } from "./WhatsInside";
 import { AppShell } from "@/components/AppShell";
 import { TradingAccountGate } from "../dashboard/TradingAccountGate";
 import { RoadmapJourney } from "./RoadmapJourney";
-import { EnterDeskButton } from "./EnterDeskButton";
+import { EnterDeskButton, MarkRoadmapSeen } from "./EnterDeskButton";
 
 export const metadata: Metadata = {
   title: "Your roadmap — Market Makers FX",
@@ -57,6 +57,7 @@ export default async function WelcomePage() {
   const opened = Array.isArray(featuresRaw) ? (featuresRaw as string[]) : [];
   const dimensions = (kys?.kys_dimensions as DimensionScores | null) ?? null;
   const tourSeen = auth?.user?.user_metadata?.tour_done === true;
+  const roadmapSeen = auth?.user?.user_metadata?.roadmap_seen === true;
 
   return (
     <AppShell
@@ -66,6 +67,9 @@ export default async function WelcomePage() {
       isAdmin={access.profile?.is_admin ?? false}
     >
       <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 lg:py-10">
+        {/* Releases the proxy's first-run gate on arrival, so nobody is held
+            on this page by a button they haven't scrolled to yet. */}
+        {!roadmapSeen && <MarkRoadmapSeen />}
         <StartHere state={onboarding} archetype={access.profile?.kys_archetype} tourSeen={tourSeen} />
 
         <div className="mt-12 border-t border-line pt-10">
@@ -87,8 +91,11 @@ export default async function WelcomePage() {
         <div className="mt-12 border-t border-line pt-10">
           <RoadmapJourney state={onboarding} />
         </div>
-        <div className="mt-10 flex justify-center border-t border-line pt-8">
+        <div className="mt-10 flex flex-col items-center gap-2 border-t border-line pt-8">
           <EnterDeskButton />
+          <p className="text-[12.5px] text-faint">
+            Everything here stays under &ldquo;Start here&rdquo; in the menu.
+          </p>
         </div>
       </div>
     </AppShell>
