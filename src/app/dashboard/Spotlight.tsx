@@ -60,7 +60,11 @@ export function Spotlight({ slides }: { slides: SpotlightSlide[] }) {
       onBlurCapture={() => setPaused(false)}
       className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft"
     >
-      <div className="flex flex-col sm:flex-row">
+      {/* Every slide is the same block. The analysis slide's body is the
+          published description — a full paragraph, where the others are one
+          line — so without a floor and a clamp the card resizes as it
+          rotates (Gordon, 22 Oct). */}
+      <div className="flex flex-col sm:min-h-[248px] sm:flex-row">
         {/* Image panel */}
         <div
           className={`relative h-44 w-full shrink-0 sm:h-auto sm:w-[42%] sm:max-w-[340px] ${
@@ -82,10 +86,13 @@ export function Spotlight({ slides }: { slides: SpotlightSlide[] }) {
           <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
             {active.eyebrow}
           </p>
-          <h2 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink">
+          {/* Two title lines and three body lines are RESERVED, not just
+              capped: clamping alone still let a two-line title make this
+              slide taller than the rest, so the block jumped as it rotated. */}
+          <h2 className="mt-1.5 line-clamp-2 min-h-[4rem] font-display text-2xl font-bold tracking-tight text-ink">
             {active.title}
           </h2>
-          <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-subtle">
+          <p className="mt-2 line-clamp-3 min-h-[4.3rem] max-w-xl text-[14px] leading-relaxed text-subtle">
             {active.body}
           </p>
 
