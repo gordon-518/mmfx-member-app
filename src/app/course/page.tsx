@@ -3,10 +3,15 @@ import { requireFeature } from "@/lib/access";
 import { canWatchLesson } from "@/lib/access/course";
 import { AppShell } from "@/components/AppShell";
 import { LockedFeature } from "@/components/LockedFeature";
+import { createClient } from "@/lib/supabase/server";
 import { LESSONS, MODULES } from "./courseData";
 import { CourseClient, type ClientLesson } from "./CourseClient";
 
-export default async function CoursePage() {
+export default async function CoursePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lesson?: string }>;
+}) {
   // Gate (conversion-fix 2.2): signed-out -> /login. Free users get Module 1
   // (2.3); every other lesson is locked individually below.
   const gate = await requireFeature("course");
@@ -15,6 +20,21 @@ export default async function CoursePage() {
 
   // Pass only client-needed fields (pptFile stays server-side). A locked
   // lesson's video id is withheld as well, so its player can't be loaded.
+  // Progress the member made anywhere, so the player resumes in the right
+  // place on a second device (20261022000003). Own row via RLS.
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("profiles")
+    .select("course_watched")
+    .eq("id", profile.id)
+    .maybeSingle();
+  const savedWatched = (row?.course_watched as string[] | null) ?? [];
+
+  // ?lesson=<slug> opens that lesson (the dashboard's track links straight to
+  // one). Validated against the real set, so an unknown or locked slug falls
+  // back to the normal resume point instead of opening nothing.
+  const { lesson: requested } = await searchParams;
+
   const lessons: ClientLesson[] = LESSONS.map((l) => {
     const open = canWatchLesson(l.number, MODULES, viewer);
     return {
@@ -64,7 +84,12 @@ export default async function CoursePage() {
         )}
       </div>
 
-      <CourseClient lessons={lessons} modules={MODULES} />
+      <CourseClient
+        lessons={lessons}
+        modules={MODULES}
+        savedWatched={savedWatched}
+        initialLesson={lessons.find((l) => l.slug === requested && !l.locked)?.slug ?? null}
+      />
     </AppShell>
   );
 }

@@ -19,3 +19,26 @@ export async function markLessonOneWatched(): Promise<void> {
     console.error("[onboarding] lesson-1 threw:", e);
   }
 }
+
+/**
+ * Course progress, kept on the member rather than in one browser (22 Oct).
+ * The player still writes localStorage for instant feedback; this makes the
+ * same set follow them to another device, and feeds the dashboard's skill
+ * track. fn_save_course_progress union-merges, so an out-of-date device can
+ * never shrink what another one recorded. Fire-and-forget: never throws back
+ * to the player.
+ */
+export async function saveCourseProgress(slugs: string[]): Promise<string[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("fn_save_course_progress", { p_slugs: slugs });
+    if (error) {
+      console.error("[course] progress save failed:", error.message);
+      return [];
+    }
+    return Array.isArray(data) ? (data as string[]) : [];
+  } catch (e) {
+    console.error("[course] progress save threw:", e);
+    return [];
+  }
+}
