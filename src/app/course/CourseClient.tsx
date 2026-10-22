@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LockIcon } from "@/components/icons";
-import { markLessonOneWatched } from "./actions";
+import { markLessonOneWatched, saveCourseProgress } from "./actions";
 import type { CourseLevel, CourseModule } from "./courseData";
 
 // Only the fields the client needs — pptFile stays server-side (the download
@@ -48,9 +48,15 @@ function SlidesIcon() {
 export function CourseClient({
   lessons,
   modules,
+  savedWatched = [],
+  initialLesson = null,
 }: {
   lessons: ClientLesson[];
   modules: CourseModule[];
+  /** Watched slugs from the member's row — progress made on any device. */
+  savedWatched?: string[];
+  /** ?lesson=<slug>, already validated and unlocked; opens instead of resume. */
+  initialLesson?: string | null;
 }) {
   const firstOpen = lessons.find((l) => !l.locked);
   const [activeSlug, setActiveSlug] = useState<string>(firstOpen?.slug ?? "");
@@ -75,9 +81,17 @@ export function CourseClient({
     } catch {
       saved = [];
     }
-    const seen = new Set(saved.filter((s) => lessons.some((l) => l.slug === s)));
+    // The server's set and this browser's are merged, never one over the
+    // other: either could hold a lesson the other hasn't heard about.
+    const seen = new Set(
+      [...saved, ...savedWatched].filter((s) => lessons.some((l) => l.slug === s))
+    );
     setWatched(seen);
-    const resume = lessons.find((l) => !l.locked && !seen.has(l.slug)) ?? firstOpen;
+    // An explicit ?lesson= beats the resume point: the member asked for it.
+    const resume =
+      (initialLesson ? lessons.find((l) => l.slug === initialLesson) : undefined) ??
+      lessons.find((l) => !l.locked && !seen.has(l.slug)) ??
+      firstOpen;
     if (resume) {
       setActiveSlug(resume.slug);
       const mod = moduleOf(resume);
@@ -97,6 +111,8 @@ export function CourseClient({
       } catch {
         /* storage may be unavailable — progress is best-effort */
       }
+      // ...and on the member, so it follows them off this device.
+      void saveCourseProgress([...next]);
       return next;
     });
   };

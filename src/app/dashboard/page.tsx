@@ -3,6 +3,8 @@ import { getAccess } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { parseOnboarding, type OnboardingState } from "@/lib/onboarding";
 import { DashboardClient } from "./DashboardClient";
+import { LESSONS, MODULES } from "@/app/course/courseData";
+import type { DimensionScores } from "@/lib/kys/types";
 import { TradingAccountGate } from "./TradingAccountGate";
 import type { SpotlightSlide } from "./Spotlight";
 import { getNews, type NewsItem } from "@/lib/forexNews";
@@ -243,6 +245,24 @@ export default async function DashboardPage() {
     onboarding = parseOnboarding(onboardingRaw);
   }
 
+  // The member's own row: lessons watched anywhere (20261022000003) and
+  // their Know Your Style scores, for the "what you're building" track.
+  const { data: progressRow } = await (await createClient())
+    .from("profiles")
+    .select("course_watched, kys_dimensions")
+    .eq("id", access.profile.id)
+    .maybeSingle();
+
+  // Client-safe syllabus for the track: slugs and titles only.
+  const courseTrack = MODULES.map((m) => ({
+    id: m.id,
+    title: m.title,
+    lessons: LESSONS.filter((l) => l.number >= m.from && l.number <= m.to).map((l) => ({
+      slug: l.slug,
+      title: l.title,
+    })),
+  }));
+
   return (
     <DashboardClient
       email={access.profile.email}
@@ -259,6 +279,9 @@ export default async function DashboardPage() {
       tradingAccount={access.profile.trading_account_number}
       onboarding={onboarding}
       kysArchetype={access.profile.kys_archetype}
+      courseTrack={courseTrack}
+      courseWatched={(progressRow?.course_watched as string[] | null) ?? []}
+      kysDimensions={(progressRow?.kys_dimensions as DimensionScores | null) ?? null}
     />
   );
 }

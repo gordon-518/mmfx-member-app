@@ -16,6 +16,9 @@ import { TradingAccountBar } from "./TradingAccountBar";
 import { STAGES, FOUNDATIONS, type RailCard } from "./rails";
 import type { DashboardBrief } from "./page";
 import type { NewsItem } from "@/lib/forexNews";
+import { NewsCover } from "@/components/NewsCover";
+import { SkillTrack, type TrackModule } from "./SkillTrack";
+import type { DimensionScores } from "@/lib/kys/types";
 
 function titleCase(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -156,20 +159,9 @@ function NewsTeaser({ items }: { items: NewsItem[] }) {
             rel="noopener noreferrer"
             className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition-all hover:-translate-y-0.5 hover:border-orange/30 hover:shadow-soft-lg"
           >
-            <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden bg-accent-soft">
-              <NewsIcon width={26} height={26} className="text-accent-ink/40" />
-              {n.image && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={n.image}
-                  alt=""
-                  loading="lazy"
-                  className="absolute inset-0 h-full w-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-              )}
+            {/* Our own cover, not the feed's stock placeholder (see NewsCover). */}
+            <div className="relative aspect-video w-full overflow-hidden">
+              <NewsCover item={n} />
               <span className={`absolute left-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${SENT_STYLE[n.sentiment] ?? "bg-paper text-subtle"}`}>
                 {n.sentiment}
               </span>
@@ -209,6 +201,9 @@ export function DashboardClient({
   tradingAccount = null,
   onboarding = null,
   kysArchetype = null,
+  courseTrack = [],
+  courseWatched = [],
+  kysDimensions = null,
 }: {
   email: string;
   fullName: string | null;
@@ -225,6 +220,11 @@ export function DashboardClient({
   /** conversion-fix 4.2 — null for paid members (no card). */
   onboarding?: OnboardingState | null;
   kysArchetype?: string | null;
+  /** The syllabus, client-safe (courseData.ts is server-only). */
+  courseTrack?: TrackModule[];
+  /** Lesson slugs the member has watched, from their row (any device). */
+  courseWatched?: string[];
+  kysDimensions?: DimensionScores | null;
 }) {
   const head = headerContent(accountStatus, daysLeft);
   const locked = tier !== "Full";
@@ -371,6 +371,9 @@ export function DashboardClient({
             ))}
           </div>
         </div>
+
+        {/* What they've built so far: the course track + their habits. */}
+        {!locked && <SkillTrack modules={courseTrack} watched={courseWatched} dimensions={kysDimensions} />}
 
         {/* Gold & macro headline news → /news */}
         {news.length > 0 && <NewsTeaser items={news} />}
