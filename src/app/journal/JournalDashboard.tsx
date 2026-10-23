@@ -11,6 +11,8 @@ import type { Intervention } from "@/lib/journal/interventions";
 import type { GameState } from "@/lib/journal/gamification";
 import { friendlySyncError } from "@/lib/journal/syncError";
 import { InterventionBanner } from "./InterventionBanner";
+import { VslPlayer } from "@/components/VslPlayer";
+import { AITA_VSL_URL } from "@/lib/media";
 import { JournalHero } from "./JournalHero";
 import { MissionCard } from "./MissionCard";
 import { LeaksToBeat } from "./LeaksToBeat";
@@ -1204,21 +1206,40 @@ export function JournalDashboard({
       </div>
 
       {accounts.length === 0 ? (
-        <section className="rise mt-7 rounded-2xl border border-line bg-card p-8 text-center shadow-soft">
-          <h2 className="font-display text-xl font-bold text-ink">
-            Connect your MT5 account
-          </h2>
-          <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-subtle">
-            Read-only via your investor password — we can never trade or
-            withdraw, and your password is never stored. Your history imports
-            automatically.
-          </p>
-          <Link
-            href="/journal/connect"
-            className="mt-5 inline-block cursor-pointer rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
-          >
-            Connect MT5
-          </Link>
+        <section className="rise mt-7 rounded-2xl border border-line bg-card p-8 shadow-soft">
+          <div className="text-center">
+            <h2 className="font-display text-xl font-bold text-ink">
+              Connect your MT5 account
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-subtle">
+              Read-only via your investor password — we can never trade or
+              withdraw, and your password is never stored. Your history imports
+              automatically.
+            </p>
+            <Link
+              href="/journal/connect"
+              className="mt-5 inline-block cursor-pointer rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+            >
+              Connect MT5
+            </Link>
+          </div>
+
+          {/* Nobody connects a trading account to something they haven't seen
+              work. The walkthrough sits with the ask, not a click away. */}
+          <div className="mx-auto mt-8 max-w-[640px] border-t border-line pt-7">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <p className="font-display text-[15px] font-bold tracking-tight text-ink">
+                See it read an account first
+              </p>
+              <span className="text-[12px] text-faint">2 min 30 sec</span>
+            </div>
+            <VslPlayer
+              src={AITA_VSL_URL}
+              title="The AI Trading Assistant"
+              eyebrow="Watch it work"
+              duration="2:30"
+            />
+          </div>
         </section>
       ) : (
         <>
