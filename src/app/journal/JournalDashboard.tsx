@@ -1207,7 +1207,25 @@ export function JournalDashboard({
 
       {accounts.length === 0 ? (
         <section className="rise mt-7 rounded-2xl border border-line bg-card p-8 shadow-soft">
-          <div className="text-center">
+          {/* Nobody hands over an investor password to something they haven't
+              seen work, so the walkthrough comes before the ask, not after
+              it (Gordon, 26 Oct). */}
+          <div className="mx-auto max-w-[640px]">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <p className="font-display text-[15px] font-bold tracking-tight text-ink">
+                See it read an account first
+              </p>
+              <span className="text-[12px] text-faint">2 min 30 sec</span>
+            </div>
+            <VslPlayer
+              src={AITA_VSL_URL}
+              title="The AI Trading Assistant"
+              eyebrow="Watch it work"
+              duration="2:30"
+            />
+          </div>
+
+          <div className="mx-auto mt-8 max-w-[640px] border-t border-line pt-7 text-center">
             <h2 className="font-display text-xl font-bold text-ink">
               Connect your MT5 account
             </h2>
@@ -1222,23 +1240,6 @@ export function JournalDashboard({
             >
               Connect MT5
             </Link>
-          </div>
-
-          {/* Nobody connects a trading account to something they haven't seen
-              work. The walkthrough sits with the ask, not a click away. */}
-          <div className="mx-auto mt-8 max-w-[640px] border-t border-line pt-7">
-            <div className="mb-3 flex items-baseline justify-between gap-3">
-              <p className="font-display text-[15px] font-bold tracking-tight text-ink">
-                See it read an account first
-              </p>
-              <span className="text-[12px] text-faint">2 min 30 sec</span>
-            </div>
-            <VslPlayer
-              src={AITA_VSL_URL}
-              title="The AI Trading Assistant"
-              eyebrow="Watch it work"
-              duration="2:30"
-            />
           </div>
         </section>
       ) : (
