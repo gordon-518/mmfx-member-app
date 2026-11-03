@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { handleMemberMessage, chatFacts, MAX_MEMBER_MESSAGES_PER_HOUR, REPING_MINUTES, type ChatDeps, type HandoffNotice } from "./run";
+import { handleMemberMessage, chatFacts, quoteForAlert, MAX_MEMBER_MESSAGES_PER_HOUR, MAX_PINGS_PER_HOUR, REPING_MINUTES, type ChatDeps, type HandoffNotice } from "./run";
 import type { ChatStore, ChatThread, NewMessage } from "./store";
 import type { ChatMember, ChatMessage } from "./types";
 import type { ChatDecision } from "./agent";
@@ -19,11 +19,22 @@ const member: ChatMember = {
 
 const NOW = new Date("2026-11-04T04:00:00Z");
 
-function memoryStore(init?: { thread?: ChatThread; memberMsgsLastHour?: number; callsToday?: number; enabled?: boolean }) {
+function memoryStore(init?: { thread?: ChatThread; memberMsgsLastHour?: number; callsToday?: number; enabled?: boolean; busy?: boolean; pingsLastHour?: number }) {
   const messages: (ChatMessage & NewMessage)[] = [];
   let thread: ChatThread | null = init?.thread ?? null;
+  const calls = { claim: 0, release: 0 };
   const store: ChatStore = {
     getSettings: async () => ({ ...settings, chat_enabled: init?.enabled ?? true }),
+    claim: async (_userId, _locale, hourLimit) => {
+      calls.claim++;
+      if (init?.busy) return "busy";
+      return (init?.memberMsgsLastHour ?? 0) >= hourLimit ? "rate_limited" : "ok";
+    },
+    release: async () => {
+      calls.release++;
+    },
+    markRead: async () => {},
+    countPingsSince: async () => init?.pingsLastHour ?? 0,
     getThread: async () => thread,
     saveThread: async (patch) => {
       const base: ChatThread = { user_id: patch.user_id, state: "bot", locale: null, handoff_reason: null, last_ping_at: null, member_last_read_at: null };
@@ -35,10 +46,9 @@ function memoryStore(init?: { thread?: ChatThread; memberMsgsLastHour?: number; 
       return { id: row.id, role: row.role, body: row.body, created_at: row.created_at };
     },
     recent: async () => messages.map(({ id, role, body, created_at }) => ({ id, role, body, created_at })),
-    countMemberMessagesSince: async () => init?.memberMsgsLastHour ?? 0,
     countAssistantCallsSince: async () => init?.callsToday ?? 0,
   };
-  return { store, messages, thread: () => thread };
+  return { store, messages, thread: () => thread, calls };
 }
 
 function deps(store: ChatStore, decisions: ChatDecision[]) {
@@ -162,5 +172,71 @@ describe("chatFacts", () => {
     // $230 deposited: the top-up to Team MM ($500) is $270.
     expect(f.allow.amounts.has(270)).toBe(true);
     expect(f.allow.urls).toContain("https://www.tradingview.com");
+  });
+});
+
+describe("handleMemberMessage: one at a time, and what reaches the team", () => {
+  it("answers 'busy' while another message from the same member is in flight", async () => {
+    const { store, calls } = memoryStore({ busy: true });
+    const { d, decide } = deps(store, []);
+    expect((await handleMemberMessage(member, "hi", d)).kind).toBe("busy");
+    expect(decide).not.toHaveBeenCalled();
+    expect(calls.release).toBe(0);
+  });
+
+  it("always gives the claim back, even when something throws", async () => {
+    const { store, calls } = memoryStore();
+    const { d } = deps(store, []);
+    d.decide = (async () => {
+      throw new Error("boom");
+    }) as unknown as ChatDeps["decide"];
+    await expect(handleMemberMessage(member, "How do tiers work?", d)).rejects.toThrow("boom");
+    expect(calls.claim).toBe(1);
+    expect(calls.release).toBe(1);
+  });
+
+  it("never stores or forwards a password the member typed", async () => {
+    const { store, messages } = memoryStore();
+    const { d, decide, notify } = deps(store, [{ decision: { action: "handoff", topic: "login", confidence: 0.5, reply: "", reason: "connection help" }, refused: false, model: "m" }]);
+    await handleMemberMessage(member, "MT5 won't connect. login 5001234 investor password: Abc123!", d);
+    expect(messages[0].body).not.toContain("Abc123!");
+    expect(messages[0].body).toContain("[hidden]");
+    const sentToModel = JSON.stringify(decide.mock.calls[0]);
+    expect(sentToModel).not.toContain("Abc123!");
+    expect(notify.mock.calls[0][0].question).not.toContain("Abc123!");
+  });
+
+  it("redrafts when a reply claims an unverified deposit is approved, in Indonesian", async () => {
+    const pendingMember: ChatMember = { ...member, locale: "id", submission: { status: "pending", amount: 30 } };
+    const { store } = memoryStore();
+    const { d, decide } = deps(store, [
+      reply("Deposit Anda sudah disetujui.", { topic: "deposit" }),
+      reply("Deposit Anda masih ditinjau. Tim akan mengirim email setelah disetujui.", { topic: "deposit" }),
+    ]);
+    const out = await handleMemberMessage(pendingMember, "Apakah deposit saya sudah disetujui?", d);
+    expect(out.kind).toBe("reply");
+    expect(decide).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops alerting once the hourly cap across members is reached, but still hands off", async () => {
+    const { store, thread } = memoryStore({ pingsLastHour: MAX_PINGS_PER_HOUR });
+    const { d, notify } = deps(store, []);
+    const out = await handleMemberMessage(member, "I want a refund", d);
+    expect(out.kind).toBe("handoff");
+    expect(thread()?.state).toBe("needs_human");
+    expect(notify).not.toHaveBeenCalled();
+  });
+});
+
+describe("quoteForAlert", () => {
+  it("flattens the member's text and defuses links, so nothing in it is clickable", () => {
+    const out = quoteForAlert("refund pls\n⚠️ Session expired - sign in: https://app-marketmakersfx.net/admin/chat?user=1", 300);
+    expect(out).not.toContain("\n");
+    expect(out).not.toMatch(/https?:\/\//);
+    expect(out).toContain("hxxps://app-marketmakersfx[.]net/admin");
+  });
+
+  it("caps the length", () => {
+    expect(quoteForAlert("a".repeat(500), 120)).toBe(`${"a".repeat(120)}…`);
   });
 });

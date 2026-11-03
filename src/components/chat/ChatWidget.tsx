@@ -15,7 +15,8 @@ import { MessageText } from "./messageText";
 //
 // The assistant answers in the POST's response. When it hands over to a
 // person, the panel polls for the team's reply: every 10s while open, every
-// minute while closed (to light the unread dot).
+// minute while closed (to light the unread dot), and not at all while the tab
+// is in the background.
 
 const HIDDEN_ON = ["/login", "/signup", "/forgot-password", "/auth", "/admin", "/partners", "/stats", "/showcase"];
 const POLL_OPEN_MS = 10_000;
@@ -33,7 +34,8 @@ interface ThreadData {
 async function fetchThread(markRead: boolean): Promise<ThreadData | "signed-out" | null> {
   try {
     const res = await fetch(`/api/chat${markRead ? "?read=1" : ""}`, { cache: "no-store" });
-    if (res.status === 401) return "signed-out";
+    // 401: nobody signed in. 403: the shared showcase account, which gets no chat.
+    if (res.status === 401 || res.status === 403) return "signed-out";
     const json = await res.json();
     return json?.ok ? (json.data as ThreadData) : null;
   } catch {
@@ -87,7 +89,9 @@ export function ChatWidget() {
   // Waiting for a person: check for their reply.
   useEffect(() => {
     if (!available || state !== "needs_human") return;
-    const id = setInterval(() => void load(open), open ? POLL_OPEN_MS : POLL_CLOSED_MS);
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void load(open);
+    }, open ? POLL_OPEN_MS : POLL_CLOSED_MS);
     return () => clearInterval(id);
   }, [available, state, open, load]);
 
@@ -268,7 +272,9 @@ export function ChatWidget() {
                 {pending ? c.sending : c.send}
               </button>
             </div>
-            <p className="mt-1.5 text-[11px] leading-snug text-faint">{c.noAdvice}</p>
+            <p className="mt-1.5 text-[11px] leading-snug text-faint">
+              {c.noAdvice} {c.privacy}
+            </p>
           </form>
         </section>
       )}

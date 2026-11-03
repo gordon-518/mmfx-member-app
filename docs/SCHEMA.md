@@ -260,9 +260,14 @@ assistant answers from the support fact sheet plus the app guide
 (`src/lib/chat/guide.ts`); anything it can't answer safely is handed to a person,
 who replies from `/admin/chat`.
 
-RLS: a member can SELECT their own thread and messages; admins can SELECT all.
-No write policies: `/api/chat` and the `/admin/chat` actions write with the
-service role after checking who is asking. anon has no access.
+RLS: admins can SELECT both tables (the `/admin/chat` inbox); members read
+their own thread only through `/api/chat`, never directly. No write policies:
+`/api/chat` and the `/admin/chat` actions write with the service role after
+checking who is asking. anon has no access.
+
+`fn_chat_claim(user, locale, hour_limit)` (service role only, migration
+`20261104000002`) gives `/api/chat` one request at a time per member and checks
+the hourly limit inside the same atomic step: `ok` / `busy` / `rate_limited`.
 
 ### `chat_threads` (one row per member)
 
@@ -271,9 +276,10 @@ service role after checking who is asking. anon has no access.
 | `user_id` | `uuid` PK → `profiles.id` | cascade on delete |
 | `state` | `text` | `bot` (the assistant answers) or `needs_human` (a person has it) |
 | `locale` | `text` | the app language the member last wrote from |
-| `handoff_reason` | `text` | why it was handed over |
+| `handoff_reason` | `text` | why it was handed over; cleared after 180 days (`chat-threads-purge`) |
 | `last_ping_at` | `timestamptz` | last alert to the team; a new member message re-pings after 30 min |
 | `member_last_read_at` | `timestamptz` | drives the unread dot for staff replies |
+| `busy_until` | `timestamptz` | the member's in-flight claim (fn_chat_claim); expires on its own after 100s |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 ### `chat_messages`

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 vi.mock("@/lib/telegram", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/telegram")>();
@@ -761,22 +761,40 @@ describe("runBurst", () => {
   });
 
   describe("defaultPing (item 6)", () => {
+    const KEYS = ["SUPPORT_PING_BOT_TOKEN", "SUPPORT_PING_CHAT_ID", "ADMIN_ALERT_BOT_TOKEN", "ADMIN_ALERT_CHAT_ID", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"];
+    beforeEach(() => {
+      for (const k of KEYS) vi.stubEnv(k, "");
+    });
     afterEach(() => {
-      delete process.env.SUPPORT_PING_CHAT_ID;
+      vi.unstubAllEnvs();
       vi.mocked(sendTelegram).mockClear();
     });
 
-    it("never sends, and never falls back to TELEGRAM_CHAT_ID, when SUPPORT_PING_CHAT_ID is unset", async () => {
-      delete process.env.SUPPORT_PING_CHAT_ID;
+    it("never sends when no support or alert bot is configured, even if the stats bot is", async () => {
+      vi.stubEnv("TELEGRAM_BOT_TOKEN", "stats-token");
+      vi.stubEnv("TELEGRAM_CHAT_ID", "stats-chat");
       const result = await defaultPing("hi");
       expect(sendTelegram).not.toHaveBeenCalled();
       expect(result.ok).toBe(false);
     });
 
-    it("sends to SUPPORT_PING_CHAT_ID when it's set", async () => {
-      process.env.SUPPORT_PING_CHAT_ID = "999";
+    it("sends to the support pair when both are set", async () => {
+      vi.stubEnv("SUPPORT_PING_BOT_TOKEN", "support-token");
+      vi.stubEnv("SUPPORT_PING_CHAT_ID", "999");
+      vi.stubEnv("ADMIN_ALERT_BOT_TOKEN", "alert-token");
+      vi.stubEnv("ADMIN_ALERT_CHAT_ID", "alert-chat");
       await defaultPing("hi");
-      expect(sendTelegram).toHaveBeenCalledWith("hi", { chatId: "999" });
+      expect(sendTelegram).toHaveBeenCalledWith("hi", { botToken: "support-token", chatId: "999" });
+    });
+
+    it("otherwise uses the alert bot, never the stats chat — a chat id alone isn't enough", async () => {
+      vi.stubEnv("SUPPORT_PING_CHAT_ID", "999");
+      vi.stubEnv("ADMIN_ALERT_BOT_TOKEN", "alert-token");
+      vi.stubEnv("ADMIN_ALERT_CHAT_ID", "alert-chat");
+      vi.stubEnv("TELEGRAM_BOT_TOKEN", "stats-token");
+      vi.stubEnv("TELEGRAM_CHAT_ID", "stats-chat");
+      await defaultPing("hi");
+      expect(sendTelegram).toHaveBeenCalledWith("hi", { botToken: "alert-token", chatId: "alert-chat" });
     });
   });
 

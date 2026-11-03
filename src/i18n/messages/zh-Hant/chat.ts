@@ -30,7 +30,9 @@ export const chat: Messages["chat"] = {
     rate_limited: "你傳送訊息太快了。請稍等一分鐘再試。",
     invalid: "每則訊息最多 1,000 個字元。",
     server: "出了點問題。請稍後重試。",
+    busy: "還在回覆你的上一則訊息，請稍等。",
     unauthorized: "你的登入已過期。請重新登入後繼續聊天。",
   },
+  privacy: "請勿在這裡分享密碼或驗證碼。團隊絕不會向你索取。",
   unread: "團隊有新回覆",
 };

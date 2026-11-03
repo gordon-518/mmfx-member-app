@@ -3,6 +3,7 @@ import { buildFactSheet } from "@/lib/support/facts";
 import { checkDraft, mustHandOff } from "@/lib/support/guard";
 import type { FactSheet, MemberContext } from "@/lib/support/types";
 import { sendTelegram } from "@/lib/telegram";
+import { supportPingCredentials } from "@/lib/telegramCredentials";
 import { sendAdminAlert } from "@/lib/notify";
 import { PUBLIC_CHANNEL_URL } from "@/lib/onboarding";
 import { TIER_THRESHOLDS } from "@/lib/tiers";
@@ -10,6 +11,8 @@ import { decideChat } from "./agent";
 import { buildAppGuide, CHAT_APP_PATHS, APP_URL } from "./guide";
 import { supabaseChatStore, type ChatStore } from "./store";
 import { MAX_MESSAGE_CHARS, type ChatMember, type ChatMessage } from "./types";
+import { checkChatReply } from "./compliance";
+import { maskSecrets } from "./secrets";
 
 // One member message in, at most one assistant reply out. The assistant
 // answers from the support FACTS and the APP GUIDE; anything it can't answer
@@ -20,6 +23,8 @@ export const MAX_MEMBER_MESSAGES_PER_HOUR = 20;
 export const MAX_ASSISTANT_CALLS_PER_DAY = 1000;
 /** While a person has the thread, a new member message re-pings at most this often. */
 export const REPING_MINUTES = 30;
+/** Across all members: past this many alerts in an hour, the inbox carries the rest. */
+export const MAX_PINGS_PER_HOUR = 20;
 const CONTEXT_MESSAGES = 20;
 
 export type ChatOutcome =
@@ -27,6 +32,7 @@ export type ChatOutcome =
   | { kind: "handoff"; messages: ChatMessage[]; reason: string }
   | { kind: "queued"; messages: ChatMessage[] }
   | { kind: "rate_limited" }
+  | { kind: "busy" }
   | { kind: "invalid" };
 
 export interface HandoffNotice {
@@ -44,31 +50,50 @@ export interface ChatDeps {
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** The handoff ping: to SUPPORT_PING_CHAT_ID only (never the ops chat — the
- *  member's words are in it), plus an email, both best-effort. Outside
- *  production it only logs, so local testing never alerts the team. */
+/**
+ * Member (and model) text made safe to put in front of the team: one line,
+ * no control characters, and links defused ("hxxps://evil[.]example"), so a
+ * message can't plant a convincing link right above the real "Reply" one.
+ */
+export function quoteForAlert(text: string, max: number): string {
+  const flat = text.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
+  const cut = flat.length > max ? `${flat.slice(0, max)}…` : flat;
+  return cut
+    .replace(/\bhttp(s?):\/\//gi, "hxxp$1://")
+    .replace(/\b([a-z0-9-]+)\.([a-z]{2,})(?=[\/\s:?#]|$)/gi, "$1[.]$2");
+}
+
+/** The handoff ping (supportPingCredentials: never the stats chat) and an
+ *  email, both best-effort. Outside production it only logs, so local
+ *  testing never alerts the team. */
 export async function defaultNotify(n: HandoffNotice): Promise<void> {
   if (process.env.NODE_ENV !== "production") {
     console.info(`[chat] handoff (not sent outside production): ${n.reason}`);
     return;
   }
-  const question = n.question.length > 300 ? `${n.question.slice(0, 300)}…` : n.question;
+  const question = quoteForAlert(n.question, 300);
+  const reason = quoteForAlert(n.reason, 120);
   const link = `${APP_URL}/admin/chat?user=${n.member.userId}`;
-  const lines = [
-    `In-app chat needs a person (${n.reason})`,
-    `Member: ${n.member.email ?? n.member.userId} · ${n.member.tier} · ${n.member.locale}`,
-    `"${question}"`,
-    `Reply: ${link}`,
-  ];
-  const chatId = process.env.SUPPORT_PING_CHAT_ID;
+  const who = `${n.member.email ?? n.member.userId} · ${n.member.tier} · ${n.member.locale}`;
+  const creds = supportPingCredentials(process.env);
   const [tg, mail] = await Promise.all([
-    chatId
+    creds
       ? sendTelegram(
-          [`<b>${esc(lines[0])}</b>`, esc(lines[1]), esc(lines[2]), `<a href="${link}">Reply in the app</a>`].join("\n"),
-          { chatId }
+          [
+            "<b>In-app chat needs a person</b>",
+            `Why: ${esc(reason)}`,
+            `Member: ${esc(who)}`,
+            // <code>: Telegram doesn't turn anything inside it into a link.
+            `Said: <code>${esc(question)}</code>`,
+            `<a href="${link}">Reply in the app</a>`,
+          ].join("\n"),
+          { botToken: creds.token, chatId: creds.chatId }
         )
-      : Promise.resolve({ ok: false, detail: "SUPPORT_PING_CHAT_ID not configured" }),
-    sendAdminAlert(`In-app chat: ${n.reason}`, lines.join("\n")),
+      : Promise.resolve({ ok: false, detail: "no support ping bot configured" }),
+    sendAdminAlert(
+      "In-app chat: a member needs a person",
+      [`Why: ${reason}`, `Member: ${who}`, `Said: ${question}`, `Reply: ${link}`].join("\n")
+    ),
   ]);
   if (!tg.ok) console.error("[chat] handoff Telegram ping failed:", tg.detail);
   if (!mail.ok) console.error("[chat] handoff email failed:", mail.detail);
@@ -120,35 +145,56 @@ export async function handleMemberMessage(
   raw: string,
   deps: ChatDeps = defaultChatDeps()
 ): Promise<ChatOutcome> {
-  const text = raw.trim();
-  if (!text || text.length > MAX_MESSAGE_CHARS) return { kind: "invalid" };
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.length > MAX_MESSAGE_CHARS) return { kind: "invalid" };
+  const { store } = deps;
+
+  // One request at a time per member, with the hourly limit checked in the
+  // same atomic step, so a burst of parallel requests can't slip past the
+  // limit, the alert throttle or the budget (see fn_chat_claim).
+  const claim = await store.claim(member.userId, member.locale, MAX_MEMBER_MESSAGES_PER_HOUR);
+  if (claim === "rate_limited") return { kind: "rate_limited" };
+  if (claim === "busy") return { kind: "busy" };
+  try {
+    return await answer(member, maskSecrets(trimmed), deps);
+  } finally {
+    await store.release(member.userId);
+  }
+}
+
+/** The member's message, already masked; the caller holds the member's claim. */
+async function answer(member: ChatMember, text: string, deps: ChatDeps): Promise<ChatOutcome> {
   const { store } = deps;
   const now = deps.now();
 
-  const hourAgo = new Date(now.getTime() - 3600_000).toISOString();
-  if ((await store.countMemberMessagesSince(member.userId, hourAgo)) >= MAX_MEMBER_MESSAGES_PER_HOUR) {
-    return { kind: "rate_limited" };
-  }
-
   const thread = await store.getThread(member.userId);
   const mine = await store.addMessage({ user_id: member.userId, role: "member", body: text });
-  await store.saveThread({ user_id: member.userId, locale: member.locale, state: thread?.state ?? "bot" });
+  await store.saveThread({ user_id: member.userId, state: thread?.state ?? "bot" });
 
-  // A person already has this thread: the message waits for them. Re-ping
-  // only if the last ping is old, so a burst of messages is one alert.
-  if (thread?.state === "needs_human") {
-    const last = thread.last_ping_at ? Date.parse(thread.last_ping_at) : 0;
-    if (now.getTime() - last > REPING_MINUTES * 60_000) {
-      await deps.notify({ member, question: text, reason: "new message while waiting" });
-      await store.saveThread({ user_id: member.userId, last_ping_at: now.toISOString() });
+  /** Alert the team, unless this member was pinged recently or alerts are
+   *  flooding in across members (the inbox still has every thread). */
+  const ping = async (reason: string, lastPingAt: string | null): Promise<void> => {
+    const last = lastPingAt ? Date.parse(lastPingAt) : 0;
+    if (now.getTime() - last <= REPING_MINUTES * 60_000) return;
+    const hourAgo = new Date(now.getTime() - 3600_000).toISOString();
+    if ((await store.countPingsSince(hourAgo)) >= MAX_PINGS_PER_HOUR) {
+      console.error(`[chat] alert cap reached (${MAX_PINGS_PER_HOUR}/hour); not pinging for ${member.userId}`);
+      return;
     }
+    await store.saveThread({ user_id: member.userId, last_ping_at: now.toISOString() });
+    await deps.notify({ member, question: text, reason });
+  };
+
+  // A person already has this thread: the message waits for them.
+  if (thread?.state === "needs_human") {
+    await ping("new message while waiting", thread.last_ping_at);
     return { kind: "queued", messages: [mine] };
   }
 
   const handoff = async (reason: string, model?: string): Promise<ChatOutcome> => {
     const note = await store.addMessage({ user_id: member.userId, role: "system", body: "handoff", model: model ?? null });
-    await store.saveThread({ user_id: member.userId, state: "needs_human", handoff_reason: reason, last_ping_at: now.toISOString() });
-    await deps.notify({ member, question: text, reason });
+    await store.saveThread({ user_id: member.userId, state: "needs_human", handoff_reason: reason.slice(0, 500) });
+    await ping(reason, null);
     return { kind: "handoff", messages: [mine, note], reason };
   };
 
@@ -158,17 +204,18 @@ export async function handleMemberMessage(
   const always = mustHandOff(text, "other");
   if (always) return handoff(always);
 
-  const dayStart = new Date(now.getTime() - 24 * 3600_000).toISOString();
-  if ((await store.countAssistantCallsSince(dayStart)) >= MAX_ASSISTANT_CALLS_PER_DAY) {
+  const dayAgo = new Date(now.getTime() - 24 * 3600_000).toISOString();
+  if ((await store.countAssistantCallsSince(dayAgo)) >= MAX_ASSISTANT_CALLS_PER_DAY) {
     return handoff("daily assistant budget reached");
   }
 
   const facts = chatFacts(buildFactSheet(settings, now), member);
   const guide = buildAppGuide();
-  const thread20 = await store.recent(member.userId, CONTEXT_MESSAGES);
-  const memberTexts = thread20.filter((m) => m.role === "member").map((m) => m.body);
+  const recent = await store.recent(member.userId, CONTEXT_MESSAGES);
+  const memberTexts = recent.filter((m) => m.role === "member").map((m) => m.body);
+  const depositVerified = member.submission?.status === "verified";
 
-  let attempt = await deps.decide({ facts, guide, thread: thread20, member });
+  let attempt = await deps.decide({ facts, guide, thread: recent, member });
   for (let round = 0; ; round++) {
     const d = attempt.decision;
     if (!d) return handoff(attempt.refused ? "model refused" : `model error: ${attempt.error ?? "unknown"}`, attempt.model);
@@ -177,7 +224,12 @@ export async function handleMemberMessage(
     const must = mustHandOff(text, d.topic);
     if (must) return handoff(must, attempt.model);
 
-    const failures = checkDraft(d.reply, { facts, memberTexts, member: guardMember(member) });
+    // The support guard (facts, links, amounts, English claims) plus the same
+    // rules in every language the app speaks.
+    const failures = [
+      ...checkDraft(d.reply, { facts, memberTexts, member: guardMember(member) }),
+      ...checkChatReply(d.reply, { depositVerified }),
+    ];
     if (failures.length === 0) {
       const reply = await store.addMessage({
         user_id: member.userId,
@@ -190,6 +242,6 @@ export async function handleMemberMessage(
       return { kind: "reply", messages: [mine, reply] };
     }
     if (round >= 1) return handoff(`draft failed the checks: ${failures.join("; ")}`, attempt.model);
-    attempt = await deps.decide({ facts, guide, thread: thread20, member, retryReasons: failures });
+    attempt = await deps.decide({ facts, guide, thread: recent, member, retryReasons: failures });
   }
 }

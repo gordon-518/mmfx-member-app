@@ -30,7 +30,9 @@ export const chat: Messages["chat"] = {
     rate_limited: "Anda mengirim pesan terlalu cepat. Tunggu satu menit lalu coba lagi.",
     invalid: "Pesan bisa berisi hingga 1.000 karakter.",
     server: "Terjadi kesalahan. Coba lagi sebentar lagi.",
+    busy: "Masih membalas pesan terakhir Anda. Mohon tunggu sebentar.",
     unauthorized: "Sesi Anda sudah berakhir. Masuk lagi untuk melanjutkan chat.",
   },
+  privacy: "Jangan bagikan kata sandi atau kode di sini. Tim tidak akan pernah memintanya.",
   unread: "Balasan baru dari tim",
 };

@@ -41,3 +41,16 @@ export function resolveTelegramCredentials(
 
   return opts.preferAdminBot ? (admin ?? stats) : (stats ?? admin);
 }
+
+/**
+ * Where a support hand-off ping goes. Member text rides in it (disputes,
+ * deletion requests), so it must never reach the stats bot's chat:
+ *   * a dedicated pair, SUPPORT_PING_BOT_TOKEN + SUPPORT_PING_CHAT_ID, when
+ *     both are set;
+ *   * otherwise the alert bot Gordon watches (ADMIN_ALERT_*).
+ * A chat id on its own is ignored: a bot can only post to chats it's in, so
+ * a chat id needs its own bot's token (see `pair`).
+ */
+export function supportPingCredentials(env: TelegramEnv): TelegramCredentials | null {
+  return pair(env.SUPPORT_PING_BOT_TOKEN, env.SUPPORT_PING_CHAT_ID) ?? pair(env.ADMIN_ALERT_BOT_TOKEN, env.ADMIN_ALERT_CHAT_ID);
+}

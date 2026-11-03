@@ -30,7 +30,9 @@ export const chat: Messages["chat"] = {
     rate_limited: "Anda menghantar mesej terlalu cepat. Tunggu seminit dan cuba lagi.",
     invalid: "Mesej boleh mengandungi sehingga 1,000 aksara.",
     server: "Ada sesuatu yang tidak kena. Cuba lagi sebentar lagi.",
+    busy: "Masih menjawab mesej anda yang terakhir. Sebentar.",
     unauthorized: "Sesi anda telah tamat. Log masuk semula untuk terus bersembang.",
   },
+  privacy: "Jangan kongsi kata laluan atau kod di sini. Pasukan tidak akan memintanya.",
   unread: "Balasan baharu daripada pasukan",
 };

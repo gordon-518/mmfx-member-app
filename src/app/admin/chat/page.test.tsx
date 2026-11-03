@@ -8,9 +8,15 @@ const state = vi.hoisted(() => ({ isAdmin: true, threads: [] as unknown[], messa
 
 function query(rows: unknown) {
   const q: Record<string, unknown> = {};
-  for (const k of ["select", "eq", "order", "limit"]) q[k] = () => q;
+  let head = false;
+  q.select = (_cols: string, opts?: { head?: boolean }) => {
+    head = Boolean(opts?.head);
+    return q;
+  };
+  for (const k of ["eq", "order", "limit"]) q[k] = () => q;
   q.maybeSingle = async () => ({ data: { chat_enabled: true } });
-  q.then = (resolve: (v: unknown) => void) => resolve({ data: rows });
+  q.then = (resolve: (v: unknown) => void) =>
+    resolve(head ? { count: (rows as { state?: string }[] | null)?.filter((r) => r.state === "needs_human").length ?? 0 } : { data: rows });
   return q;
 }
 
@@ -38,10 +44,11 @@ describe("/admin/chat", () => {
     state.threads = [
       { user_id: USER, state: "needs_human", locale: "zh-Hant", handoff_reason: "asked for a person", updated_at: "2026-11-04T02:00:00Z", profiles: { email: "m@example.com", full_name: "Mei" } },
     ];
+    // As the query returns them: newest first.
     state.messages = [
-      { id: 1, role: "member", body: "我想找真人", topic: null, confidence: null, created_at: "2026-11-04T01:59:00Z" },
-      { id: 2, role: "system", body: "handoff", topic: null, confidence: null, created_at: "2026-11-04T02:00:00Z" },
       { id: 3, role: "staff", body: "<b>hi</b>", topic: null, confidence: null, created_at: "2026-11-04T02:05:00Z" },
+      { id: 2, role: "system", body: "handoff", topic: null, confidence: null, created_at: "2026-11-04T02:00:00Z" },
+      { id: 1, role: "member", body: "我想找真人", topic: null, confidence: null, created_at: "2026-11-04T01:59:00Z" },
     ];
   });
 
@@ -65,6 +72,11 @@ describe("/admin/chat", () => {
     expect(html).toContain("Send reply");
     expect(html).toContain("Done: back to the assistant");
     expect(html).toContain(`value="${USER}"`);
+  });
+
+  it("shows the conversation oldest first", async () => {
+    const html = await render(USER);
+    expect(html.indexOf("我想找真人")).toBeLessThan(html.indexOf("&lt;b&gt;hi"));
   });
 
   it("escapes what members and staff wrote", async () => {

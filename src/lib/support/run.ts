@@ -1,6 +1,7 @@
 import "server-only";
 import { adminDb } from "@/lib/channel/db";
 import { sendTelegram, escapeHtml } from "@/lib/telegram";
+import { supportPingCredentials } from "@/lib/telegramCredentials";
 import * as sendpulse from "./sendpulse";
 import { decide as realDecide, redactForModel } from "./agent";
 import { buildFactSheet } from "./facts";
@@ -99,16 +100,17 @@ export interface RunDeps {
   now: () => Date;
 }
 
-/** The default `ping` dep: sends only to SUPPORT_PING_CHAT_ID, never falling
- * back to TELEGRAM_CHAT_ID (the growth-stats/ops chat) the way `sendTelegram`
- * does when `chatId` is omitted — a handoff ping carries up to 300 chars of
- * member text (disputes, deletion requests included), and that chat's
- * audience must never see it. Unset/empty means "no ping configured": the
- * caller (see `handoff` below) records that rather than silently dropping it. */
+/** The default `ping` dep. A handoff ping carries up to 300 chars of member
+ * text (disputes, deletion requests included), so it goes to the support pair
+ * (SUPPORT_PING_BOT_TOKEN + SUPPORT_PING_CHAT_ID) when both are set, else to
+ * the alert bot Gordon watches — never the growth-stats chat. (Passing only a
+ * chat id used to be ignored by the resolver, which then picked whichever bot
+ * was configured.) No bot at all means "no ping configured": the caller (see
+ * `handoff` below) records that rather than silently dropping it. */
 export function defaultPing(html: string): Promise<{ ok: boolean; detail?: unknown }> {
-  const chatId = process.env.SUPPORT_PING_CHAT_ID;
-  if (!chatId) return Promise.resolve({ ok: false, detail: "SUPPORT_PING_CHAT_ID not configured" });
-  return sendTelegram(html, { chatId });
+  const creds = supportPingCredentials(process.env);
+  if (!creds) return Promise.resolve({ ok: false, detail: "no support ping bot configured" });
+  return sendTelegram(html, { botToken: creds.token, chatId: creds.chatId });
 }
 
 export function defaultDeps(): RunDeps {

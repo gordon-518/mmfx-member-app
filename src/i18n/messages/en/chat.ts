@@ -28,7 +28,9 @@ export const chat = {
     rate_limited: "You're sending messages quickly. Wait a minute and try again.",
     invalid: "Messages can be up to 1,000 characters.",
     server: "Something went wrong. Try again in a moment.",
+    busy: "Still answering your last message. One moment.",
     unauthorized: "Your session has ended. Sign in again to keep chatting.",
   },
+  privacy: "Never share passwords or codes here. The team will never ask for them.",
   unread: "New reply from the team",
 } as const;

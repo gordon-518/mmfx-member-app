@@ -53,8 +53,9 @@ export default async function ChatAdminPage({ searchParams }: { searchParams: Pr
   const { user: selectedRaw } = await searchParams;
   const selected = selectedRaw && UUID_RE.test(selectedRaw) ? selectedRaw : null;
 
-  const [{ data: s }, { data: threads }, { data: msgs }] = await Promise.all([
+  const [{ data: s }, { count: waitingCount }, { data: threads }, { data: msgs }] = await Promise.all([
     supabase.from("support_settings").select("chat_enabled").eq("id", 1).maybeSingle(),
+    supabase.from("chat_threads").select("user_id", { count: "exact", head: true }).eq("state", "needs_human"),
     supabase
       .from("chat_threads")
       .select("user_id, state, locale, handoff_reason, updated_at, profiles(email, full_name)")
@@ -65,15 +66,15 @@ export default async function ChatAdminPage({ searchParams }: { searchParams: Pr
           .from("chat_messages")
           .select("id, role, body, topic, confidence, created_at")
           .eq("user_id", selected)
-          .order("created_at", { ascending: true })
+          .order("created_at", { ascending: false })
           .limit(200)
       : Promise.resolve({ data: [] as MessageRow[] }),
   ]);
   const enabled = (s as { chat_enabled?: boolean } | null)?.chat_enabled !== false;
   const all = (threads ?? []) as unknown as ThreadRow[];
-  const waiting = all.filter((t) => t.state === "needs_human");
   const current = selected ? all.find((t) => t.user_id === selected) ?? null : null;
-  const conversation = (msgs ?? []) as MessageRow[];
+  // Fetched newest-first so a long thread shows its latest 200; shown oldest-first.
+  const conversation = ((msgs ?? []) as MessageRow[]).slice().reverse();
   const who = (t: ThreadRow | null) => t?.profiles?.email ?? t?.profiles?.full_name ?? t?.user_id ?? "";
 
   return (
@@ -90,7 +91,7 @@ export default async function ChatAdminPage({ searchParams }: { searchParams: Pr
               {enabled ? "Assistant on: answering members" : "Assistant off: every message comes to the team"}
             </h1>
             <p className="mt-1 text-[13px] text-subtle">
-              Waiting for a person: <span className="font-semibold text-ink">{waiting.length}</span>. Members see the
+              Waiting for a person: <span className="font-semibold text-ink">{waitingCount ?? 0}</span>. Members see the
               assistant&apos;s replies in their own language; reply in theirs if you can (the locale is shown).
             </p>
           </div>

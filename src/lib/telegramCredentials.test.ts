@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveTelegramCredentials } from "./telegramCredentials";
+import { resolveTelegramCredentials, supportPingCredentials } from "./telegramCredentials";
 
 const stats = { TELEGRAM_BOT_TOKEN: "stats-token", TELEGRAM_CHAT_ID: "111" };
 const admin = { ADMIN_ALERT_BOT_TOKEN: "alert-token", ADMIN_ALERT_CHAT_ID: "222" };
@@ -32,5 +32,18 @@ describe("resolveTelegramCredentials", () => {
 
   it("is null when nothing is configured", () => {
     expect(resolveTelegramCredentials({})).toBeNull();
+  });
+});
+
+describe("supportPingCredentials", () => {
+  it("uses the support pair only when both halves are set", () => {
+    expect(supportPingCredentials({ SUPPORT_PING_BOT_TOKEN: "s", SUPPORT_PING_CHAT_ID: "1", ADMIN_ALERT_BOT_TOKEN: "a", ADMIN_ALERT_CHAT_ID: "2" }))
+      .toEqual({ token: "s", chatId: "1" });
+    expect(supportPingCredentials({ SUPPORT_PING_CHAT_ID: "1", ADMIN_ALERT_BOT_TOKEN: "a", ADMIN_ALERT_CHAT_ID: "2" }))
+      .toEqual({ token: "a", chatId: "2" });
+  });
+
+  it("never falls back to the stats bot", () => {
+    expect(supportPingCredentials({ TELEGRAM_BOT_TOKEN: "t", TELEGRAM_CHAT_ID: "3" })).toBeNull();
   });
 });
