@@ -253,6 +253,44 @@ The Telegram support agent's state. `support_settings` is the on/off switch and 
 
 ---
 
+## Tables: `chat_threads`, `chat_messages` (in-app help chat)
+
+The help chat in the member app (migration `20261104000001_member_chat.sql`). The
+assistant answers from the support fact sheet plus the app guide
+(`src/lib/chat/guide.ts`); anything it can't answer safely is handed to a person,
+who replies from `/admin/chat`.
+
+RLS: a member can SELECT their own thread and messages; admins can SELECT all.
+No write policies: `/api/chat` and the `/admin/chat` actions write with the
+service role after checking who is asking. anon has no access.
+
+### `chat_threads` (one row per member)
+
+| Column | Type | Notes |
+|---|---|---|
+| `user_id` | `uuid` PK → `profiles.id` | cascade on delete |
+| `state` | `text` | `bot` (the assistant answers) or `needs_human` (a person has it) |
+| `locale` | `text` | the app language the member last wrote from |
+| `handoff_reason` | `text` | why it was handed over |
+| `last_ping_at` | `timestamptz` | last alert to the team; a new member message re-pings after 30 min |
+| `member_last_read_at` | `timestamptz` | drives the unread dot for staff replies |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+### `chat_messages`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `bigint` identity PK | |
+| `user_id` | `uuid` → `profiles.id` | cascade on delete |
+| `role` | `text` | `member`, `assistant`, `staff`, or `system` (body is an event code: `handoff`, `resolved`) |
+| `body` | `text` | 1–4000 characters |
+| `topic`, `confidence`, `model`, `guard_failures` | | the assistant's decision, for the log |
+| `staff_id` | `uuid` → `profiles.id` | who replied (`set null` on delete) |
+| `created_at` | `timestamptz` | purged after 180 days (`chat-messages-purge`, 00:45 UTC daily) |
+
+`support_settings.chat_enabled` (boolean, default true) is the assistant's own
+switch on `/admin/chat`; off means every message goes straight to a person.
+
 ## State Machine
 
 ```

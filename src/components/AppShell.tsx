@@ -84,6 +84,7 @@ const ADMIN_NAV: AdminNavItem[] = [
   { label: "Members", href: "/admin", icon: UserPlusIcon },
   { label: "Channel Performance", href: "/admin/channel", icon: TelegramIcon },
   { label: "Support Agent", href: "/admin/support", icon: ChatIcon },
+  { label: "In-app Chat", href: "/admin/chat", icon: ChatIcon },
   { label: "IB Reconciliation", href: "/journal/ib", icon: JournalIcon },
 ];
 
