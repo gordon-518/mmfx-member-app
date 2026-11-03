@@ -29,3 +29,16 @@ describe("the syllabus in every language", () => {
     expect(lessonText(MESSAGES["zh-Hans"], "no-such-lesson", fallback)).toEqual(fallback);
   });
 });
+
+describe("the syllabus makes no performance claims", () => {
+  // Lessons legitimately talk about taking profit, so the general money-claim
+  // scan doesn't run here; a win-rate claim is the one that slipped in once
+  // ("highest win rate" for "highest probability" in Chinese).
+  const WIN_RATE = /win[- ]?rate|胜率|勝率|kadar (menang|kemenangan)|tingkat kemenangan|winrate/i;
+  it("never claims a win rate, in any language", () => {
+    for (const locale of LOCALES) {
+      const text = JSON.stringify(MESSAGES[locale].courseContent);
+      expect(text, locale).not.toMatch(WIN_RATE);
+    }
+  });
+});

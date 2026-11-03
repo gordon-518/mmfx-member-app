@@ -38,5 +38,5 @@ export function tvErrorCodeFromDb(dbMessage: string): TvErrorCode {
 /** The message for a ?tv_error= value; anything unrecognised reads as generic. */
 export function tvErrorMessage(code: string | null, e: Messages["tv"]["errors"]): string | null {
   if (!code) return null;
-  return code in e ? e[code as TvErrorCode] : e.generic;
+  return Object.hasOwn(e, code) ? e[code as TvErrorCode] : e.generic;
 }

@@ -2,8 +2,10 @@ import Link from "next/link";
 import { requireFeature } from "@/lib/access";
 import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
-import { getNews, NEWS_PAIRS } from "@/lib/forexNews";
+import { getNews, NEWS_PAIRS, type NewsCard } from "@/lib/forexNews";
 import { NewsFeed } from "./NewsFeed";
+import { shortDateLabel } from "@/i18n/dates";
+import { INTL_LOCALE } from "@/i18n/config";
 import { getLocale, getT } from "@/i18n/server";
 
 export default async function NewsPage({
@@ -22,6 +24,7 @@ export default async function NewsPage({
   const items = await getNews(pair);
   const t = await getT();
   const locale = await getLocale();
+  const cards: NewsCard[] = items.map((n) => ({ ...n, dateLabel: shortDateLabel(n.date, INTL_LOCALE[locale]) }));
   // The pair codes read the same in every language; only these three are words.
   const pairLabel = (label: string) =>
     label === "All" ? t.news.all : label === "Gold" ? t.news.gold : label === "Silver" ? t.news.silver : label;
@@ -66,7 +69,7 @@ export default async function NewsPage({
             {t.news.emptyPair}
           </p>
         ) : (
-          <NewsFeed items={items} />
+          <NewsFeed items={cards} />
         )}
       </div>
     </AppShell>

@@ -14,6 +14,8 @@ import { biasWord } from "@/i18n/bias";
 import { fmt } from "@/i18n/format";
 import type { Messages } from "@/i18n/messages/types";
 import { getLocale, getT } from "@/i18n/server";
+import { en } from "@/i18n/messages/en";
+import { ComplianceText } from "@/components/ComplianceText";
 import { BiasPill, ConvictionBar, Panel, StateBadge } from "./parts";
 import { LiveHero } from "./LiveHero";
 import { SendCopyButton } from "./SendCopyButton";
@@ -326,9 +328,13 @@ export async function Thesis({
               age: age(envelope.state_updated_at),
             })}
           </p>
-          <p className="mt-2 text-[12px] leading-relaxed text-faint">
-            {fmt(w.disclaimer, { instrument: instrument.display })}
-          </p>
+          <div className="mt-2">
+            <ComplianceText
+              english={fmt(en.fundamental.thesis.disclaimer, { instrument: instrument.display })}
+              translated={fmt(w.disclaimer, { instrument: instrument.display })}
+              className="text-[12px] leading-relaxed text-faint"
+            />
+          </div>
         </div>
       </div>
     </div>

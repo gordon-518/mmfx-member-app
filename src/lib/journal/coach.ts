@@ -261,6 +261,19 @@ const REPORT_SCHEMA = {
 } as const;
 
 /**
+ * Output room per language. A report in Chinese, Malay or Indonesian takes more
+ * tokens than the same report in English (Chinese roughly twice as many), and a
+ * report cut off mid-JSON can't be parsed, so those languages get more room.
+ */
+export const REPORT_MAX_TOKENS: Readonly<Record<Locale, number>> = {
+  en: 1200,
+  "zh-Hans": 2600,
+  "zh-Hant": 2600,
+  ms: 2000,
+  id: 2000,
+};
+
+/**
  * Generate a coaching report via Anthropic. Best-effort: returns null on any
  * failure (missing key, network, bad JSON) so a failed report never breaks the
  * cron run — exactly like growth/narrative.ts.
@@ -282,7 +295,7 @@ export async function generateReport(
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1200,
+        max_tokens: REPORT_MAX_TOKENS[locale],
         messages: [{ role: "user", content: buildReportPrompt(ctx, locale) }],
         output_config: { format: { type: "json_schema", schema: REPORT_SCHEMA } },
       }),
@@ -295,6 +308,10 @@ export async function generateReport(
       stop_reason?: string;
     };
     if (data.stop_reason === "refusal") return null;
+    if (data.stop_reason === "max_tokens") {
+      console.error(`[journal-coach] report cut off at ${REPORT_MAX_TOKENS[locale]} tokens (${locale})`);
+      return null;
+    }
 
     const text = (data.content ?? [])
       .filter((b) => b.type === "text" && b.text)

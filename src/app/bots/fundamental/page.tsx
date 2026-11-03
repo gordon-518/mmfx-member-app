@@ -7,6 +7,8 @@ import { DeskGrid } from "./DeskGrid";
 import { DeskUnreachable } from "./parts";
 import { Thesis } from "./Thesis";
 import { getLocale, getT } from "@/i18n/server";
+import { en } from "@/i18n/messages/en";
+import { ComplianceText } from "@/components/ComplianceText";
 import { fmt } from "@/i18n/format";
 
 // The Fundamental Analysis Desk, rendered natively (it used to be an iframe of
@@ -77,7 +79,14 @@ export default async function FundamentalPage({
       ) : (
         <>
           <DeskGrid rows={rows} />
-          <p className="mt-8 text-[12px] leading-relaxed text-faint">{desk.gridDisclaimer}</p>
+          {/* Compliance wording: the English shows verbatim, the reader's language beneath. */}
+          <div className="mt-8">
+            <ComplianceText
+              english={en.fundamental.gridDisclaimer}
+              translated={desk.gridDisclaimer}
+              className="text-[12px] leading-relaxed text-faint"
+            />
+          </div>
         </>
       )}
     </div>

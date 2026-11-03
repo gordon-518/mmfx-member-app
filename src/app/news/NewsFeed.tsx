@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { ExternalIcon } from "@/components/icons";
-import type { NewsItem, Sentiment } from "@/lib/forexNews";
-import { useLocale, useT } from "@/i18n/client";
-import { INTL_LOCALE } from "@/i18n/config";
+import type { NewsCard, Sentiment } from "@/lib/forexNews";
+import { useT } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 
 type SentFilter = "all" | Sentiment;
@@ -18,17 +17,9 @@ const SENT_STYLE: Record<Sentiment, string> = {
   Neutral: "bg-paper text-subtle",
 };
 
-function fmtDate(d: string, intl: string): string {
-  const t = new Date(d);
-  return Number.isNaN(t.getTime())
-    ? ""
-    : t.toLocaleDateString(intl, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-}
-
-export function NewsFeed({ items }: { items: NewsItem[] }) {
+export function NewsFeed({ items }: { items: NewsCard[] }) {
   const [sent, setSent] = useState<SentFilter>("all");
   const tr = useT();
-  const intl = INTL_LOCALE[useLocale()];
   const sentWord = (v: SentFilter) =>
     v === "all" ? tr.news.all : v === "Positive" ? tr.news.positive : v === "Negative" ? tr.news.negative : tr.news.neutral;
 
@@ -75,7 +66,7 @@ export function NewsFeed({ items }: { items: NewsItem[] }) {
           >
             <div className="flex items-center gap-2.5">
               <span className="text-[12px] font-semibold text-ink">{n.source}</span>
-              <span className="text-[11px] text-faint">{fmtDate(n.date, intl)}</span>
+              <span className="text-[11px] text-faint">{n.dateLabel}</span>
               {n.type === "Video" && (
                 <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-ink">
                   {tr.news.video}

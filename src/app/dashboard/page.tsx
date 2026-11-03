@@ -7,9 +7,9 @@ import { LESSONS, MODULES } from "@/app/course/courseData";
 import type { DimensionScores } from "@/lib/kys/types";
 import { TradingAccountGate } from "./TradingAccountGate";
 import type { SpotlightSlide } from "./Spotlight";
-import { getNews, type NewsItem } from "@/lib/forexNews";
+import { getNews, type NewsCard } from "@/lib/forexNews";
 import { getLocale, getT } from "@/i18n/server";
-import { dayLabel } from "@/i18n/dates";
+import { dayLabel, shortDateLabel } from "@/i18n/dates";
 import { lessonText, moduleText } from "@/i18n/course";
 import { sessionLabel } from "@/lib/sessions";
 import { INTL_LOCALE } from "@/i18n/config";
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
   // a single upgrade-nudge slide instead of gated content.
   let slides: SpotlightSlide[];
   let brief: DashboardBrief | null = null;
-  let news: NewsItem[] = [];
+  let news: NewsCard[] = [];
   if (locked) {
     // Free plan (conversion-fix 2.3): Daily Analysis is open to every signed-in
     // user, so lead with today's read, then what funding unlocks.
@@ -238,7 +238,7 @@ export default async function DashboardPage() {
 
     // Top gold/macro headlines for the dashboard teaser (cached fetch shared
     // with /news, so no extra quota burn).
-    news = (await getNews()).slice(0, 6);
+    news = (await getNews()).slice(0, 6).map((n) => ({ ...n, dateLabel: shortDateLabel(n.date, intl, false) }));
   }
 
   // conversion-fix 4.2 — the onboarding card, for trial and Free users until

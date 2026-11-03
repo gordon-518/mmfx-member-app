@@ -41,6 +41,7 @@ describe("content pages in every language", () => {
   const PROMOTIONAL = [
     "signals", "locked", "teamMm", "library", "indicators", "strategies", "liveClasses",
     "calendar", "course", "tour", "dailyAnalysis", "tv", "plans", "upgrade",
+    "welcome", "dashboard", "rails", "auth", "status", "tiers", "nav", "skillTrack", "news", "legal",
   ] as const;
 
   it("makes no earnings claims in any language", () => {

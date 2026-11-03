@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, type Locale } from "./config";
 import { negotiateLocale } from "./negotiate";
 import { MESSAGES } from "./messages";
@@ -15,8 +16,11 @@ export async function getLocale(): Promise<Locale> {
     const saved = (await cookies()).get(LOCALE_COOKIE)?.value;
     if (isLocale(saved)) return saved;
     return negotiateLocale((await headers()).get("accept-language"));
-  } catch {
-    // Outside a request (build-time prerender, a cron, an email builder).
+  } catch (err) {
+    // Next's own signals (a route marked dynamic, a prerender bail-out) must
+    // pass through, or a static render would silently bake in English.
+    unstable_rethrow(err);
+    // Outside a request (a script, an email builder): English.
     return DEFAULT_LOCALE;
   }
 }

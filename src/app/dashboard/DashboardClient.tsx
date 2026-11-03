@@ -15,12 +15,11 @@ import { KnowYourStyleOnboarding } from "./KnowYourStyleOnboarding";
 import { TradingAccountBar } from "./TradingAccountBar";
 import { STAGES, FOUNDATIONS, type RailCard } from "./rails";
 import type { DashboardBrief } from "./page";
-import type { NewsItem } from "@/lib/forexNews";
+import type { NewsCard } from "@/lib/forexNews";
 import { NewsCover } from "@/components/NewsCover";
 import { SkillTrack, type TrackModule } from "./SkillTrack";
 import { useLocale, useT } from "@/i18n/client";
 import { biasWord } from "@/i18n/bias";
-import { INTL_LOCALE } from "@/i18n/config";
 import { fmt } from "@/i18n/format";
 import { railCardText, railStageText } from "@/i18n/rails";
 import type { Messages } from "@/i18n/messages/types";
@@ -144,16 +143,8 @@ const SENT_STYLE: Record<string, string> = {
   Neutral: "bg-paper text-subtle",
 };
 
-function fmtNewsDate(d: string, intlLocale: string): string {
-  const date = new Date(d);
-  return Number.isNaN(date.getTime())
-    ? ""
-    : date.toLocaleDateString(intlLocale, { day: "numeric", month: "short", timeZone: "UTC" });
-}
-
-function NewsTeaser({ items }: { items: NewsItem[] }) {
+function NewsTeaser({ items }: { items: NewsCard[] }) {
   const t = useT();
-  const intl = INTL_LOCALE[useLocale()];
   return (
     <div className="rise mt-10" style={{ animationDelay: "0.3s" }}>
       <div className="mb-4 flex items-baseline justify-between gap-3">
@@ -182,7 +173,7 @@ function NewsTeaser({ items }: { items: NewsItem[] }) {
             </div>
             <div className="flex flex-1 flex-col p-4">
               <span className="text-[11px] text-faint">
-                {n.source}{fmtNewsDate(n.date, intl) ? ` · ${fmtNewsDate(n.date, intl)}` : ""}
+                {n.source}{n.dateLabel ? ` · ${n.dateLabel}` : ""}
               </span>
               <h4 className="mt-1 line-clamp-2 font-display text-[15px] font-bold leading-snug tracking-tight text-ink group-hover:text-accent-ink">
                 {n.title}
@@ -227,7 +218,7 @@ export function DashboardClient({
   memberTier: MemberTier;
   slides: SpotlightSlide[];
   brief: DashboardBrief | null;
-  news: NewsItem[];
+  news: NewsCard[];
   showKysOnboarding?: boolean;
   isAdmin?: boolean;
   tradingAccount?: string | null;

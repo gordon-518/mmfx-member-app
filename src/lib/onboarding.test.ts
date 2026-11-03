@@ -35,6 +35,13 @@ describe("onboarding checklist", () => {
     }
   });
 
+  it("makes no earnings claims in any language", () => {
+    for (const locale of LOCALES) {
+      const offending = leaves(MESSAGES[locale].onboarding).filter(([, text]) => MONEY_CLAIM[locale].test(text));
+      expect(offending, locale).toEqual([]);
+    }
+  });
+
   it("sends the channel step off-app and keeps the rest in it", () => {
     const tg = ONBOARDING_STEPS[0];
     expect(tg.external).toBe(true);

@@ -77,7 +77,9 @@ export async function proxy(request: NextRequest, event?: NextFetchEvent) {
   // two disagree — onto the request too, so this very render is already in
   // the right language. The auth cookies the session refresh may have just
   // set are carried across onto the rebuilt response.
-  const savedLocale = user?.user_metadata?.locale;
+  // The shared showcase account keeps no language of its own: each viewer's
+  // browser decides (setLocale doesn't save it either).
+  const savedLocale = isDemoUser(user?.email) ? undefined : user?.user_metadata?.locale;
   if (isLocale(savedLocale) && request.cookies.get(LOCALE_COOKIE)?.value !== savedLocale) {
     request.cookies.set(LOCALE_COOKIE, savedLocale);
     const carried = supabaseResponse.cookies.getAll();

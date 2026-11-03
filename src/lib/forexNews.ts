@@ -22,6 +22,11 @@ export interface NewsItem {
   image: string; // API image_url — mostly generic forex placeholders
 }
 
+/** A headline as a client component shows it: its date already formatted, on
+ *  the server, in the reader's language (formatting it in the browser too can
+ *  disagree with the server and break hydration). */
+export type NewsCard = NewsItem & { dateLabel: string };
+
 const REVALIDATE_SECONDS = 1800; // 30 min — fresh enough, quota-friendly
 // Filterable assets. "All" (empty value) hits the general feed (every pair +
 // commodities); a specific value hits that currencypair. Verified symbols

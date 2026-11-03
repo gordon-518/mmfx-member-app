@@ -24,3 +24,11 @@ export function monthLabel(value: string, intl: string): string | null {
   const d = utcDate(value);
   return d ? d.toLocaleDateString(intl, { month: "long", year: "numeric", timeZone: "UTC" }) : null;
 }
+
+/** "4 Nov 2026" (or "4 Nov" without the year) / "2026年11月4日". */
+export function shortDateLabel(value: string, intl: string, withYear = true): string {
+  const d = utcDate(value);
+  return d
+    ? d.toLocaleDateString(intl, { day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}), timeZone: "UTC" })
+    : "";
+}

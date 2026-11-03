@@ -26,7 +26,9 @@ import { getLocale, messagesFor } from "@/i18n/server";
 // English is unchanged.
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// A failed first draft is retried on a second model; a report in Chinese,
+// Malay or Indonesian is longer, so the pair needs more than 60s of room.
+export const maxDuration = 120;
 
 // Haiku writes the report; Sonnet is the retry when Haiku's output fails the
 // structure gate (lib/kys/validation.ts). Matching the standalone app's pair.

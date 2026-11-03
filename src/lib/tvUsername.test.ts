@@ -51,5 +51,8 @@ describe("error codes", () => {
     expect(tvErrorMessage("email", MESSAGES["zh-Hans"].tv.errors)).toMatch(/邮箱/);
     expect(tvErrorMessage("<script>", MESSAGES.en.tv.errors)).toBe(MESSAGES.en.tv.errors.generic);
     expect(tvErrorMessage(null, MESSAGES.en.tv.errors)).toBeNull();
+    for (const key of ["__proto__", "constructor", "toString", "valueOf"]) {
+      expect(tvErrorMessage(key, MESSAGES.en.tv.errors), key).toBe(MESSAGES.en.tv.errors.generic);
+    }
   });
 });

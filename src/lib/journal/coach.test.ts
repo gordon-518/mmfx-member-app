@@ -176,3 +176,12 @@ describe("report language", () => {
     expect(buildReportPrompt(ctx, "id")).toContain("Indonesian (Bahasa Indonesia)");
   });
 });
+
+describe("report length per language", () => {
+  it("gives the longer languages more room than English, which is unchanged", async () => {
+    const { REPORT_MAX_TOKENS } = await import("./coach");
+    expect(REPORT_MAX_TOKENS.en).toBe(1200);
+    expect(REPORT_MAX_TOKENS["zh-Hans"]).toBeGreaterThan(2 * 1200);
+    expect(REPORT_MAX_TOKENS.ms).toBeGreaterThan(REPORT_MAX_TOKENS.en);
+  });
+});

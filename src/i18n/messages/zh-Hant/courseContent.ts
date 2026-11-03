@@ -94,7 +94,7 @@ export const courseContent: Messages["courseContent"] = {
     },
     "14-breaker-blocks": {
       title: "精通突破塊（Breaker Block）",
-      description: "失效後角色反轉的訂單塊——整個 MM 體系中勝率最高的區域之一。",
+      description: "失效後角色反轉的訂單塊——整個 MM 體系中機率最高的區域之一。",
     },
     "15-news-macro": {
       title: "新聞、總經與地緣政治因素",
