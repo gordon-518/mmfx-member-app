@@ -5,6 +5,8 @@ import { useFormStatus } from "react-dom";
 import { submitDeposit, type DepositFormState } from "./actions";
 import { AmeliaLastStep } from "./AmeliaLastStep";
 import { ADMIN_DISPLAY_NAME } from "@/lib/depositRef";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 // Deposit submission (conversion-fix 5.1 / 5.4). The primary way to get a
 // deposit verified: the member uploads the proof here instead of sending it
@@ -27,13 +29,14 @@ const BROKERS = [
 
 function SubmitButton({ isTopUp }: { isTopUp: boolean }) {
   const { pending } = useFormStatus();
+  const f = useT().upgrade.form;
   return (
     <button
       type="submit"
       disabled={pending}
       className="w-full cursor-pointer rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-colors hover:bg-[#f24e12] disabled:cursor-wait disabled:opacity-70 sm:w-auto"
     >
-      {pending ? "Uploading…" : isTopUp ? "Submit my top-up" : "Submit my deposit"}
+      {pending ? f.uploading : isTopUp ? f.submitTopUp : f.submitDeposit}
     </button>
   );
 }
@@ -50,6 +53,7 @@ export function DepositSubmitForm({
   refCode: string;
 }) {
   const [state, action] = useActionState<DepositFormState, FormData>(submitDeposit, null);
+  const f = useT().upgrade.form;
 
   if (state && "ok" in state) {
     return (
@@ -68,7 +72,7 @@ export function DepositSubmitForm({
     <form action={action} className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="space-y-1.5">
-          <span className={LABEL}>Broker</span>
+          <span className={LABEL}>{f.broker}</span>
           <select name="broker" defaultValue={defaultBroker} required className={FIELD}>
             {BROKERS.map((b) => (
               <option key={b.value} value={b.value}>
@@ -78,35 +82,35 @@ export function DepositSubmitForm({
           </select>
         </label>
         <label className="space-y-1.5">
-          <span className={LABEL}>Trading account number</span>
-          <input name="account" inputMode="numeric" pattern="[0-9]{4,20}" required placeholder="e.g. 51234567" className={FIELD} />
+          <span className={LABEL}>{f.account}</span>
+          <input name="account" inputMode="numeric" pattern="[0-9]{4,20}" required placeholder={f.accountPlaceholder} className={FIELD} />
         </label>
         <label className="space-y-1.5">
-          <span className={LABEL}>{isTopUp ? "Top-up amount (USD)" : "Deposit amount (USD)"}</span>
-          <input name="amount" type="number" min="50" step="0.01" required placeholder="50 or more" className={FIELD} />
+          <span className={LABEL}>{isTopUp ? f.amountTopUp : f.amount}</span>
+          <input name="amount" type="number" min="50" step="0.01" required placeholder={f.amountPlaceholder} className={FIELD} />
         </label>
         <label className="space-y-1.5">
-          <span className={LABEL}>Telegram username</span>
+          <span className={LABEL}>{f.telegram}</span>
           <input
             name="telegram"
             required
             pattern="@?[A-Za-z0-9_]{5,32}"
-            title="Your Telegram @handle: 5 to 32 letters, numbers or underscores"
-            placeholder="@yourhandle"
+            title={f.telegramTitle}
+            placeholder={f.telegramPlaceholder}
             autoComplete="off"
             className={FIELD}
           />
         </label>
         <label className="space-y-1.5">
           <span className={LABEL}>
-            TradingView username <span className="font-normal text-faint">(optional)</span>
+            {f.tradingview} <span className="font-normal text-faint">{f.optional}</span>
           </span>
-          <input name="tradingview" defaultValue={tradingview ?? ""} placeholder="your @handle" className={FIELD} />
+          <input name="tradingview" defaultValue={tradingview ?? ""} placeholder={f.tradingviewPlaceholder} className={FIELD} />
         </label>
       </div>
 
       <label className="block space-y-1.5">
-        <span className={LABEL}>Screenshot of the deposit</span>
+        <span className={LABEL}>{f.screenshot}</span>
         <input
           name="proof"
           type="file"
@@ -114,9 +118,7 @@ export function DepositSubmitForm({
           required
           className="block w-full text-[13px] text-subtle file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-accent-soft file:px-3 file:py-2 file:text-[13px] file:font-semibold file:text-accent-ink"
         />
-        <span className="block text-[12px] text-faint">
-          From your broker&apos;s app or email, showing the amount and your account number. PNG, JPG or WebP, under 10 MB.
-        </span>
+        <span className="block text-[12px] text-faint">{f.screenshotHint}</span>
       </label>
 
       {state && "error" in state && (
@@ -127,7 +129,7 @@ export function DepositSubmitForm({
 
       <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:gap-4">
         <SubmitButton isTopUp={isTopUp} />
-        <p className="text-[12.5px] text-faint">Next, you&apos;ll message {ADMIN_DISPLAY_NAME} on Telegram so we can reach you.</p>
+        <p className="text-[12.5px] text-faint">{fmt(f.nextAdmin, { admin: ADMIN_DISPLAY_NAME })}</p>
       </div>
     </form>
   );

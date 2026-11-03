@@ -21,11 +21,13 @@ import type {
   JournalTradeRow,
 } from "@/lib/journal/types";
 import { JournalDashboard } from "./JournalDashboard";
+import { getT } from "@/i18n/server";
 
 // AI Trading Journal — Phase 2 dashboard. Server component: gate, fetch own
 // rows (RLS-scoped), compute the full analytics set (pure), render the client
 // dashboard. Analytics run over the most recent closed trades (cap below);
-// when history grows past that, we move the aggregates into SQL.
+// when history grows past that, we move the aggregates into SQL. The engines
+// write their leaks, rules and alerts in the reader's language.
 
 const TRADES_CAP = 1000;
 
@@ -34,6 +36,7 @@ export default async function JournalPage() {
   if (gate.locked) return <LockedFeature feature="ai-trading-assistant" gate={gate} />;
   const profile = gate.profile;
   const supabase = await createClient();
+  const m = (await getT()).journalEngine;
 
   const { data: accounts } = await supabase
     .from("journal_accounts")
@@ -112,13 +115,15 @@ export default async function JournalPage() {
   const leaks = detectLeaks(
     trades90,
     (goals ?? null) as JournalGoalsRow | null,
-    computeAnalytics(trades90, cf, { currentBalance: accountBalance })
+    computeAnalytics(trades90, cf, { currentBalance: accountBalance }),
+    m
   );
   const health = accountHealth(
     allTrades,
     analytics,
     (goals ?? null) as JournalGoalsRow | null,
-    leaks.leaks.length
+    leaks.leaks.length,
+    m
   );
 
   // Survival Engine (Layer 2): discipline rules over the last 30d.
@@ -130,7 +135,8 @@ export default async function JournalPage() {
     ),
     rulesConfig,
     (goals ?? null) as JournalGoalsRow | null,
-    analytics.startingBalance
+    analytics.startingBalance,
+    m
   );
 
   // Survival Engine (Layer 3): proactive interventions (banner surface).
@@ -149,7 +155,8 @@ export default async function JournalPage() {
   };
   const interventions = decideInterventions(
     interventionSignals,
-    new Date().toISOString()
+    new Date().toISOString(),
+    m
   );
 
   // Game state (score/streak/XP/level) + this-month P&L for the hero.
@@ -179,7 +186,7 @@ export default async function JournalPage() {
       email={profile.email}
       accountStatus={profile.account_status}
       memberTier={gate.viewer.tier}
-      isAdmin
+      isAdmin={profile.is_admin}
     >
       <JournalDashboard
         accounts={(accounts ?? []) as JournalAccountRow[]}

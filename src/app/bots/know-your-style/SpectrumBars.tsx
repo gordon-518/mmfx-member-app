@@ -1,8 +1,10 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { DIMENSIONS, rankDimensions, strongestDimensions, weakestDimensions } from "@/lib/kys/dimensions";
+import { rankDimensions, strongestDimensions, weakestDimensions } from "@/lib/kys/dimensions";
 import type { DimensionScores } from "@/lib/kys/types";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 // The six-dimension profile. Weakest first: the leaks lead, the strengths
 // anchor the bottom, so the shape reads top-down as "fix this, keep that".
@@ -14,17 +16,16 @@ function band(score: number): { fill: string; marker: string } {
   return { fill: "rgba(78,154,91,0.65)", marker: "#4e9a5b" };
 }
 
-const BY_ID = Object.fromEntries(DIMENSIONS.map((d) => [d.id, d]));
-
 export function SpectrumBars({ scores }: { scores: DimensionScores }) {
   const reduce = useReducedMotion();
+  const t = useT();
   const weak = new Set(weakestDimensions(scores, 2));
   const strong = new Set(strongestDimensions(scores, 2));
 
   return (
     <div className="space-y-4">
       {rankDimensions(scores).map(({ id, score }, i) => {
-        const d = BY_ID[id];
+        const d = t.dimensions[id];
         const c = band(score);
         const isLeak = weak.has(id) && score <= 50;
         const isStrength = strong.has(id) && score >= 60;
@@ -35,15 +36,15 @@ export function SpectrumBars({ scores }: { scores: DimensionScores }) {
               <span className="font-display text-[13.5px] font-bold text-ink">{d.name}</span>
               {isLeak && (
                 <span className="rounded bg-orange px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white">
-                  Your leak
+                  {t.kys.leak}
                 </span>
               )}
               {isStrength && (
                 <span className="rounded bg-[#dbefd8] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#2f6b39]">
-                  Strength
+                  {t.kys.strength}
                 </span>
               )}
-              <span className="ml-auto font-mono text-[12px] text-faint">{score} / 100</span>
+              <span className="ml-auto font-mono text-[12px] text-faint">{fmt(t.kys.score, { score })}</span>
             </div>
 
             <div className="relative h-2 rounded-full bg-line">

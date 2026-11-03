@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import type { Intervention } from "@/lib/journal/interventions";
+import { useT } from "@/i18n/client";
 
 // Shows the single most-severe banner-channel intervention. Interventions are
-// decided server-side (deterministic `now`) and passed in.
+// decided server-side (deterministic `now`) and passed in, already in the
+// reader's language.
 export function InterventionBanner({ interventions }: { interventions: Intervention[] }) {
   const [dismissed, setDismissed] = useState(false);
+  const copy = useT().journal.banner;
   const banner = interventions
     .filter((i) => i.channels.includes("banner"))
     .sort(
@@ -39,14 +42,14 @@ export function InterventionBanner({ interventions }: { interventions: Intervent
             }
             className="cursor-pointer text-accent-ink underline"
           >
-            Review
+            {copy.review}
           </button>
         </p>
       </div>
       <button
         onClick={() => setDismissed(true)}
         className="shrink-0 rounded-lg px-2 py-1 text-[13px] text-subtle hover:text-ink"
-        aria-label="Dismiss"
+        aria-label={copy.dismiss}
       >
         ✕
       </button>

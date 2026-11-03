@@ -1,5 +1,7 @@
-import { CARD_ROWS, PAID_TIERS, TIER_CONTENT, includes } from "@/lib/upgradeContent";
-import { TIER_RANK, TIER_THRESHOLDS, tierLabel, type MemberTier } from "@/lib/tiers";
+import { CARD_ROWS, PAID_TIERS, includes, rowLabel, tierContent } from "@/lib/upgradeContent";
+import { TIER_RANK, TIER_THRESHOLDS, type MemberTier } from "@/lib/tiers";
+import { getT } from "@/i18n/server";
+import { fmt } from "@/i18n/format";
 
 // The three paid tiers on /upgrade, outcome-first (redesign inspired by
 // Higgsfield's pricing cards):
@@ -27,7 +29,7 @@ const TINT: Record<string, string> = {
   team: "bg-gradient-to-b from-[#FFEBDD] to-card",
 };
 
-export function TierCards({
+export async function TierCards({
   earnedTier,
   cumulative,
   isMember,
@@ -36,12 +38,14 @@ export function TierCards({
   cumulative: number;
   isMember: boolean;
 }) {
+  const t = await getT();
+  const p = t.plans;
   const paid = earnedTier === "foundation" || earnedTier === "desk" || earnedTier === "team";
 
   return (
     <ol className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
       {PAID_TIERS.map((tier) => {
-        const c = TIER_CONTENT[tier];
+        const c = tierContent(tier, p);
         const threshold = TIER_THRESHOLDS[tier];
         const current = earnedTier === tier;
         const unlocked = paid && TIER_RANK[earnedTier] > TIER_RANK[tier];
@@ -56,7 +60,7 @@ export function TierCards({
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="font-display text-xl font-bold tracking-tight text-ink">{tierLabel(tier)}</p>
+                <p className="font-display text-xl font-bold tracking-tight text-ink">{t.tiers[tier]}</p>
                 <p className="mt-0.5 text-[12.5px] text-subtle">{c.persona}</p>
               </div>
               {c.badge && !current && (
@@ -66,27 +70,27 @@ export function TierCards({
               )}
               {current && (
                 <span className="shrink-0 rounded-full bg-ink px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wide text-white">
-                  Your tier
+                  {p.yourTier}
                 </span>
               )}
             </div>
 
             <p className="mt-4 font-display text-3xl font-bold tracking-tight text-ink">
               {usd(threshold)}
-              <span className="ml-1 text-[13px] font-semibold text-subtle">in total deposits</span>
+              <span className="ml-1 text-[13px] font-semibold text-subtle">{p.inTotalDeposits}</span>
             </p>
-            <p className="mt-1 text-[12.5px] font-medium text-orange">It stays in your own trading account.</p>
+            <p className="mt-1 text-[12.5px] font-medium text-orange">{p.staysInAccount}</p>
 
             <p className="mt-4 text-[14px] leading-relaxed text-ink">{c.adds}</p>
 
             <div className="mt-4">
               {current ? (
                 <span className="block rounded-xl border border-line bg-paper px-4 py-2.5 text-center text-[13.5px] font-semibold text-subtle">
-                  You&apos;re here
+                  {p.youreHere}
                 </span>
               ) : unlocked ? (
                 <span className="block rounded-xl border border-line bg-paper px-4 py-2.5 text-center text-[13.5px] font-semibold text-subtle">
-                  Included in your tier
+                  {p.includedInTier}
                 </span>
               ) : (
                 <a
@@ -97,21 +101,21 @@ export function TierCards({
                       : "border border-line-strong bg-card text-ink hover:border-orange/40 hover:text-accent-ink"
                   }`}
                 >
-                  {isMember ? `Top up ${usd(topUp)}` : `Start with ${usd(threshold)}`}
+                  {isMember ? fmt(p.topUpAmount, { amount: usd(topUp) }) : fmt(p.startWith, { amount: usd(threshold) })}
                 </a>
               )}
             </div>
 
-            <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-faint">Plus everything on Free</p>
+            <p className="mt-5 text-[11px] font-semibold uppercase tracking-wider text-faint">{p.plusFree}</p>
             <ul className="mt-2 space-y-1.5">
               {CARD_ROWS.map((row) => {
                 const has = includes(tier, row);
                 return (
                   <li key={row.key} className={`flex items-center gap-2 text-[13px] ${has ? "text-ink" : "text-faint"}`}>
                     {has ? <Tick /> : <span aria-hidden className="inline-block w-[14px] shrink-0 text-center">·</span>}
-                    <span className={has ? "" : "line-through decoration-line-strong/70"}>{row.label}</span>
+                    <span className={has ? "" : "line-through decoration-line-strong/70"}>{rowLabel(row.key, p)}</span>
                     {!has && (
-                      <span className="ml-auto shrink-0 text-[11px] font-medium text-faint">from {tierLabel(row.min)}</span>
+                      <span className="ml-auto shrink-0 text-[11px] font-medium text-faint">{fmt(p.fromTier, { tier: t.tiers[row.min] })}</span>
                     )}
                   </li>
                 );

@@ -12,11 +12,14 @@ import type { ReactNode } from "react";
 export function LockedOverlay({
   children,
   ctaHref = "/upgrade",
-  ctaLabel = "Upgrade to unlock",
+  ctaLabel,
+  lockedLabel,
 }: {
   children: ReactNode;
   ctaHref?: string;
-  ctaLabel?: string;
+  /** Both labels come from the caller, in the reader's language. */
+  ctaLabel: string;
+  lockedLabel: string;
 }) {
   // App paths only — a "javascript:" or external href here would be an
   // injection vector once pages start passing dynamic values.
@@ -35,7 +38,7 @@ export function LockedOverlay({
           aria-hidden
           className="text-[11px] font-semibold uppercase tracking-wider text-faint"
         >
-          Locked
+          {lockedLabel}
         </span>
         <Link
           href={safeHref}

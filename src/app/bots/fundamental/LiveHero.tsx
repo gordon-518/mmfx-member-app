@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { distanceToLine, formatGap, formatLevel, inWatchZone } from "@/lib/fa/format";
-import type { TheLine } from "@/lib/fa/format";
+import type { LineDistance, TheLine } from "@/lib/fa/format";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
+import type { Messages } from "@/i18n/messages/types";
 
 // Spot + THE LINE, the two numbers that move. One component owns them because
 // the distance is derived from the price, so they must share a single poll.
@@ -11,6 +15,14 @@ import type { TheLine } from "@/lib/fa/format";
 // proxy) — the browser never talks to the desk directly.
 
 const POLL_MS = 30_000;
+
+/** Where spot sits against THE LINE, as one sentence in the reader's language. */
+function distanceSentence(live: Messages["fundamental"]["live"], d: LineDistance, level: number): string {
+  const vars = { gap: formatGap(d.absolute, level), pct: d.pct.toFixed(2) };
+  if (d.side === "at") return fmt(live.spotAt, vars);
+  if (d.side === "above") return fmt(d.intact ? live.spotAbove : live.spotAboveBroken, vars);
+  return fmt(d.intact ? live.spotBelow : live.spotBelowBroken, vars);
+}
 
 export function LiveHero({
   instrument,
@@ -26,6 +38,7 @@ export function LiveHero({
   line: TheLine | null;
   watchZone: [number, number] | null;
 }) {
+  const words = useT().fundamental.live;
   const [price, setPrice] = useState(thesisPrice);
   const [live, setLive] = useState(false);
   // Only flagged once a poll has actually failed — never on the first paint.
@@ -86,7 +99,7 @@ export function LiveHero({
       >
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-            {display} · spot
+            {fmt(words.spot, { instrument: display })}
           </p>
           <p className="mt-1 font-display text-4xl font-bold tracking-tight text-ink tabular-nums">
             {formatLevel(price)}
@@ -102,10 +115,10 @@ export function LiveHero({
             }`}
           />
           {live && !pollFailed
-            ? "Live · updates every 30s"
+            ? fmt(words.live, { s: POLL_MS / 1000 })
             : pollFailed
-              ? "Live price unavailable — showing the last known level"
-              : "As at the thesis"}
+              ? words.pollFailed
+              : words.asAtThesis}
         </p>
       </div>
 
@@ -115,37 +128,35 @@ export function LiveHero({
         style={{ animationDelay: "0.14s" }}
       >
         <p className="text-[11px] font-semibold uppercase tracking-wider text-orange">
-          Invalidation · the line
+          {words.lineEyebrow}
         </p>
         {line ? (
           <>
             <p className="mt-1.5 text-[13px] leading-relaxed text-subtle">
-              This read holds while price stays{" "}
-              <span className="font-semibold text-ink">{line.holds}</span>{" "}
-              {formatLevel(line.level)}.
+              {rich(fmt(words.holds, { level: formatLevel(line.level) }), {
+                side: (
+                  <span className="font-semibold text-ink">
+                    {line.holds === "above" ? words.sideAbove : words.sideBelow}
+                  </span>
+                ),
+              })}
             </p>
             <p className="mt-3 font-display text-4xl font-bold tracking-tight text-ink tabular-nums">
               {formatLevel(line.level)}
             </p>
             {distance && (
               <p className="mt-2 text-[13px] font-medium text-subtle tabular-nums">
-                Spot is {formatGap(distance.absolute, line.level)} ({distance.pct.toFixed(2)}%){" "}
-                {distance.side === "at" ? "exactly at" : `${distance.side}`} the line
-                {distance.intact ? "" : " — the desk re-reads the thesis when a break holds"}
-                .
+                {distanceSentence(words, distance, line.level)}
               </p>
             )}
             {inZone && watchZone && (
               <p className="mt-1.5 text-[13px] font-medium text-accent-ink">
-                Spot is inside the watch zone ({formatLevel(watchZone[0])} —{" "}
-                {formatLevel(watchZone[1])}).
+                {fmt(words.inZone, { low: formatLevel(watchZone[0]), high: formatLevel(watchZone[1]) })}
               </p>
             )}
           </>
         ) : (
-          <p className="mt-1.5 text-[13px] leading-relaxed text-subtle">
-            This thesis carries no hard level — read the invalidation contract below.
-          </p>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-subtle">{words.noLevel}</p>
         )}
       </div>
     </>

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { DIMENSIONS } from "@/lib/kys/dimensions";
 import type { DimensionScores } from "@/lib/kys/types";
 import { CheckIcon } from "@/components/icons";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 // What the member has actually built so far, on the page they open daily.
 //
@@ -24,13 +26,13 @@ export interface TrackModule {
 }
 
 /** A level per module finished — the only "level" with a real definition. */
-function levelOf(modules: TrackModule[], done: number[]): { n: number; title: string } {
+function levelOf(modules: TrackModule[], done: number[], notStarted: string): { n: number; title: string } {
   let n = 0;
   for (let i = 0; i < modules.length; i++) {
     if (done[i] === modules[i].lessons.length) n = i + 1;
     else break;
   }
-  return { n, title: n === 0 ? "Not started" : modules[n - 1].title };
+  return { n, title: n === 0 ? notStarted : modules[n - 1].title };
 }
 
 export function SkillTrack({
@@ -43,12 +45,16 @@ export function SkillTrack({
   dimensions: DimensionScores | null;
 }) {
   const [openModule, setOpenModule] = useState<number | null>(null);
+  const t = useT();
+  const k = t.skillTrack;
+  const dim = (id: string) =>
+    (t.dimensions as Record<string, { name: string; lowPole: string; highPole: string }>)[id];
   const seen = new Set(watched);
 
   const all = modules.flatMap((m) => m.lessons);
   const perModule = modules.map((m) => m.lessons.filter((l) => seen.has(l.slug)).length);
   const totalDone = all.filter((l) => seen.has(l.slug)).length;
-  const level = levelOf(modules, perModule);
+  const level = levelOf(modules, perModule, k.notStarted);
   const nextLesson = all.find((l) => !seen.has(l.slug));
 
   const scored = dimensions
@@ -59,9 +65,9 @@ export function SkillTrack({
   return (
     <section className="rise mt-10" style={{ animationDelay: "0.25s" }}>
       <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h3 className="font-display text-lg font-bold tracking-tight text-ink">What you&apos;re building</h3>
+        <h3 className="font-display text-lg font-bold tracking-tight text-ink">{k.title}</h3>
         <Link href="/course" className="text-[13px] font-semibold text-orange transition-colors hover:text-accent-ink">
-          Open the course →
+          {k.openCourse}
         </Link>
       </div>
 
@@ -71,15 +77,14 @@ export function SkillTrack({
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-orange">
-                Level {level.n} of {modules.length}
+                {fmt(k.levelOf, { n: level.n, total: modules.length })}
               </p>
               <p className="mt-0.5 font-display text-[19px] font-bold tracking-tight text-ink">
                 {level.title}
               </p>
             </div>
             <p className="text-[12.5px] text-subtle">
-              <b className="font-display text-[15px] font-bold text-ink">{totalDone}</b> of{" "}
-              {all.length} lessons
+              {fmt(k.lessonsDone, { done: totalDone, total: all.length })}
             </p>
           </div>
 
@@ -163,24 +168,24 @@ export function SkillTrack({
               href={`/course?lesson=${nextLesson.slug}`}
               className="mt-3 inline-flex items-center gap-2 rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
             >
-              {totalDone === 0 ? "Start lesson 1" : "Carry on"}: {nextLesson.title}
+              {fmt(totalDone === 0 ? k.startLesson1 : k.carryOn, { title: nextLesson.title })}
             </Link>
           )}
         </div>
 
         {/* ---------------- The trader ---------------- */}
         <div className="rounded-2xl border border-line bg-card p-5 shadow-soft">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-orange">Your habits</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-orange">{k.habits}</p>
           {scored ? (
             <>
               <p className="mt-0.5 font-display text-[19px] font-bold tracking-tight text-ink">
-                Six dimensions
+                {k.sixDimensions}
               </p>
               <ul className="mt-3.5 flex flex-col gap-2.5">
                 {scored.map((d) => (
                   <li key={d.id}>
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-[12px] font-semibold text-ink">{d.name}</span>
+                      <span className="text-[12px] font-semibold text-ink">{dim(d.id).name}</span>
                       <span className="font-mono text-[11px] text-faint">{d.v}</span>
                     </div>
                     <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-line">
@@ -194,25 +199,23 @@ export function SkillTrack({
               </ul>
               {leak && (
                 <p className="mt-3.5 rounded-xl border border-orange/25 bg-accent-soft/50 p-3 text-[12.5px] leading-relaxed text-ink">
-                  Weakest: <b className="font-semibold">{leak.name}</b> — closer to &ldquo;{leak.lowPole}&rdquo;
-                  than you want.
+                  {fmt(k.weakest, { name: dim(leak.id).name, pole: dim(leak.id).lowPole })}
                 </p>
               )}
             </>
           ) : (
             <>
               <p className="mt-0.5 font-display text-[19px] font-bold tracking-tight text-ink">
-                Not measured yet
+                {k.notMeasured}
               </p>
               <p className="mt-2 text-[13px] leading-relaxed text-subtle">
-                Know Your Style scores you on six dimensions and names the habit costing you the
-                most. Six minutes, and this fills in.
+                {k.notMeasuredBody}
               </p>
               <Link
                 href="/bots/know-your-style"
                 className="mt-3.5 inline-flex rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
               >
-                Take the assessment
+                {k.takeAssessment}
               </Link>
             </>
           )}

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { validateTradingAccount } from "@/lib/tradingAccount";
 import { setTradingAccount } from "./actions";
+import { useT } from "@/i18n/client";
 
 // Full-screen focused gate for member_active users who haven't saved a trading
 // account number yet. They can't reach the desk until they save one — so an
@@ -11,10 +12,11 @@ export function TradingAccountGate() {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const t = useT();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const check = validateTradingAccount(value);
+    const check = validateTradingAccount(value, t.account);
     if (!check.ok) { setError(check.message); return; }
     setBusy(true);
     setError("");
@@ -42,23 +44,20 @@ export function TradingAccountGate() {
           </svg>
         </span>
 
-        <p className="mt-6 text-[13px] font-semibold uppercase tracking-wider text-orange">One more step</p>
+        <p className="mt-6 text-[13px] font-semibold uppercase tracking-wider text-orange">{t.account.gateEyebrow}</p>
         <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink">
-          Add your trading account number
+          {t.account.addTitle}
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-subtle">
-          Now that you&apos;re a funded member, link your live MT4/MT5 account
-          number. This keeps your access tied to the account you actually trade —
-          so an old or inactive account never removes you by mistake.
+          {t.account.gateBody}
         </p>
         <p className="mt-2 text-[13px] leading-relaxed text-faint">
-          Switched trading accounts later? Come back and update this to the one
-          you&apos;re most active in.
+          {t.account.gateHint}
         </p>
 
         <form onSubmit={onSubmit} className="mt-6">
           <label htmlFor="ta" className="mb-2 block text-sm font-medium text-ink">
-            Trading account number
+            {t.account.gateField}
           </label>
           <input
             id="ta"
@@ -67,7 +66,7 @@ export function TradingAccountGate() {
             autoFocus
             value={value}
             onChange={(e) => { setValue(e.target.value.replace(/\D/g, "").slice(0, 15)); if (error) setError(""); }}
-            placeholder="e.g. 51234567"
+            placeholder={t.account.placeholder}
             className="w-full rounded-xl border border-line bg-card px-3.5 py-3 text-[15px] font-mono tracking-wide text-ink placeholder:font-sans placeholder:text-faint focus:border-orange focus:outline-none focus:ring-2 focus:ring-orange/15"
           />
           {error && <p role="alert" className="mt-2.5 text-sm text-red-600">{error}</p>}
@@ -76,7 +75,7 @@ export function TradingAccountGate() {
             disabled={busy}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {busy ? "Saving…" : "Save & open my desk"}
+            {busy ? t.common.saving : t.account.gateSubmit}
           </button>
         </form>
       </div>

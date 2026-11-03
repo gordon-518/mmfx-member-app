@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import type { Question } from "@/lib/kys/types";
+import { useT } from "@/i18n/client";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F", "G"];
 
@@ -50,10 +51,11 @@ export function QuestionStep({
   onSelect: (optionId: string) => void;
 }) {
   const reduce = useReducedMotion();
+  const t = useT();
   return (
     <div className="w-full">
       <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-orange">
-        {question.theme ?? "Question"}
+        {question.theme ?? t.kys.question}
       </p>
       <h2 className="mb-6 font-display text-[24px] font-bold leading-tight tracking-tight text-ink sm:text-[28px]">
         {question.text}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/i18n/client";
 
 // Small ⓘ affordance that reveals a short explanation of how a metric is
 // derived. Click to toggle; blur to dismiss. `align="right"` anchors the popover
@@ -16,11 +17,12 @@ export function InfoTip({
   align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
+  const fallbackLabel = useT().journal.infoTip;
   return (
     <span className="relative inline-flex align-middle">
       <button
         type="button"
-        aria-label={label ?? "How this is calculated"}
+        aria-label={label ?? fallbackLabel}
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setOpen(false)}
         className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-line-strong text-[9px] font-bold leading-none text-subtle transition-colors hover:border-orange hover:text-orange"

@@ -21,6 +21,16 @@
 // The lists below are what the dropdown offers. They are not exhaustive — a
 // member on a server we haven't listed types it, and it's accepted as long as
 // it's shaped like an MT5 server name for THAT broker and isn't a demo.
+//
+// The connect form runs the same check in the browser with the reader's
+// messages (m), so a member sees the error in their language before anything
+// is posted; the API repeats it with the English default as the backstop.
+
+import { fmt } from "@/i18n/format";
+import { en } from "@/i18n/messages/en";
+import type { Messages } from "@/i18n/messages/types";
+
+type ServerErrorMessages = Messages["journalConnect"]["serverErrors"];
 
 /**
  * Words that mark a non-live account. The trailing \\w* matters: brokers number
@@ -85,19 +95,19 @@ export function isDemoServer(raw: string): boolean {
  * the canonical spelling to store, so the same server is one row and not five
  * casings. Unknown broker ids pass through (the registry already rejected them).
  */
-export function validateBrokerServer(raw: string, brokerId: string): ServerCheck {
+export function validateBrokerServer(
+  raw: string,
+  brokerId: string,
+  m: ServerErrorMessages = en.journalConnect.serverErrors
+): ServerCheck {
   const server = normalizeServer(raw ?? "");
   if (server.length < 3) {
-    return { ok: false, error: "Enter the server shown on your MT5 login screen." };
+    return { ok: false, error: m.empty };
   }
 
   // Demo first: the message should say why, whatever the broker.
   if (isDemoServer(server)) {
-    return {
-      ok: false,
-      error:
-        "That's a demo server. The assistant only reviews live trading, so connect the account you actually trade.",
-    };
+    return { ok: false, error: m.demo };
   }
 
   const rule = RULES[brokerId];
@@ -115,6 +125,6 @@ export function validateBrokerServer(raw: string, brokerId: string): ServerCheck
 
   return {
     ok: false,
-    error: `That doesn't look like a ${rule.label} server. It should look like ${rule.known[0]} — copy it from your MT5 login screen.`,
+    error: fmt(m.wrongBroker, { broker: rule.label, example: rule.known[0] }),
   };
 }

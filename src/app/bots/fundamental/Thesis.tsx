@@ -9,6 +9,11 @@ import {
   trendFilterSentence,
 } from "@/lib/fa/format";
 import type { AnalysisEnvelope, DeskInstrument } from "@/lib/fa/types";
+import { INTL_LOCALE } from "@/i18n/config";
+import { biasWord } from "@/i18n/bias";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages/types";
+import { getLocale, getT } from "@/i18n/server";
 import { BiasPill, ConvictionBar, Panel, StateBadge } from "./parts";
 import { LiveHero } from "./LiveHero";
 import { SendCopyButton } from "./SendCopyButton";
@@ -16,6 +21,15 @@ import { SendCopyButton } from "./SendCopyButton";
 // The full thesis for one instrument, rendered natively. Every field comes
 // from the desk's output contract (desk BUILD.md §6) — nothing is inferred,
 // and anything the desk left empty says so rather than being hidden.
+//
+// The frame is in the reader's language; what the desk wrote (the regime,
+// the thesis, catalysts, reasons) is its English, shown as written. The desk's
+// one-word values (bullish, invalidate...) are translated where we know them.
+
+/** A desk value that is a bias word, in the reader's language; anything else as written. */
+function deskWord(t: Messages, value: string): string {
+  return value === "bullish" || value === "bearish" || value === "neutral" ? biasWord(t, value) : value;
+}
 
 function Chip({ label, value, lit }: { label: string; value: string; lit: boolean }) {
   return (
@@ -56,13 +70,18 @@ function Bullets({ items, empty }: { items: string[]; empty: string }) {
   );
 }
 
-export function Thesis({
+export async function Thesis({
   instrument,
   envelope,
 }: {
   instrument: DeskInstrument;
   envelope: AnalysisEnvelope;
 }) {
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  const desk = t.fundamental;
+  const w = desk.thesis;
+  const age = (iso: string | null | undefined) => formatAge(iso, undefined, desk);
+  const nickname = (desk.nicknames as Record<string, string | undefined>)[instrument.id] ?? instrument.nickname;
   const a = envelope.analysis;
   const inv = a.invalidation;
   const tf = inv.trend_filter;
@@ -77,23 +96,27 @@ export function Thesis({
           href="/bots/fundamental"
           className="text-[13px] font-semibold text-orange transition-colors hover:text-accent-ink"
         >
-          ← The desk
+          {w.back}
         </Link>
         <div className="flex flex-wrap items-center gap-2.5">
           <StateBadge state={envelope.state} />
           <span className="text-[12px] text-faint">
-            Written {formatUtc(a.generated_at)} · {formatAge(a.generated_at)}
+            {fmt(w.written, {
+              when: formatUtc(a.generated_at, INTL_LOCALE[locale], desk.utcStamp),
+              age: age(a.generated_at),
+            })}
           </span>
         </div>
       </div>
 
       <div className="rise mb-5">
         <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-          Fundamental thesis · {instrument.nickname}
+          {fmt(w.eyebrow, { nickname })}
         </p>
         <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">
           {instrument.display}
         </h1>
+        {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{desk.contentNote}</p>}
       </div>
 
       <div className="space-y-4">
@@ -114,7 +137,7 @@ export function Thesis({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-                Bias
+                {w.bias}
               </p>
               <div className="mt-1.5">
                 <BiasPill bias={a.bias} size="lg" />
@@ -125,7 +148,7 @@ export function Thesis({
             </div>
           </div>
           <p className="mt-4 border-t border-line pt-3 text-[13.5px] leading-relaxed text-subtle">
-            <span className="font-semibold text-ink">Dominant driver:</span> {driver}
+            <span className="font-semibold text-ink">{w.dominantDriver}</span> {driver}
           </p>
         </div>
 
@@ -135,10 +158,10 @@ export function Thesis({
           style={{ animationDelay: "0.24s" }}
         >
           {[
-            { label: "H4 · 50 EMA", value: formatLevel(a.price_context.h4_50_ema) },
-            { label: "Trend filter", value: `${tf.timeframe} ${tf.period} ${tf.indicator}` },
-            { label: "Max age", value: `${inv.max_age_hours}h` },
-            { label: "Trigger", value: humanize(a.trigger) },
+            { label: w.cellEma, value: formatLevel(a.price_context.h4_50_ema) },
+            { label: w.cellTrendFilter, value: `${tf.timeframe} ${tf.period} ${tf.indicator}` },
+            { label: w.cellMaxAge, value: fmt(w.maxAgeValue, { h: inv.max_age_hours }) },
+            { label: w.cellTrigger, value: humanize(a.trigger) },
           ].map((cell) => (
             <div key={cell.label} className="bg-card p-4">
               <dt className="text-[11px] font-semibold uppercase tracking-wider text-faint">
@@ -151,23 +174,23 @@ export function Thesis({
           ))}
         </dl>
 
-        <Panel title="Where price sits" meta="vs the trend" delay={0.28}>
+        <Panel title={w.wherePrice} meta={w.wherePriceMeta} delay={0.28}>
           <p className="text-[13.5px] leading-relaxed text-ink">
             {humanize(a.price_context.position_vs_trend)}
           </p>
         </Panel>
 
-        <Panel title="Regime" meta="macro baseline" delay={0.32}>
+        <Panel title={w.regime} meta={w.regimeMeta} delay={0.32}>
           <p className="text-[14px] leading-relaxed text-ink">{a.regime_summary}</p>
         </Panel>
 
-        <Panel title="The thesis" meta={driver} delay={0.36}>
+        <Panel title={w.thesis} meta={driver} delay={0.36}>
           <p className="text-[15px] leading-relaxed text-ink">{a.narrative_summary}</p>
         </Panel>
 
-        <Panel title="Active catalysts" meta="pull vs effect" delay={0.4}>
+        <Panel title={w.catalysts} meta={w.catalystsMeta} delay={0.4}>
           {a.active_catalysts.length === 0 ? (
-            <p className="text-[13.5px] text-subtle">None flagged on this run.</p>
+            <p className="text-[13.5px] text-subtle">{w.noCatalysts}</p>
           ) : (
             <ul className="space-y-4">
               {a.active_catalysts.map((c) => (
@@ -175,13 +198,13 @@ export function Thesis({
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[14px] font-semibold text-ink">{c.name}</span>
                     <Chip
-                      label="pull"
-                      value={c.narrative_pull}
+                      label={w.pull}
+                      value={deskWord(t, c.narrative_pull)}
                       lit={c.narrative_pull !== "neutral"}
                     />
                     <Chip
-                      label="effect"
-                      value={c.actual_effect}
+                      label={w.effect}
+                      value={deskWord(t, c.actual_effect)}
                       lit={c.actual_effect === "bullish" || c.actual_effect === "bearish"}
                     />
                   </div>
@@ -195,18 +218,18 @@ export function Thesis({
         </Panel>
 
         {/* The falsifiable half: what would make this read wrong. */}
-        <Panel title="Invalidation contract" meta="falsifiable" delay={0.44}>
+        <Panel title={w.contract} meta={w.contractMeta} delay={0.44}>
           <div>
-            <ContractRow label="Trend filter">
-              {trendFilterSentence(a)} · {humanize(tf.confirmation)}
+            <ContractRow label={w.rowTrendFilter}>
+              {trendFilterSentence(a, w)} · {humanize(tf.confirmation)}
             </ContractRow>
-            <ContractRow label="Invalidate above">
+            <ContractRow label={w.rowAbove}>
               {formatLevel(inv.hard_level_invalidate_above)}
             </ContractRow>
-            <ContractRow label="Invalidate below">
+            <ContractRow label={w.rowBelow}>
               {formatLevel(inv.hard_level_invalidate_below)}
             </ContractRow>
-            <ContractRow label="Watch zone">
+            <ContractRow label={w.rowWatchZone}>
               {inv.watch_zone
                 ? `${formatLevel(inv.watch_zone[0])} — ${formatLevel(inv.watch_zone[1])}`
                 : "—"}
@@ -215,24 +238,28 @@ export function Thesis({
 
           {inv.external_triggers.length > 0 && (
             <ul className="mt-4 space-y-2.5">
-              {inv.external_triggers.map((t) => (
+              {inv.external_triggers.map((trigger) => (
                 <li
-                  key={`${t.action}-${t.event}`}
+                  key={`${trigger.action}-${trigger.event}`}
                   className="rounded-xl border border-line bg-paper p-3"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                        t.action === "invalidate"
+                        trigger.action === "invalidate"
                           ? "bg-ink/5 text-ink"
                           : "bg-accent-soft text-accent-ink"
                       }`}
                     >
-                      {t.action}
+                      {trigger.action === "invalidate"
+                        ? w.actionInvalidate
+                        : trigger.action === "watch"
+                          ? w.actionWatch
+                          : trigger.action}
                     </span>
-                    <span className="text-[13.5px] font-semibold text-ink">{t.event}</span>
+                    <span className="text-[13.5px] font-semibold text-ink">{trigger.event}</span>
                   </div>
-                  <p className="mt-1 text-[13px] leading-relaxed text-subtle">{t.rationale}</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-subtle">{trigger.rationale}</p>
                 </li>
               ))}
             </ul>
@@ -240,16 +267,16 @@ export function Thesis({
         </Panel>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Panel title="Why this conviction" delay={0.48}>
-            <Bullets items={a.confidence_drivers} empty="Not stated on this run." />
+          <Panel title={w.whyConviction} delay={0.48}>
+            <Bullets items={a.confidence_drivers} empty={w.notStated} />
           </Panel>
-          <Panel title="Data gaps" meta="what was missing" delay={0.5}>
-            <Bullets items={a.data_gaps} empty="Full data coverage on this run." />
+          <Panel title={w.dataGaps} meta={w.dataGapsMeta} delay={0.5}>
+            <Bullets items={a.data_gaps} empty={w.fullCoverage} />
           </Panel>
         </div>
 
         {envelope.reads.length > 0 && (
-          <Panel title="Recommended reading" meta="what the desk read" delay={0.54}>
+          <Panel title={w.reading} meta={w.readingMeta} delay={0.54}>
             <ul className="space-y-2">
               {envelope.reads.map((r) => (
                 <li key={r.url}>
@@ -288,18 +315,19 @@ export function Thesis({
               href={`/api/fundamental/report?instrument=${instrument.id}`}
               className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-2.5 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
             >
-              Download PDF
+              {w.downloadPdf}
             </a>
             <SendCopyButton instrument={instrument.id} />
           </div>
           <p className="mt-4 border-t border-line pt-3 text-[12px] leading-relaxed text-faint">
-            State: {envelope.state} — {humanize(envelope.state_reason)} (checked{" "}
-            {formatAge(envelope.state_updated_at)}).
+            {fmt(w.stateLine, {
+              state: desk.states[envelope.state].label,
+              reason: humanize(envelope.state_reason),
+              age: age(envelope.state_updated_at),
+            })}
           </p>
           <p className="mt-2 text-[12px] leading-relaxed text-faint">
-            Fundamental analysis of {instrument.display} only — not a signal, target, or
-            instruction to buy or sell. The contract above states precisely where this
-            thesis is wrong.
+            {fmt(w.disclaimer, { instrument: instrument.display })}
           </p>
         </div>
       </div>

@@ -1,0 +1,25 @@
+// The Team MM page: the locked panel and the member's invite card.
+// @MMFX_BOSS is a Telegram handle and stays as it is.
+export const teamMm = {
+  metaTitle: "Team MM — Market Makers FX",
+  metaDescription: "The private MM desk — VIP signals for funded members.",
+  lockedBlurb: "Team MM is our private desk — a VIP channel where Don sends extra, higher-conviction signals and member-only calls. It unlocks at Team MM: $500 in cumulative deposits to your own trading account.",
+  youreIn: "Team MM · you're in",
+  welcome: "Welcome to Team MM",
+  welcomeNamed: "Welcome to Team MM, {name}",
+  intro: "The private desk. Higher-conviction signals, member-only calls, and direct updates from Don — kept small and kept private.",
+  getInvite: "Get your invite",
+  inviteTitle: "Invites are sent by hand — just for you",
+  inviteBody: "To keep Team MM private, the desk adds every member personally. Tap below to message us — we'll confirm you're not already in and send your own invite link. Please don't share it; it's tied to you.",
+  request: "Request your invite",
+  copied: "Copied {handle}",
+  save: "Save {handle}",
+  official: "{handle} is one of only two official desk accounts. Anyone else is not us.",
+  howItWorks: "How it works",
+  s1Title: "Tap “Request your invite”",
+  s1Body: "It opens a private chat with the desk on Telegram.",
+  s2Title: "We verify and invite you",
+  s2Body: "The desk checks you're not already in, then sends a personal invite link — just for you.",
+  s3Title: "Join & turn on notifications",
+  s3Body: "So you never miss a Team MM signal or call.",
+} as const;

@@ -1,18 +1,33 @@
 import type { Dimension, DimensionId, DimensionScores, UserAnswers } from './types';
 import { QUESTIONS } from './questions';
+import { en } from '@/i18n/messages/en';
+import type { Messages } from '@/i18n/messages/types';
+
+const ORDER: DimensionId[] = [
+  'risk_discipline',
+  'emotional_control',
+  'independent_conviction',
+  'decisiveness',
+  'consistency',
+  'process_routine'
+];
+
+/** The six spectra with their names and poles in the reader's language. */
+export function dimensionsIn(words: Messages['dimensions'] = en.dimensions): Dimension[] {
+  return ORDER.map(id => ({
+    id,
+    name: words[id].name,
+    lowPole: words[id].lowPole,
+    highPole: words[id].highPole
+  }));
+}
 
 /**
  * The six trader-psychology spectra. All oriented "higher = healthier", so a
- * profile reads as a shape and the lowest scores are the leaks.
+ * profile reads as a shape and the lowest scores are the leaks. English, as
+ * the report prompt reads them; the words live in messages/<locale>/dimensions.ts.
  */
-export const DIMENSIONS: Dimension[] = [
-  { id: 'risk_discipline', name: 'Risk Discipline', lowPole: 'Reckless', highPole: 'Disciplined' },
-  { id: 'emotional_control', name: 'Emotional Control', lowPole: 'Tilt-prone', highPole: 'Composed' },
-  { id: 'independent_conviction', name: 'Independent Conviction', lowPole: 'Dependent', highPole: 'Independent' },
-  { id: 'decisiveness', name: 'Decisiveness', lowPole: 'Hesitant', highPole: 'Decisive' },
-  { id: 'consistency', name: 'Consistency', lowPole: 'System-hopper', highPole: 'Committed' },
-  { id: 'process_routine', name: 'Process & Routine', lowPole: 'Wings it', highPole: 'Routine-driven' }
-];
+export const DIMENSIONS: Dimension[] = dimensionsIn();
 
 const DIMENSION_IDS = DIMENSIONS.map(d => d.id);
 

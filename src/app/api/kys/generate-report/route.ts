@@ -8,9 +8,11 @@ import { scoreAnswers } from "@/lib/kys/scoring";
 import { scoreDimensions } from "@/lib/kys/dimensions";
 import { selectMoves } from "@/lib/kys/moves";
 import { getArchetype } from "@/lib/kys/archetypes";
-import { STATIC_SYSTEM_PROMPT, buildDynamicContext } from "@/lib/kys/prompt";
-import { validateReport } from "@/lib/kys/validation";
+import { buildDynamicContext, staticSystemPrompt } from "@/lib/kys/prompt";
+import { finalizeReport, validateReport } from "@/lib/kys/validation";
+import { REPORT_LANGUAGE } from "@/lib/kys/reportLanguage";
 import type { GenerateReportResponse, UserAnswers } from "@/lib/kys/types";
+import { getLocale, messagesFor } from "@/i18n/server";
 
 // Know Your Style, now native (21 Oct). This replaces the standalone app's
 // /api/generate-report: same deterministic scoring and the same prompt, but
@@ -18,6 +20,10 @@ import type { GenerateReportResponse, UserAnswers } from "@/lib/kys/types";
 // HERE from the answers rather than trusted from the client, and the finished
 // profile is saved to the member's row so the dashboard, the welcome
 // checklist and the upgrade plan finder can use it.
+//
+// The report is written in the member's language (Nov 2026): the same prompt
+// with that language's headings and footer, and more room to write it in.
+// English is unchanged.
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -29,17 +35,23 @@ const HAIKU = "claude-haiku-4-5-20251001";
 // model id — that fallback would have 404d. Sonnet 5 is the live one.
 const SONNET = "claude-sonnet-5";
 
-async function writeReport(model: string, dynamicContext: string): Promise<string> {
+interface ReportRequest {
+  staticPrompt: string;
+  dynamicContext: string;
+  maxTokens: number;
+}
+
+async function writeReport(model: string, r: ReportRequest): Promise<string> {
   const client = new Anthropic({ timeout: 45_000, maxRetries: 1 });
   const res = await client.messages.create({
     model,
-    max_tokens: 1500,
+    max_tokens: r.maxTokens,
     temperature: 0.6,
     system: [
-      // The static half is cached: every assessment sends the same voice and
-      // structure rules.
-      { type: "text", text: STATIC_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-      { type: "text", text: dynamicContext },
+      // The static half is cached: every assessment in a language sends the
+      // same voice and structure rules.
+      { type: "text", text: r.staticPrompt, cache_control: { type: "ephemeral" } },
+      { type: "text", text: r.dynamicContext },
     ],
     messages: [{ role: "user", content: "Generate the personalised report now." }],
   });
@@ -91,26 +103,32 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "could not score this assessment" }, { status: 500 });
   }
   const dimensions = scoreDimensions(answers);
-  const moves = selectMoves(archetype, dimensions);
-  const dynamicContext = buildDynamicContext(profile, answers, dimensions);
+  const locale = await getLocale();
+  const moves = selectMoves(archetype, dimensions, messagesFor(locale));
 
   let reportText: string;
   try {
-    reportText = await writeReport(HAIKU, dynamicContext);
-    if (!validateReport(reportText).ok) {
+    const request: ReportRequest = {
+      staticPrompt: staticSystemPrompt(locale),
+      dynamicContext: buildDynamicContext(profile, answers, dimensions, locale),
+      maxTokens: REPORT_LANGUAGE[locale].maxTokens,
+    };
+    reportText = await writeReport(HAIKU, request);
+    if (!validateReport(reportText, locale).ok) {
       // One retry on the stronger model, exactly as the standalone app did.
-      reportText = await writeReport(SONNET, dynamicContext);
+      reportText = await writeReport(SONNET, request);
     }
   } catch (e) {
     console.error("[kys] report generation failed:", e);
     return NextResponse.json({ error: "report generation failed" }, { status: 502 });
   }
 
-  const check = validateReport(reportText);
+  const check = validateReport(reportText, locale);
   if (!check.ok) {
-    console.error("[kys] report failed validation after the retry:", check.reason);
+    console.error(`[kys] ${locale} report failed validation after the retry:`, check.reason);
     return NextResponse.json({ error: "report generation failed" }, { status: 502 });
   }
+  reportText = finalizeReport(reportText, locale);
 
   // Save the profile. A failure here must not cost the member their report —
   // they already answered 14 questions — so it's logged, not surfaced.

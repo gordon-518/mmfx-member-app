@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/config";
 import { computeAnalytics, type JournalAnalytics } from "./analytics";
 import { detectLeaks, type LeakResult } from "./leaks";
 import { accountHealth, type Health } from "./health";
@@ -22,6 +23,10 @@ import type {
 //
 // behavioralSignals + buildReportPrompt are PURE and unit-tested; only
 // generateReport touches the network.
+//
+// The data fed to the model is always English (the engines' defaults); the
+// report is written in the reader's language, so the prompt only asks for the
+// output language when it isn't English.
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 // Haiku 4.5 — cheap enough to run per-user daily at scale (~$0.005/report),
@@ -116,6 +121,25 @@ function pct(frac: number | null): string {
   return frac == null ? "n/a" : `${Math.round(frac * 100)}%`;
 }
 
+/** The language the report is written in, as the model should read it. */
+const REPORT_LANGUAGE: Readonly<Record<Locale, string>> = {
+  en: "English",
+  "zh-Hans": "Simplified Chinese",
+  "zh-Hant": "Traditional Chinese",
+  ms: "Malay (Bahasa Melayu)",
+  id: "Indonesian (Bahasa Indonesia)",
+};
+
+/** The output-language instruction; empty for English, the default. */
+export function reportLanguageLine(locale: Locale): string {
+  if (locale === DEFAULT_LOCALE) return "";
+  return (
+    `Write the summary, every habit's title and detail, and every tip in ${REPORT_LANGUAGE[locale]}. ` +
+    "Keep the JSON keys and the status and kind values exactly as specified, in English, and keep " +
+    "numbers, amounts and instrument symbols as they appear above."
+  );
+}
+
 export interface ReportContext {
   analytics: JournalAnalytics;
   signals: BehavioralSignals;
@@ -127,7 +151,7 @@ export interface ReportContext {
 }
 
 /** Build the numbers-and-notes prompt fed to the model. Pure. */
-export function buildReportPrompt(ctx: ReportContext): string {
+export function buildReportPrompt(ctx: ReportContext, locale: Locale = DEFAULT_LOCALE): string {
   const { analytics: a, signals: s, goals, sampleTrades } = ctx;
 
   const goalLines = goals
@@ -160,7 +184,7 @@ export function buildReportPrompt(ctx: ReportContext): string {
     )
     .join("\n");
 
-  return [
+  const lines = [
     "You are an elite trading coach reviewing one trader's recent performance.",
     "Be direct, specific and grounded ONLY in the data below — never invent numbers or trades.",
     "Lead with what matters most for THIS trader's stated goals. Judge habits against their own plan,",
@@ -207,7 +231,9 @@ export function buildReportPrompt(ctx: ReportContext): string {
     "important thing, reference their goals), a `status` of ahead|on_track|behind|at_risk vs their",
     "targets, 2-5 `habits` (mix of good and bad, each grounded in a specific number or note above),",
     "and 2-4 concrete, actionable `tips` on trade management. No preamble.",
-  ].join("\n");
+  ];
+  const language = reportLanguageLine(locale);
+  return (language ? [...lines, language] : lines).join("\n");
 }
 
 const REPORT_SCHEMA = {
@@ -240,7 +266,8 @@ const REPORT_SCHEMA = {
  * cron run — exactly like growth/narrative.ts.
  */
 export async function generateReport(
-  ctx: ReportContext
+  ctx: ReportContext,
+  locale: Locale = DEFAULT_LOCALE
 ): Promise<{ report: CoachReport; model: string } | null> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
@@ -256,7 +283,7 @@ export async function generateReport(
       body: JSON.stringify({
         model: MODEL,
         max_tokens: 1200,
-        messages: [{ role: "user", content: buildReportPrompt(ctx) }],
+        messages: [{ role: "user", content: buildReportPrompt(ctx, locale) }],
         output_config: { format: { type: "json_schema", schema: REPORT_SCHEMA } },
       }),
       signal: AbortSignal.timeout(30_000),

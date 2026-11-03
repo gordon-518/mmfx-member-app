@@ -7,7 +7,11 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { signOut } from "@/app/dashboard/actions";
 import { TourHost } from "./tour/GuidedTour";
 import type { AccountStatus } from "@/lib/trial/status";
-import { tierLabel, tierUnlockLabel, type MemberTier } from "@/lib/tiers";
+import type { MemberTier } from "@/lib/tiers";
+import { useT } from "@/i18n/client";
+import { unlocksAt } from "@/i18n/tierName";
+import type { Messages } from "@/i18n/messages/types";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import { canAccess, featureForHref, FEATURE_MIN_TIER, type Viewer } from "@/lib/access/features";
 import {
   HomeIcon, IndicatorsIcon, StrategiesIcon, LibraryIcon, CourseIcon,
@@ -17,54 +21,55 @@ import {
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-type NavItem = { label: string; href: string; icon: Icon };
+type NavKey = keyof Messages["nav"];
+type NavItem = { key: NavKey; href: string; icon: Icon };
 
 // Grouped by trader stage (conversion-fix 4.4): the same spine as the /welcome
 // roadmap and the dashboard rails, so a new user sees where each tool fits
 // instead of a flat list of fifteen.
-const NAV_SECTIONS: { title?: string; tour: string; items: NavItem[] }[] = [
+const NAV_SECTIONS: { title?: NavKey; tour: string; items: NavItem[] }[] = [
   {
     tour: "nav-home",
     items: [
-      { label: "Start here", href: "/welcome", icon: SparkIcon },
-      { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
+      { key: "startHere", href: "/welcome", icon: SparkIcon },
+      { key: "dashboard", href: "/dashboard", icon: HomeIcon },
     ],
   },
   {
-    title: "Read the market",
+    title: "sectionRead",
     tour: "nav-read",
     items: [
-      { label: "Daily Analysis", href: "/daily-analysis", icon: AnalysisIcon },
-      { label: "Fundamental Desk", href: "/bots/fundamental", icon: DeskIcon },
-      { label: "News & Articles", href: "/news", icon: NewsIcon },
-      { label: "Economic Calendar", href: "/calendar", icon: CalendarIcon },
+      { key: "dailyAnalysis", href: "/daily-analysis", icon: AnalysisIcon },
+      { key: "fundamentalDesk", href: "/bots/fundamental", icon: DeskIcon },
+      { key: "news", href: "/news", icon: NewsIcon },
+      { key: "calendar", href: "/calendar", icon: CalendarIcon },
     ],
   },
   {
-    title: "Execute",
+    title: "sectionExecute",
     tour: "nav-execute",
     items: [
-      { label: "Signals", href: "/signals", icon: SignalsIcon },
-      { label: "Indicators", href: "/indicators", icon: IndicatorsIcon },
-      { label: "Strategies", href: "/strategies", icon: StrategiesIcon },
+      { key: "signals", href: "/signals", icon: SignalsIcon },
+      { key: "indicators", href: "/indicators", icon: IndicatorsIcon },
+      { key: "strategies", href: "/strategies", icon: StrategiesIcon },
     ],
   },
   {
-    title: "Manage",
+    title: "sectionManage",
     tour: "nav-manage",
     items: [
-      { label: "Live Classes", href: "/live-classes", icon: LiveIcon },
-      { label: "Know Your Style", href: "/bots/know-your-style", icon: StyleIcon },
-      { label: "AI Trading Assistant", href: "/journal", icon: JournalIcon },
-      { label: "Team MM", href: "/team-mm", icon: TelegramIcon },
+      { key: "liveClasses", href: "/live-classes", icon: LiveIcon },
+      { key: "knowYourStyle", href: "/bots/know-your-style", icon: StyleIcon },
+      { key: "aiAssistant", href: "/journal", icon: JournalIcon },
+      { key: "teamMm", href: "/team-mm", icon: TelegramIcon },
     ],
   },
   {
-    title: "Foundations",
+    title: "sectionFoundations",
     tour: "nav-foundations",
     items: [
-      { label: "Course", href: "/course", icon: CourseIcon },
-      { label: "Library", href: "/library", icon: LibraryIcon },
+      { key: "course", href: "/course", icon: CourseIcon },
+      { key: "library", href: "/library", icon: LibraryIcon },
     ],
   },
 ];
@@ -72,7 +77,9 @@ const NAV_SECTIONS: { title?: string; tour: string; items: NavItem[] }[] = [
 // Admin-only pages, grouped under an "Admin" nav section — rendered only for
 // is_admin accounts. The IB reconciliation view exposes every member's data, so
 // it stays admin-only even after the journal itself goes member-facing.
-const ADMIN_NAV: NavItem[] = [
+type AdminNavItem = { label: string; href: string; icon: Icon };
+// Admin tools stay in English: they're staff-only.
+const ADMIN_NAV: AdminNavItem[] = [
   { label: "Growth Stats", href: "/stats", icon: AnalysisIcon },
   { label: "Members", href: "/admin", icon: UserPlusIcon },
   { label: "Channel Performance", href: "/admin/channel", icon: TelegramIcon },
@@ -120,13 +127,17 @@ function NavLinks({
   onNavigate?: () => void;
   viewer: Viewer;
 }) {
-  const renderItem = (n: NavItem) => {
+  const t = useT();
+  const renderItem = (n: { href: string; icon: Icon; label: string }) => {
     const active = isActive(pathname, n.href);
     const feature = featureForHref(n.href);
     const locked = feature != null && !canAccess(feature, viewer);
     // conversion-fix 3.7 — a locked item says which tier opens it.
     const min = feature != null ? FEATURE_MIN_TIER[feature] : "free";
-    const unlockHint = locked && min !== "free" ? `Unlocks at ${tierUnlockLabel(min)}` : undefined;
+    const unlockHint =
+      locked && min !== "free"
+        ? unlocksAt(t, min)
+        : undefined;
     return (
       <Link
         key={n.href}
@@ -145,7 +156,7 @@ function NavLinks({
         {locked && (
           <>
             <LockIcon aria-hidden className="ml-auto h-3.5 w-3.5 shrink-0 text-faint/70" />
-            <span className="sr-only">({unlockHint ?? "locked"})</span>
+            <span className="sr-only">({unlockHint ?? t.nav.lockedItem})</span>
           </>
         )}
       </Link>
@@ -161,16 +172,16 @@ function NavLinks({
         >
           {sec.title && (
             <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
-              {sec.title}
+              {t.nav[sec.title]}
             </p>
           )}
-          {sec.items.map(renderItem)}
+          {sec.items.map((n) => renderItem({ href: n.href, icon: n.icon, label: t.nav[n.key] }))}
         </div>
       ))}
       {viewer.isAdmin && (
         <>
           <p className="mt-4 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-faint">
-            Admin
+            {t.nav.admin}
           </p>
           {ADMIN_NAV.map(renderItem)}
         </>
@@ -189,6 +200,7 @@ function UserCard({
   firstName: string;
   memberTier: MemberTier;
 }) {
+  const t = useT();
   return (
     <div data-tour="nav-account" className="flex items-center gap-3 rounded-xl px-2 py-1.5">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[13px] font-bold uppercase text-accent-ink">
@@ -197,13 +209,13 @@ function UserCard({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-medium text-ink">{email}</span>
         <span className="block text-[11px] text-faint">
-          {memberTier === "trial" ? "Trial · full desk" : tierLabel(memberTier)}
+          {memberTier === "trial" ? t.nav.trialFullDesk : t.tiers[memberTier]}
         </span>
       </span>
       <form action={signOut}>
         <button
           type="submit"
-          aria-label="Sign out"
+          aria-label={t.common.signOut}
           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-faint transition-colors hover:bg-paper hover:text-ink"
         >
           <LogoutIcon />
@@ -216,6 +228,7 @@ function UserCard({
 /** "Upgrade now" CTA for non-members. `bar` = compact pill for the mobile top
  *  bar (top-right); `panel` = full-width button for the desktop sidebar + drawer. */
 function UpgradeCta({ variant, onNavigate }: { variant: "bar" | "panel"; onNavigate?: () => void }) {
+  const t = useT();
   if (variant === "bar") {
     return (
       <Link
@@ -224,7 +237,7 @@ function UpgradeCta({ variant, onNavigate }: { variant: "bar" | "panel"; onNavig
         className="flex h-9 items-center gap-1.5 rounded-lg bg-orange px-3 text-[12.5px] font-semibold text-white shadow-soft transition-colors hover:bg-[#f24e12]"
       >
         <SparkIcon className="h-3.5 w-3.5" />
-        Upgrade
+        {t.common.upgrade}
       </Link>
     );
   }
@@ -235,7 +248,7 @@ function UpgradeCta({ variant, onNavigate }: { variant: "bar" | "panel"; onNavig
       className="flex items-center justify-center gap-2 rounded-xl bg-orange px-3 py-2.5 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
     >
       <SparkIcon className="h-4 w-4" />
-      Upgrade now
+      {t.common.upgradeNow}
     </Link>
   );
 }
@@ -261,6 +274,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const t = useT();
   const viewer: Viewer = { tier: memberTier, isAdmin };
   // Top-ups move a member up the ladder, so everyone below Team MM sees it.
   const showUpgrade = memberTier !== "team";
@@ -306,6 +320,9 @@ export function AppShell({
           </div>
         )}
         <div className="mt-4 border-t border-line pt-4">
+          <div className="mb-2.5 px-1">
+            <LanguageSwitcher compact />
+          </div>
           <UserCard email={email} firstName={firstName} memberTier={memberTier} />
         </div>
       </aside>
@@ -318,7 +335,7 @@ export function AppShell({
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
-              aria-label="Open navigation menu"
+              aria-label={t.nav.openMenu}
               aria-expanded={menuOpen}
               className="-ml-1.5 flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-subtle transition-colors hover:bg-paper hover:text-ink"
             >
@@ -333,7 +350,7 @@ export function AppShell({
             <form action={signOut}>
               <button
                 type="submit"
-                aria-label="Sign out"
+                aria-label={t.common.signOut}
                 className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-subtle transition-colors hover:bg-paper hover:text-ink"
               >
                 <LogoutIcon />
@@ -373,7 +390,7 @@ export function AppShell({
               transition={slide}
               role="dialog"
               aria-modal="true"
-              aria-label="Navigation"
+              aria-label={t.nav.navigation}
             >
               <div className="flex items-center justify-between px-2">
                 <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
@@ -382,7 +399,7 @@ export function AppShell({
                 <button
                   type="button"
                   onClick={() => setMenuOpen(false)}
-                  aria-label="Close navigation menu"
+                  aria-label={t.nav.closeMenu}
                   className="-mr-1.5 flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg text-subtle transition-colors hover:bg-paper hover:text-ink"
                 >
                   <CloseIcon />
@@ -399,6 +416,9 @@ export function AppShell({
                 </div>
               )}
               <div className="mt-4 border-t border-line pt-4">
+                <div className="mb-2.5 px-1">
+                  <LanguageSwitcher compact />
+                </div>
                 <UserCard email={email} firstName={firstName} memberTier={memberTier} />
               </div>
             </motion.aside>

@@ -1,0 +1,17 @@
+export const account = {
+  label: "Trading account",
+  addTitle: "Add your trading account number",
+  savedHint: "Switched trading accounts? Update this to the one you're most active in.",
+  emptyHint: "Enter your live MT4/MT5 login. Keep it set to the account you trade most — if the one on file goes inactive you could be removed by mistake.",
+  placeholder: "e.g. 51234567",
+  update: "Update",
+  errEmpty: "Enter your trading account number.",
+  errFormat: "Use your MT4/MT5 number — 4 to 15 digits, numbers only.",
+  errSignIn: "Please sign in again.",
+  errSave: "We couldn't save that. Please try again.",
+  gateEyebrow: "One more step",
+  gateBody: "Now that you're a funded member, link your live MT4/MT5 account number. This keeps your access tied to the account you actually trade — so an old or inactive account never removes you by mistake.",
+  gateHint: "Switched trading accounts later? Come back and update this to the one you're most active in.",
+  gateField: "Trading account number",
+  gateSubmit: "Save & open my desk",
+} as const;

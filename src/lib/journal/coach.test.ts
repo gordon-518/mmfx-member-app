@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { behavioralSignals, buildReportPrompt } from "./coach";
+import { behavioralSignals, buildReportPrompt, reportLanguageLine } from "./coach";
 import { computeAnalytics } from "./analytics";
 import type { JournalGoalsRow, JournalTradeRow } from "./types";
 
@@ -148,5 +148,31 @@ describe("buildReportPrompt", () => {
     });
     expect(prompt).toContain("DISCIPLINE: 72% clean days");
     expect(prompt).toContain("Max daily loss");
+  });
+});
+
+describe("report language", () => {
+  const trades = [trade({ net_profit: 100, open_time: D(10) }), trade({ net_profit: -40, open_time: D(11) })];
+  const ctx = {
+    analytics: computeAnalytics(trades, []),
+    signals: behavioralSignals(trades, null),
+    goals: null,
+    sampleTrades: trades,
+  };
+
+  it("leaves the English prompt exactly as it was", () => {
+    expect(reportLanguageLine("en")).toBe("");
+    expect(buildReportPrompt(ctx, "en")).toBe(buildReportPrompt(ctx));
+    expect(buildReportPrompt(ctx).endsWith("No preamble.")).toBe(true);
+  });
+
+  it("asks for the reader's language, keeping the schema values in English", () => {
+    const zh = buildReportPrompt(ctx, "zh-Hans");
+    expect(zh.startsWith(buildReportPrompt(ctx))).toBe(true);
+    expect(zh).toContain("in Simplified Chinese");
+    expect(zh).toMatch(/status and kind values exactly as specified, in English/);
+    expect(buildReportPrompt(ctx, "zh-Hant")).toContain("Traditional Chinese");
+    expect(buildReportPrompt(ctx, "ms")).toContain("Malay (Bahasa Melayu)");
+    expect(buildReportPrompt(ctx, "id")).toContain("Indonesian (Bahasa Indonesia)");
   });
 });

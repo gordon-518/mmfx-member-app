@@ -4,6 +4,7 @@ import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { getNews, NEWS_PAIRS } from "@/lib/forexNews";
 import { NewsFeed } from "./NewsFeed";
+import { getLocale, getT } from "@/i18n/server";
 
 export default async function NewsPage({
   searchParams,
@@ -19,6 +20,11 @@ export default async function NewsPage({
   // Only honour an allowlisted pair (getNews validates again before the fetch).
   const pair = NEWS_PAIRS.some((p) => p.value && p.value === rawPair) ? rawPair : "";
   const items = await getNews(pair);
+  const t = await getT();
+  const locale = await getLocale();
+  // The pair codes read the same in every language; only these three are words.
+  const pairLabel = (label: string) =>
+    label === "All" ? t.news.all : label === "Gold" ? t.news.gold : label === "Silver" ? t.news.silver : label;
 
   return (
     <AppShell email={profile.email} accountStatus={profile.account_status} memberTier={gate.viewer.tier} isAdmin={profile.is_admin}>
@@ -26,15 +32,15 @@ export default async function NewsPage({
         {/* Header */}
         <div className="rise">
           <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-            Markets · Forex &amp; commodities
+            {t.news.eyebrow}
           </p>
           <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">
-            News &amp; Articles
+            {t.news.title}
           </h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">
-            The headlines moving the markets — the pairs you trade, gold and commodities, the dollar,
-            the Fed and rates — each tagged with sentiment. Filter to what you trade.
+            {t.news.intro}
           </p>
+          {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{t.news.sourceNote}</p>}
         </div>
 
         {/* Pair filter (server-driven — accurate per-pair coverage) */}
@@ -49,7 +55,7 @@ export default async function NewsPage({
                   active ? "bg-orange text-white" : "bg-card text-subtle hover:text-ink border border-line"
                 }`}
               >
-                {p.label}
+                {pairLabel(p.label)}
               </Link>
             );
           })}
@@ -57,7 +63,7 @@ export default async function NewsPage({
 
         {items.length === 0 ? (
           <p className="rise mt-6 rounded-2xl border border-line bg-card px-5 py-10 text-center text-[14px] text-subtle shadow-soft">
-            No articles available right now. Try another pair, or check back shortly.
+            {t.news.emptyPair}
           </p>
         ) : (
           <NewsFeed items={items} />

@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { isDemoUser } from "@/lib/showcase";
 import { ATTR_CID, CID_MAX } from "@/lib/attribution/touch";
+import { isLocale, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from "@/i18n/config";
 
 // Post-click attribution. Every link we tag carries ?cid=…; this is the one
 // place that sees it, because the reader lands on an ordinary page and the cid
@@ -70,6 +71,24 @@ export async function proxy(request: NextRequest, event?: NextFetchEvent) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // A member's language follows the account: setLocale() writes it to
+  // user_metadata, and here it is copied into this device's cookie when the
+  // two disagree — onto the request too, so this very render is already in
+  // the right language. The auth cookies the session refresh may have just
+  // set are carried across onto the rebuilt response.
+  const savedLocale = user?.user_metadata?.locale;
+  if (isLocale(savedLocale) && request.cookies.get(LOCALE_COOKIE)?.value !== savedLocale) {
+    request.cookies.set(LOCALE_COOKIE, savedLocale);
+    const carried = supabaseResponse.cookies.getAll();
+    supabaseResponse = NextResponse.next({ request });
+    carried.forEach((c) => supabaseResponse.cookies.set(c));
+    supabaseResponse.cookies.set(LOCALE_COOKIE, savedLocale, {
+      path: "/",
+      maxAge: LOCALE_COOKIE_MAX_AGE,
+      sameSite: "lax",
+    });
+  }
 
   // First-run roadmap gate: brand-new users (signed up on/after the ship date,
   // who haven't dismissed the roadmap) are sent to /welcome once. Uses only the

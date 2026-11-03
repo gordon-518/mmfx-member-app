@@ -77,3 +77,38 @@ body {
     transform: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Chinese (i18n, 4 Nov).                                              */
+/* Bricolage and Hanken have no CJK glyphs, so Chinese falls through   */
+/* to the system's own Chinese face. Name the good ones per script so  */
+/* every platform lands on a designed font rather than a last-resort   */
+/* fallback, and drop the negative tracking the Latin display face is  */
+/* set with: it crushes Han characters together.                       */
+/* ------------------------------------------------------------------ */
+:lang(zh-Hans) body {
+  font-family: var(--font-sans), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", "Source Han Sans SC", system-ui, sans-serif;
+}
+:lang(zh-Hant) body {
+  font-family: var(--font-sans), "PingFang TC", "Microsoft JhengHei", "Noto Sans TC",
+    "Source Han Sans TC", system-ui, sans-serif;
+}
+:lang(zh-Hans) .font-display,
+:lang(zh-Hant) .font-display {
+  font-family: var(--font-display), "PingFang SC", "PingFang TC", "Microsoft YaHei",
+    "Microsoft JhengHei", system-ui, sans-serif;
+}
+:lang(zh-Hans) .tracking-tight,
+:lang(zh-Hant) .tracking-tight,
+:lang(zh-Hans) .tracking-wide,
+:lang(zh-Hant) .tracking-wide,
+:lang(zh-Hans) .tracking-wider,
+:lang(zh-Hant) .tracking-wider {
+  letter-spacing: normal;
+}
+/* Uppercase eyebrows are a Latin device; Han has no case. */
+:lang(zh-Hans) .uppercase,
+:lang(zh-Hant) .uppercase {
+  text-transform: none;
+}

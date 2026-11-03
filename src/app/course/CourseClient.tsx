@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LockIcon } from "@/components/icons";
 import { markLessonOneWatched, saveCourseProgress } from "./actions";
-import type { CourseLevel, CourseModule } from "./courseData";
+import type { CourseModule } from "./courseData";
+import { useT } from "@/i18n/client";
+import { fmt, plural } from "@/i18n/format";
 
 // Only the fields the client needs — pptFile stays server-side (the download
 // goes through /api/slides/<slug>, which maps slug -> file on the server).
@@ -12,7 +14,8 @@ export interface ClientLesson {
   slug: string;
   number: number;
   title: string;
-  level: CourseLevel;
+  /** The level's label, in the reader's language. */
+  level: string;
   description: string;
   gumletId: string;
   /** Outside the viewer's plan (Free: everything past Module 1). gumletId is
@@ -63,6 +66,7 @@ export function CourseClient({
   const [watched, setWatched] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<Set<number>>(new Set([modules[0]?.id]));
   const playerRef = useRef<HTMLDivElement>(null);
+  const c = useT().course;
 
   const active = lessons.find((l) => l.slug === activeSlug) ?? firstOpen;
   const lessonsOf = useCallback(
@@ -174,19 +178,19 @@ export function CourseClient({
       {/* Progress strip */}
       <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-line bg-card px-5 py-3.5 shadow-soft">
         <span className="text-[13px] font-semibold text-ink">
-          {modules.length} modules · {total} lessons
+          {fmt(c.progress, { modules: modules.length, lessons: total })}
         </span>
         <div className="h-1.5 min-w-[120px] flex-1 overflow-hidden rounded-full bg-line">
           <div className="h-full rounded-full bg-orange transition-all" style={{ width: `${pct}%` }} />
         </div>
-        <span className="text-[12px] text-subtle">{doneCount} / {total} watched</span>
+        <span className="text-[12px] text-subtle">{fmt(c.watched, { done: doneCount, total })}</span>
         {resume && (
           <button
             type="button"
             onClick={() => watch(resume.slug)}
             className="cursor-pointer text-[13px] font-semibold text-orange transition-colors hover:text-accent-ink"
           >
-            {doneCount === 0 ? "Start course" : doneCount >= total ? "Rewatch" : "Resume"} →
+            {doneCount === 0 ? c.start : doneCount >= total ? c.rewatch : c.resume} →
           </button>
         )}
       </div>
@@ -221,7 +225,7 @@ export function CourseClient({
                   <span className="block text-[11px] text-faint">{m.summary}</span>
                 </span>
                 <span className="shrink-0 text-[11px] font-medium text-subtle">
-                  {modDone}/{group.length} · {group.length} {group.length === 1 ? "lesson" : "lessons"}
+                  {modDone}/{group.length} · {plural(group.length, c.lessonsOne, c.lessonsOther)}
                 </span>
                 <ChevronIcon open={isOpen} />
               </button>
@@ -245,7 +249,7 @@ export function CourseClient({
                               <LockIcon className="h-3 w-3" />
                             </span>
                             <span className="truncate text-[14px] text-faint">{l.title}</span>
-                            <span className="sr-only">(locked)</span>
+                            <span className="sr-only">{c.lockedSr}</span>
                           </span>
                           <span className="hidden shrink-0 rounded-full bg-paper px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-faint sm:inline">
                             {l.level}
@@ -254,7 +258,7 @@ export function CourseClient({
                             href="/upgrade"
                             className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold text-orange transition-colors hover:text-accent-ink"
                           >
-                            Unlock
+                            {c.unlock}
                           </Link>
                           </>
                         ) : (
@@ -263,7 +267,7 @@ export function CourseClient({
                             type="button"
                             onClick={() => watch(l.slug)}
                             className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
-                            aria-label={`Watch ${l.title}`}
+                            aria-label={fmt(c.watch, { title: l.title })}
                           >
                             <span
                               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
@@ -286,9 +290,9 @@ export function CourseClient({
                           <a
                             href={`/api/slides/${l.slug}`}
                             className="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-subtle transition-colors hover:text-accent-ink"
-                            title="Download slides (PPT)"
+                            title={c.slidesTitle}
                           >
-                            <SlidesIcon /> <span className="hidden sm:inline">Slides</span>
+                            <SlidesIcon /> <span className="hidden sm:inline">{c.slides}</span>
                           </a>
                           </>
                         )}

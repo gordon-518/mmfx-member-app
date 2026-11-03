@@ -5,6 +5,8 @@
 // happens (a logged channel click, a TradingView username, a Daily Analysis
 // view, KYS completion, lesson 1 in the player, a visit to the tier page).
 
+import type { Messages } from "@/i18n/messages/types";
+
 export type OnboardingKey = "telegram" | "tv" | "analysis" | "kys" | "lesson1" | "desk";
 
 /** The public channel. Joining happens on Telegram, so see TELEGRAM_IS_CLAIMED. */
@@ -19,85 +21,30 @@ export const TELEGRAM_IS_CLAIMED = true;
 
 export type OnboardingState = Record<OnboardingKey, boolean>;
 
+/** Which part of the climb a step belongs to. Display text: t.onboarding.stages. */
+export type StageKey = "theDesk" | "execution" | "analysis" | "tradeManagement" | "foundations" | "nextTier";
+
 export interface OnboardingStep {
   key: OnboardingKey;
   /** Suggested pace: one step a day. */
   day: number;
-  title: string;
-  blurb: string;
   href: string;
   /** The roadmap stage it belongs to (the same spine as the dashboard rails). */
-  stage: string;
-  /** What the member can do once this step is done. Never a money claim. */
-  goal: string;
-  /** The concrete target to hit after it — behaviour, never returns. */
-  target: string;
+  stageKey: StageKey;
   /** True when the href leaves the app. */
   external?: boolean;
 }
 
+// Structure only. Every word a member reads — title, blurb, the goal it gets
+// them and the target to hit after it — lives in the dictionaries under
+// onboarding.steps.<key>, in all five languages (src/i18n/messages).
 export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
-  {
-    key: "telegram",
-    day: 1,
-    title: "Join the public Telegram channel",
-    blurb: "Where the desk posts its calls, market notes and session updates as they happen.",
-    href: PUBLIC_CHANNEL_URL,
-    external: true,
-    stage: "The desk",
-    goal: "You see what the desk is watching while it still matters, instead of reading about it afterwards.",
-    target: "Channel open on your phone before your next session.",
-  },
-  {
-    key: "tv",
-    day: 2,
-    title: "Connect TradingView",
-    blurb: "Save your TradingView username and get the indicators on your chart.",
-    href: "/indicators",
-    stage: "Execution",
-    goal: "The desk's tools draw their levels on your own chart, in your own platform.",
-    target: "Set up once — they are there every session after.",
-  },
-  {
-    key: "analysis",
-    day: 3,
-    title: "Watch today's Daily Analysis",
-    blurb: "The desk's read on gold, session by session: bias, levels and the thesis.",
-    href: "/daily-analysis",
-    stage: "Analysis",
-    goal: "You start a session knowing the bias, the levels that matter, and what would prove them wrong.",
-    target: "Five sessions watched before you act on one.",
-  },
-  {
-    key: "kys",
-    day: 4,
-    title: "Take Know Your Style",
-    blurb: "A few questions, and you'll know the kind of trader you are.",
-    href: "/bots/know-your-style",
-    stage: "Trade Management",
-    goal: "Your habits in writing — including the weakest one, named.",
-    target: "One leak identified, one fix you run for two weeks.",
-  },
-  {
-    key: "lesson1",
-    day: 5,
-    title: "Finish Module 1, lesson 1",
-    blurb: "Golden Mindset: the discipline under every trade in the course.",
-    href: "/course",
-    stage: "Foundations",
-    goal: "The discipline the rest of the system rests on — the part most people skip.",
-    target: "Module 1 finished by the end of the week.",
-  },
-  {
-    key: "desk",
-    day: 6,
-    title: "See what Desk adds",
-    blurb: "The TradingView indicators and strategy scripts, live classes, and the Fundamental Desk's macro read.",
-    href: "/upgrade",
-    stage: "Your next tier",
-    goal: "You know exactly what sits behind the next tier before you decide anything.",
-    target: "A clear yes or no — not a maybe.",
-  },
+  { key: "telegram", day: 1, href: PUBLIC_CHANNEL_URL, external: true, stageKey: "theDesk" },
+  { key: "tv", day: 2, href: "/indicators", stageKey: "execution" },
+  { key: "analysis", day: 3, href: "/daily-analysis", stageKey: "analysis" },
+  { key: "kys", day: 4, href: "/bots/know-your-style", stageKey: "tradeManagement" },
+  { key: "lesson1", day: 5, href: "/course", stageKey: "foundations" },
+  { key: "desk", day: 6, href: "/upgrade", stageKey: "nextTier" },
 ];
 
 export const EMPTY_ONBOARDING: OnboardingState = {
@@ -144,21 +91,14 @@ export function onboardingProgress(state: OnboardingState): OnboardingProgress {
 }
 
 /**
- * Step 5, tailored to the KYS archetype (plan 4.1: "the tier prompt, tailored
- * to the KYS archetype"). Says what Desk gives that archetype; never what it
- * earns. Unknown or missing archetypes get the general line.
+ * The tier step, tailored to the member's Know Your Style archetype. Says what
+ * Desk gives that archetype; never what it earns.
+ *
+ * Keyed by archetype ID — the value profiles.kys_archetype actually stores
+ * ("news_trader"). It used to be keyed by display name ("The News Trader"),
+ * so the lookup never matched and every member got the general line.
  */
-const DESK_FOR: Readonly<Record<string, string>> = {
-  "The Analysis Paralyser": "You over-think the entry. Desk's live classes show how the desk reads a setup and commits to a plan.",
-  "The Emotional Revenge Trader": "Desk puts a live class and a rule-based macro read between you and the next revenge trade.",
-  "The Reckless Gambler": "Desk's live classes put structure first: where the stop goes, then the size.",
-  "The Signal Dependent": "Desk's live classes teach why each trade is taken, so you're not just copying calls.",
-  "The Indicator Stacker": "Desk swaps a chart full of indicators for one live read, with the reasoning behind it.",
-  "The System Hopper": "Desk is one system, traded live in class: the same rules every day.",
-  "The Brand New Beginner": "Desk lets you watch the system traded live in class while you learn it.",
-  "The News Trader": "The Fundamental Desk reads the macro behind every move, in plain English.",
-};
-
-export function deskPitchFor(archetype: string | null | undefined): string {
-  return (archetype && DESK_FOR[archetype]) || ONBOARDING_STEPS[5].blurb;
+export function deskPitchFor(t: Messages, archetypeId: string | null | undefined): string {
+  const tailored = (t.onboarding.deskFor as Record<string, string | undefined>)[archetypeId ?? ""];
+  return tailored ?? t.onboarding.steps.desk.blurb;
 }

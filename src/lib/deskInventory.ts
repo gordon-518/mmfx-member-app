@@ -25,19 +25,22 @@ export const INVENTORY = {
   tools: FEATURE_KEYS.length,
 } as const;
 
+export type InventoryStatKey = "lessons" | "indicators" | "strategies" | "instruments" | "ebooks" | "archetypes";
+
 export interface InventoryStat {
+  key: InventoryStatKey;
   n: number;
-  label: string;
-  sub: string;
   href: string;
+  /** Placeholder values for the stat's sub-line (welcome.stats.<key>.sub). */
+  vars?: Record<string, number>;
 }
 
-/** The headline numbers, in the order they're shown. */
+/** The headline numbers, in the order they're shown. Words: welcome.stats.<key>. */
 export const INVENTORY_STATS: readonly InventoryStat[] = [
-  { n: INVENTORY.lessons, label: "video lessons", sub: `${INVENTORY.modules} modules, ${INVENTORY.levels} levels`, href: "/course" },
-  { n: INVENTORY.indicators, label: "TradingView tools", sub: "on your own charts", href: "/indicators" },
-  { n: INVENTORY.strategies, label: "strategy scripts", sub: "the system, in code", href: "/strategies" },
-  { n: INVENTORY.instruments, label: "instruments read daily", sub: "gold, majors and crypto", href: "/bots/fundamental" },
-  { n: INVENTORY.ebooks, label: "written references", sub: "the system on paper", href: "/library" },
-  { n: INVENTORY.archetypes, label: "trader archetypes", sub: `scored on ${INVENTORY.dimensions} dimensions`, href: "/bots/know-your-style" },
+  { key: "lessons", n: INVENTORY.lessons, href: "/course", vars: { modules: INVENTORY.modules, levels: INVENTORY.levels } },
+  { key: "indicators", n: INVENTORY.indicators, href: "/indicators" },
+  { key: "strategies", n: INVENTORY.strategies, href: "/strategies" },
+  { key: "instruments", n: INVENTORY.instruments, href: "/bots/fundamental" },
+  { key: "ebooks", n: INVENTORY.ebooks, href: "/library" },
+  { key: "archetypes", n: INVENTORY.archetypes, href: "/bots/know-your-style", vars: { n: INVENTORY.dimensions } },
 ];

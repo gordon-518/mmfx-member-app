@@ -1,21 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/i18n/client";
+import type { Messages } from "@/i18n/messages/types";
 
 // "Send me a copy" — the desk's PDF, emailed to the signed-in account. The
 // route derives the recipient from the session, so nothing but the instrument
 // is ever sent. (This replaces the postMessage bridge the iframe needed.)
 
-const REASONS: Record<string, string> = {
-  unauthorized: "Your session expired — sign in again and retry.",
-  bad_instrument: "That instrument isn't on the desk.",
-  pdf_unavailable: "The desk couldn't produce the report just now. Try again shortly.",
-  send_failed: "The email didn't go out. Try again shortly.",
+/** The route's failure reasons, mapped to their words (fundamental.send.*). */
+const REASONS: Record<string, keyof Messages["fundamental"]["send"]> = {
+  unauthorized: "unauthorized",
+  bad_instrument: "badInstrument",
+  pdf_unavailable: "pdfUnavailable",
+  send_failed: "sendFailed",
 };
 
 export function SendCopyButton({ instrument }: { instrument: string }) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
+  const words = useT().fundamental.send;
 
   async function send() {
     setStatus("sending");
@@ -32,14 +36,15 @@ export function SendCopyButton({ instrument }: { instrument: string }) {
       };
       if (res.ok && json.ok) {
         setStatus("sent");
-        setMessage("Sent — check your inbox.");
+        setMessage(words.sent);
         return;
       }
       setStatus("error");
-      setMessage(REASONS[json.reason ?? ""] ?? "Something went wrong. Try again shortly.");
+      const reason = json.reason ?? "";
+      setMessage(words[Object.hasOwn(REASONS, reason) ? REASONS[reason] : "generic"]);
     } catch {
       setStatus("error");
-      setMessage("Network error — check your connection and try again.");
+      setMessage(words.network);
     }
   }
 
@@ -51,7 +56,7 @@ export function SendCopyButton({ instrument }: { instrument: string }) {
         disabled={status === "sending"}
         className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {status === "sending" ? "Sending…" : status === "sent" ? "Sent" : "Send me a copy"}
+        {status === "sending" ? words.sending : status === "sent" ? words.sentButton : words.button}
       </button>
       {message && (
         <span

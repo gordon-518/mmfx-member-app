@@ -3,9 +3,13 @@ import {
   LIFETIME_PLANS,
   LIFETIME_PLAN_ORDER,
   isLifetimePlan,
+  lifetimeCopy,
   lifetimePrice,
   lifetimeWhatsAppUrl,
 } from "./lifetimePlans";
+import { LOCALES } from "@/i18n/config";
+import { MESSAGES } from "@/i18n/messages";
+import { MONEY_CLAIM, leaves } from "@/i18n/moneyClaims";
 
 describe("lifetime plans", () => {
   it("has the two US/UK plans at the agreed prices", () => {
@@ -35,5 +39,29 @@ describe("lifetime plans", () => {
   it("makes no earnings claims", () => {
     const copy = JSON.stringify(LIFETIME_PLANS);
     expect(copy).not.toMatch(/\b(profits?|profitable|returns?|earns?|earnings|income|guaranteed?)\b/i);
+  });
+
+  it("fills the real counts into the English lines", () => {
+    expect(LIFETIME_PLANS.team.includes).toContain("10 TradingView indicators and the strategy scripts");
+    expect(LIFETIME_PLANS.team.includes).toContain("The MM Library, 4 eBooks");
+    expect(LIFETIME_PLANS.team_mentorship.includes[0]).toBe("Everything in Team MM Access");
+    expect(LIFETIME_PLANS.team_mentorship.includes[1]).toMatch(/all 19 lessons/);
+  });
+
+  it("has every line in every language, with the brand plan name kept", () => {
+    for (const locale of LOCALES) {
+      const team = lifetimeCopy("team", MESSAGES[locale].upgrade.lifetime);
+      const mentorship = lifetimeCopy("team_mentorship", MESSAGES[locale].upgrade.lifetime);
+      expect(team.includes, locale).toHaveLength(LIFETIME_PLANS.team.includes.length);
+      expect(mentorship.includes, locale).toHaveLength(LIFETIME_PLANS.team_mentorship.includes.length);
+      expect(mentorship.includes[0], locale).toContain("Team MM Access");
+    }
+  });
+
+  it("makes no earnings claims in any language", () => {
+    for (const locale of LOCALES) {
+      const offending = leaves(MESSAGES[locale].upgrade).filter(([, s]) => MONEY_CLAIM[locale].test(s));
+      expect(offending, locale).toEqual([]);
+    }
   });
 });

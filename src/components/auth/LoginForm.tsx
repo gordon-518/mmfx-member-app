@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { friendlyAuthError } from "@/lib/auth/authErrors";
 import { GoogleButton } from "./GoogleButton";
 import { Captcha, type CaptchaHandle } from "./Captcha";
+import { useT } from "@/i18n/client";
 
 type Status = "idle" | "sending" | "error";
 
@@ -16,6 +17,8 @@ export function LoginForm() {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const captchaRef = useRef<CaptchaHandle>(null);
+  const t = useT();
+  const a = t.auth;
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,7 +31,7 @@ export function LoginForm() {
     const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
     if (error) {
       captchaRef.current?.reset();
-      setErrorMsg(friendlyAuthError(error.message));
+      setErrorMsg(friendlyAuthError(error.message, a.errors));
       setStatus("error");
       return;
     }
@@ -38,21 +41,21 @@ export function LoginForm() {
   return (
     <>
       <p className="rise text-[13px] font-semibold uppercase tracking-wider text-orange">
-        Member access
+        {a.loginEyebrow}
       </p>
       <h2 className="rise mt-2 font-display text-3xl font-bold tracking-tight text-ink" style={{ animationDelay: "0.04s" }}>
-        Welcome back
+        {a.loginTitle}
       </h2>
       <p className="rise mt-2 text-[15px] leading-relaxed text-subtle" style={{ animationDelay: "0.08s" }}>
-        Sign in to your Market Makers FX desk.
+        {a.loginBody}
       </p>
 
       <div className="rise mt-8" style={{ animationDelay: "0.12s" }}>
-        <GoogleButton label="Sign in with Google" />
+        <GoogleButton label={a.loginGoogle} />
 
         <form onSubmit={handleSubmit}>
           <label htmlFor="email" className="mb-2 block text-sm font-medium text-ink">
-            Email address
+            {a.emailLabel}
           </label>
           <div className={`flex items-center gap-2.5 rounded-xl border bg-card px-3.5 transition-all ${status === "error" ? "border-red-300 ring-2 ring-red-100" : "border-line focus-within:border-orange focus-within:ring-2 focus-within:ring-orange/15"}`}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="text-faint">
@@ -71,17 +74,17 @@ export function LoginForm() {
                 setEmail(e.target.value);
                 if (status === "error") setStatus("idle");
               }}
-              placeholder="you@example.com"
+              placeholder={a.emailPlaceholder}
               className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-faint focus:outline-none"
             />
           </div>
 
           <div className="mb-2 mt-4 flex items-center justify-between">
             <label htmlFor="password" className="block text-sm font-medium text-ink">
-              Password
+              {a.passwordLabel}
             </label>
             <Link href="/forgot-password" className="text-[13px] font-semibold text-orange transition-colors hover:text-accent-ink">
-              Forgot password?
+              {a.forgot}
             </Link>
           </div>
           <div className={`flex items-center gap-2.5 rounded-xl border bg-card px-3.5 transition-all ${status === "error" ? "border-red-300 ring-2 ring-red-100" : "border-line focus-within:border-orange focus-within:ring-2 focus-within:ring-orange/15"}`}>
@@ -99,17 +102,17 @@ export function LoginForm() {
                 setPassword(e.target.value);
                 if (status === "error") setStatus("idle");
               }}
-              placeholder="Your password"
+              placeholder={a.passwordPlaceholder}
               className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-faint focus:outline-none"
             />
             <button type="button" onClick={() => setShowPw((s) => !s)} className="text-[13px] font-medium text-faint hover:text-subtle">
-              {showPw ? "Hide" : "Show"}
+              {showPw ? a.hide : a.show}
             </button>
           </div>
 
           {status === "error" && (
             <p role="alert" className="mt-2.5 text-sm text-red-600">
-              {errorMsg || "Something went wrong. Please try again."}
+              {errorMsg || a.errors.generic}
             </p>
           )}
 
@@ -118,7 +121,7 @@ export function LoginForm() {
             disabled={status === "sending"}
             className="group mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {status === "sending" ? "Signing in…" : "Sign in"}
+            {status === "sending" ? a.signingIn : a.signIn}
             {status !== "sending" && (
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="transition-transform group-hover:translate-x-0.5">
                 <path d="M3 8h9M8.5 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -131,9 +134,9 @@ export function LoginForm() {
       </div>
 
       <p className="rise mt-6 text-center text-[13px] text-subtle" style={{ animationDelay: "0.18s" }}>
-        New to Market Makers FX?{" "}
+        {a.newHere}{" "}
         <Link href="/signup" className="font-semibold text-orange transition-colors hover:text-accent-ink">
-          Start your free trial →
+          {a.startTrialLink}
         </Link>
       </p>
     </>

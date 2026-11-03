@@ -1,7 +1,8 @@
 // The KYS report is markdown written by the model. The standalone app rendered
 // it with react-markdown; nothing else in this app renders markdown, so rather
 // than take the dependency we parse the small subset our own prompt produces
-// (headings, paragraphs, bold, bullet lists) into plain data. The renderer
+// (headings, paragraphs, bold, bullet lists, and the italic footer) into plain
+// data. The renderer
 // turns that into React elements, so model output can never become raw HTML.
 
 export interface Span {
@@ -12,7 +13,9 @@ export interface Span {
 export type Block =
   | { kind: "heading"; level: 2 | 3; spans: Span[] }
   | { kind: "paragraph"; spans: Span[] }
-  | { kind: "list"; items: Span[][] };
+  | { kind: "list"; items: Span[][] }
+  /** A whole line in *italics*: the report's compliance footer. */
+  | { kind: "note"; spans: Span[] };
 
 /** Split on **bold** markers. Unbalanced markers stay literal text. */
 export function parseSpans(line: string): Span[] {
@@ -73,6 +76,13 @@ export function parseReportMarkdown(markdown: string): Block[] {
     if (/^-{3,}$/.test(line)) {
       flushParagraph();
       flushList();
+      continue;
+    }
+    const note = /^\*(?!\*)(.+?)\*$/.exec(line);
+    if (note && !note[1].endsWith("*")) {
+      flushParagraph();
+      flushList();
+      blocks.push({ kind: "note", spans: parseSpans(note[1]) });
       continue;
     }
     flushList();

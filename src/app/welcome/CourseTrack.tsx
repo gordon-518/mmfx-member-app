@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { MODULES, LESSONS } from "@/app/course/courseData";
+import { getT } from "@/i18n/server";
+import { fmt, plural } from "@/i18n/format";
+import { moduleText } from "@/i18n/course";
 
 // What the course actually teaches, as a track. Each module's width is its
 // share of the 19 lessons, so the shape of the syllabus is visible at a
@@ -10,21 +13,22 @@ import { MODULES, LESSONS } from "@/app/course/courseData";
 // the player keeps the rest in the browser. So this shows the syllabus and
 // marks the start, and never pretends to know more than it does.
 
-export function CourseTrack({ startedModule1 }: { startedModule1: boolean }) {
+export async function CourseTrack({ startedModule1 }: { startedModule1: boolean }) {
+  const t = await getT();
+  const w = t.welcome;
   const counts = MODULES.map((m) => m.to - m.from + 1);
   const total = counts.reduce((a, b) => a + b, 0);
 
   return (
     <section className="rounded-2xl border border-line bg-card p-5 shadow-soft sm:p-6">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-orange">
-        What the course teaches
+        {w.courseEyebrow}
       </p>
       <h3 className="mt-1.5 font-display text-[19px] font-bold tracking-tight text-ink">
-        {LESSONS.length} lessons, in {MODULES.length} steps
+        {fmt(w.courseTitle, { lessons: LESSONS.length, modules: MODULES.length })}
       </h3>
       <p className="mt-1.5 text-[13px] leading-relaxed text-subtle">
-        From the mindset to the entry model to managing the open position. Each block below is a
-        module — its width is how much of the course it takes up.
+        {w.courseBody}
       </p>
 
       <div className="mt-4 flex gap-1 overflow-hidden rounded-lg" aria-hidden>
@@ -48,11 +52,11 @@ export function CourseTrack({ startedModule1 }: { startedModule1: boolean }) {
               {m.id}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13.5px] font-semibold leading-snug text-ink">{m.title}</span>
-              <span className="block text-[12px] leading-snug text-faint">{m.summary}</span>
+              <span className="block text-[13.5px] font-semibold leading-snug text-ink">{moduleText(t, m.id, m).title}</span>
+              <span className="block text-[12px] leading-snug text-faint">{moduleText(t, m.id, m).summary}</span>
             </span>
             <span className="shrink-0 font-mono text-[11px] text-faint">
-              {counts[i]} {counts[i] === 1 ? "lesson" : "lessons"}
+              {plural(counts[i], w.lessonOne, w.lessonOther)}
             </span>
           </li>
         ))}
@@ -62,7 +66,7 @@ export function CourseTrack({ startedModule1 }: { startedModule1: boolean }) {
         href="/course"
         className="mt-4 inline-flex text-[13px] font-semibold text-accent-ink underline underline-offset-4 transition-colors hover:text-orange"
       >
-        {startedModule1 ? "Carry on with the course" : `Start with lesson 1 of ${total}`} →
+        {startedModule1 ? w.carryOnCourse : fmt(w.startWithLesson, { n: total })} →
       </Link>
     </section>
   );

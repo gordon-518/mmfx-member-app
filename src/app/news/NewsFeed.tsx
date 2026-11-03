@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { ExternalIcon } from "@/components/icons";
 import type { NewsItem, Sentiment } from "@/lib/forexNews";
+import { useLocale, useT } from "@/i18n/client";
+import { INTL_LOCALE } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
 
 type SentFilter = "all" | Sentiment;
 const SENTS: SentFilter[] = ["all", "Positive", "Negative", "Neutral"];
@@ -15,15 +18,19 @@ const SENT_STYLE: Record<Sentiment, string> = {
   Neutral: "bg-paper text-subtle",
 };
 
-function fmtDate(d: string): string {
+function fmtDate(d: string, intl: string): string {
   const t = new Date(d);
   return Number.isNaN(t.getTime())
     ? ""
-    : t.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+    : t.toLocaleDateString(intl, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 export function NewsFeed({ items }: { items: NewsItem[] }) {
   const [sent, setSent] = useState<SentFilter>("all");
+  const tr = useT();
+  const intl = INTL_LOCALE[useLocale()];
+  const sentWord = (v: SentFilter) =>
+    v === "all" ? tr.news.all : v === "Positive" ? tr.news.positive : v === "Negative" ? tr.news.negative : tr.news.neutral;
 
   const filtered = items.filter((i) => sent === "all" || i.sentiment === sent);
 
@@ -43,19 +50,19 @@ export function NewsFeed({ items }: { items: NewsItem[] }) {
                   on ? "bg-orange text-white" : "bg-paper text-subtle hover:text-ink"
                 }`}
               >
-                {s === "all" ? "All" : s}
+                {sentWord(s)}
               </button>
             );
           })}
         </div>
-        <span className="ml-auto text-[11px] text-faint">{filtered.length} articles</span>
+        <span className="ml-auto text-[11px] text-faint">{fmt(tr.news.articles, { n: filtered.length })}</span>
       </div>
 
       {/* Feed */}
       <div className="rise mt-5 space-y-3">
         {filtered.length === 0 && (
           <p className="rounded-2xl border border-line bg-card px-5 py-10 text-center text-[14px] text-subtle shadow-soft">
-            No articles match that filter.
+            {tr.news.emptyFilter}
           </p>
         )}
         {filtered.map((n) => (
@@ -68,14 +75,14 @@ export function NewsFeed({ items }: { items: NewsItem[] }) {
           >
             <div className="flex items-center gap-2.5">
               <span className="text-[12px] font-semibold text-ink">{n.source}</span>
-              <span className="text-[11px] text-faint">{fmtDate(n.date)}</span>
+              <span className="text-[11px] text-faint">{fmtDate(n.date, intl)}</span>
               {n.type === "Video" && (
                 <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-ink">
-                  Video
+                  {tr.news.video}
                 </span>
               )}
               <span className={`ml-auto rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${SENT_STYLE[n.sentiment]}`}>
-                {n.sentiment}
+                {sentWord(n.sentiment)}
               </span>
             </div>
             <h3 className="mt-2 font-display text-[16px] font-bold leading-snug tracking-tight text-ink group-hover:text-accent-ink">
@@ -91,7 +98,7 @@ export function NewsFeed({ items }: { items: NewsItem[] }) {
                 </span>
               ))}
               <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-orange opacity-0 transition-opacity group-hover:opacity-100">
-                Read <ExternalIcon width={12} height={12} />
+                {tr.news.read} <ExternalIcon width={12} height={12} />
               </span>
             </div>
           </a>

@@ -11,12 +11,23 @@ import { GoogleButton } from "./GoogleButton";
 import { Captcha, type CaptchaHandle } from "./Captcha";
 import { OtpCodeInput } from "./OtpCodeInput";
 import { recordSignupConversion } from "@/app/signup/actions";
-import { COUNTRIES, isKnownCountry } from "@/lib/countries";
+import { isKnownCountry, type Country } from "@/lib/countries";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
+import { TRIAL_DAYS } from "@/lib/trial/days";
 
 type Stage = "form" | "verify";
 type Status = "idle" | "sending" | "error";
 
-export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string }) {
+export function SignupForm({
+  defaultCountry = "",
+  countries,
+}: {
+  defaultCountry?: string;
+  /** Already named and sorted for the reader's language, on the server. */
+  countries: Country[];
+}) {
   const [stage, setStage] = useState<Stage>("form");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -28,6 +39,8 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
   const [errorMsg, setErrorMsg] = useState("");
   const [resent, setResent] = useState(false);
   const captchaRef = useRef<CaptchaHandle>(null);
+  const t = useT();
+  const a = t.auth;
 
   function fail(msg: string) {
     setErrorMsg(msg);
@@ -39,14 +52,14 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
     if (!name.trim() || !email || !password || status === "sending") return;
 
     if (isDisposableEmail(email)) {
-      fail("Please use a permanent email address — temporary inboxes aren't supported.");
+      fail(a.errors.disposable);
       return;
     }
     if (!country) {
-      fail("Please select your country.");
+      fail(a.errors.noCountry);
       return;
     }
-    const pw = validatePassword(password);
+    const pw = validatePassword(password, a.errors);
     if (!pw.ok) {
       fail(pw.message);
       return;
@@ -66,7 +79,7 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
     });
     if (error) {
       captchaRef.current?.reset();
-      fail(friendlyAuthError(error.message));
+      fail(friendlyAuthError(error.message, a.errors));
       return;
     }
     setStatus("idle");
@@ -81,7 +94,7 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
     const supabase = createClient();
     const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "signup" });
     if (error) {
-      fail(friendlyAuthError(error.message));
+      fail(friendlyAuthError(error.message, a.errors));
       return;
     }
     // Fire CompleteRegistration + StartTrial server-side (this in-page flow never
@@ -114,10 +127,10 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
           </svg>
         </span>
         <h2 className="mt-6 font-display text-2xl font-bold tracking-tight text-ink">
-          Enter your code
+          {a.verifyTitle}
         </h2>
         <p className="mt-2 text-[15px] leading-relaxed text-subtle">
-          We sent a 6-digit code to <span className="font-semibold text-ink">{email}</span>. Enter it below to open your desk.
+          {rich(a.verifyBody, { email: <span className="font-semibold text-ink">{email}</span> })}
         </p>
 
         <form onSubmit={handleVerify} className="mt-6">
@@ -132,20 +145,20 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
             disabled={status === "sending" || code.length < 6}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {status === "sending" ? "Verifying…" : "Verify & continue"}
+            {status === "sending" ? a.verifying : a.verifyContinue}
           </button>
         </form>
 
         <div className="mt-5 flex items-center justify-between text-[13px]">
           <button type="button" onClick={resend} className="font-semibold text-orange hover:text-accent-ink">
-            {resent ? "Code resent ✓" : "Resend code"}
+            {resent ? a.codeResent : a.resendCode}
           </button>
           <button
             type="button"
             onClick={() => { setStage("form"); setCode(""); setStatus("idle"); }}
             className="font-medium text-subtle hover:text-ink"
           >
-            ← Use a different email
+            {a.differentEmail}
           </button>
         </div>
       </div>
@@ -155,20 +168,20 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
   return (
     <>
       <p className="rise text-[13px] font-semibold uppercase tracking-wider text-orange">
-        14-day free trial
+        {fmt(a.signupEyebrow, { n: TRIAL_DAYS })}
       </p>
       <h2 className="rise mt-2 font-display text-3xl font-bold tracking-tight text-ink" style={{ animationDelay: "0.04s" }}>
-        Start your free trial
+        {a.signupTitle}
       </h2>
       <p className="rise mt-2 text-[15px] leading-relaxed text-subtle" style={{ animationDelay: "0.08s" }}>
-        Full access to the MM System for gold — free for 14 days.
+        {fmt(a.signupBody, { n: TRIAL_DAYS })}
       </p>
 
       <div className="rise mt-8" style={{ animationDelay: "0.12s" }}>
-        <GoogleButton label="Sign up with Google" />
+        <GoogleButton label={a.signupGoogle} />
 
         <form onSubmit={handleSignup}>
-          <label htmlFor="name" className="mb-2 block text-sm font-medium text-ink">Full name</label>
+          <label htmlFor="name" className="mb-2 block text-sm font-medium text-ink">{a.fullName}</label>
           <div className={`${fieldBorder(false)} mb-4`}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="text-faint">
               <circle cx="10" cy="6.5" r="3" stroke="currentColor" strokeWidth="1.5" />
@@ -177,12 +190,12 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
             <input
               id="name" type="text" autoComplete="name" required autoFocus
               value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
+              placeholder={a.namePlaceholder}
               className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-faint focus:outline-none"
             />
           </div>
 
-          <label htmlFor="email" className="mb-2 block text-sm font-medium text-ink">Email address</label>
+          <label htmlFor="email" className="mb-2 block text-sm font-medium text-ink">{a.emailLabel}</label>
           <div className={fieldBorder(status === "error")}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="text-faint">
               <rect x="2.5" y="4.5" width="15" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
@@ -192,12 +205,12 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
               id="email" type="email" inputMode="email" autoComplete="email" required
               value={email}
               onChange={(e) => { setEmail(e.target.value); if (status === "error") setStatus("idle"); }}
-              placeholder="you@example.com"
+              placeholder={a.emailPlaceholder}
               className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-faint focus:outline-none"
             />
           </div>
 
-          <label htmlFor="country" className="mb-2 mt-4 block text-sm font-medium text-ink">Country</label>
+          <label htmlFor="country" className="mb-2 mt-4 block text-sm font-medium text-ink">{a.country}</label>
           <div className={fieldBorder(false)}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="text-faint">
               <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5" />
@@ -210,14 +223,14 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
               onChange={(e) => { setCountry(e.target.value); if (status === "error") setStatus("idle"); }}
               className="w-full bg-transparent py-3 text-[15px] text-ink focus:outline-none"
             >
-              <option value="" disabled>Select your country</option>
-              {COUNTRIES.map((c) => (
+              <option value="" disabled>{a.selectCountry}</option>
+              {countries.map((c) => (
                 <option key={c.code} value={c.code}>{c.name}</option>
               ))}
             </select>
           </div>
 
-          <label htmlFor="password" className="mb-2 mt-4 block text-sm font-medium text-ink">Password</label>
+          <label htmlFor="password" className="mb-2 mt-4 block text-sm font-medium text-ink">{a.passwordLabel}</label>
           <div className={fieldBorder(status === "error")}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="text-faint">
               <rect x="4" y="9" width="12" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
@@ -227,14 +240,14 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
               id="password" type={showPw ? "text" : "password"} autoComplete="new-password" required
               value={password}
               onChange={(e) => { setPassword(e.target.value); if (status === "error") setStatus("idle"); }}
-              placeholder="At least 8 characters"
+              placeholder={a.newPasswordPlaceholder}
               className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-faint focus:outline-none"
             />
             <button type="button" onClick={() => setShowPw((s) => !s)} className="text-[13px] font-medium text-faint hover:text-subtle">
-              {showPw ? "Hide" : "Show"}
+              {showPw ? a.hide : a.show}
             </button>
           </div>
-          <p className="mt-1.5 text-[12px] text-faint">8+ characters, with a letter and a number.</p>
+          <p className="mt-1.5 text-[12px] text-faint">{a.passwordHint}</p>
 
           {status === "error" && (
             <p role="alert" className="mt-2.5 text-sm text-red-600">{errorMsg}</p>
@@ -245,7 +258,7 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
             disabled={status === "sending"}
             className="group mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {status === "sending" ? "Creating…" : "Start free trial"}
+            {status === "sending" ? a.creating : a.startTrialBtn}
             {status !== "sending" && (
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="transition-transform group-hover:translate-x-0.5">
                 <path d="M3 8h9M8.5 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -260,16 +273,16 @@ export function SignupForm({ defaultCountry = "" }: { defaultCountry?: string })
       </div>
 
       <p className="rise mt-6 text-center text-[13px] text-subtle" style={{ animationDelay: "0.18s" }}>
-        Already a member?{" "}
+        {a.alreadyMember}{" "}
         <Link href="/login" className="font-semibold text-orange transition-colors hover:text-accent-ink">
-          Sign in →
+          {a.signInLink}
         </Link>
       </p>
       <p className="rise mt-6 text-center text-[12px] leading-relaxed text-faint" style={{ animationDelay: "0.2s" }}>
-        By continuing you agree to our{" "}
-        <Link href="/terms" className="underline decoration-line-strong underline-offset-2 hover:text-accent-ink">Terms</Link>{" "}
-        and{" "}
-        <Link href="/privacy" className="underline decoration-line-strong underline-offset-2 hover:text-accent-ink">Privacy Policy</Link>.
+        {rich(a.agree, {
+          terms: <Link href="/terms" className="underline decoration-line-strong underline-offset-2 hover:text-accent-ink">{a.terms}</Link>,
+          privacy: <Link href="/privacy" className="underline decoration-line-strong underline-offset-2 hover:text-accent-ink">{a.privacy}</Link>,
+        })}
       </p>
     </>
   );

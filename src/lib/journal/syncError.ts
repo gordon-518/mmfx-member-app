@@ -9,16 +9,15 @@
 //
 // The RAW string is still stored in journal_accounts.sync_error / state_detail
 // for admin + log debugging — this only changes what the member-facing card shows.
+// The message is in the reader's language (m).
+
+import { en } from "@/i18n/messages/en";
+import type { JournalEngineMessages } from "./labels";
 
 export interface FriendlySyncError {
   message: string;
   canReconnect: boolean;
 }
-
-const OUR_SIDE =
-  "We're having a temporary problem syncing your account on our end — no action needed, it'll retry automatically.";
-const MEMBER_FIXABLE =
-  "We couldn't connect to your trading account. Please reconnect with your read-only investor password and the server shown on your MT5 login screen.";
 
 // Our-side / infra signals — checked FIRST so an app-level billing, provisioning,
 // token, rate-limit, timeout or database error can never be mis-shown as a
@@ -31,15 +30,17 @@ const MEMBER_FIXABLE_RE =
   /invalid account|invalid.*password|wrong password|authentication failed|invalid credentials|\bcredentials\b|investor password|denied by broker|rejected the (login|connection)/;
 
 export function friendlySyncError(
-  raw: string | null | undefined
+  raw: string | null | undefined,
+  m: JournalEngineMessages = en.journalEngine
 ): FriendlySyncError | null {
   if (!raw) return null;
   const s = raw.toLowerCase();
+  const ourSide = { message: m.syncErrors.ourSide, canReconnect: false };
 
-  if (OUR_SIDE_RE.test(s)) return { message: OUR_SIDE, canReconnect: false };
-  if (MEMBER_FIXABLE_RE.test(s)) return { message: MEMBER_FIXABLE, canReconnect: true };
+  if (OUR_SIDE_RE.test(s)) return ourSide;
+  if (MEMBER_FIXABLE_RE.test(s)) return { message: m.syncErrors.memberFixable, canReconnect: true };
 
   // Ambiguous (e.g. a bare "did not connect (state DEPLOYING)") — prefer the
   // our-side message so we never wrongly tell a member their credentials are bad.
-  return { message: OUR_SIDE, canReconnect: false };
+  return ourSide;
 }

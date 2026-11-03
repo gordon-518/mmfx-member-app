@@ -5,15 +5,17 @@ import { canAccess } from "@/lib/access/features";
 import { AppShell } from "@/components/AppShell";
 import { MembersOnly } from "@/components/MembersOnly";
 import { TeamMMMember } from "./TeamMMMember";
+import { getT } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Team MM — Market Makers FX",
-  description: "The private MM desk — VIP signals for funded members.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { teamMm } = await getT();
+  return { title: teamMm.metaTitle, description: teamMm.metaDescription };
+}
 
 export default async function TeamMMPage() {
   const access = await getAccess();
   if (!access.signedIn) redirect("/login");
+  const t = await getT();
 
   const firstName = access.profile?.full_name?.trim()
     ? access.profile.full_name.trim().split(/\s+/)[0]
@@ -35,10 +37,10 @@ export default async function TeamMMPage() {
       {isTeam ? (
         <TeamMMMember firstName={firstName} />
       ) : (
-        <MembersOnly
-          feature="Team MM"
-          blurb="Team MM is our private desk — a VIP channel where Don sends extra, higher-conviction signals and member-only calls. It unlocks at Team MM: $500 in cumulative deposits to your own trading account."
-        />
+        // data-gate: a language-independent marker for the tier-matrix checks.
+        <div data-gate="locked">
+          <MembersOnly feature={t.tiers.team} blurb={t.teamMm.lockedBlurb} />
+        </div>
       )}
     </AppShell>
   );

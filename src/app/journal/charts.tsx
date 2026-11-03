@@ -1,6 +1,7 @@
 "use client";
 
 import type { CurvePoint, HistogramBin } from "@/lib/journal/analytics";
+import { useT } from "@/i18n/client";
 
 // Lightweight, dependency-free SVG charts for the Phase 2 dashboard. Hand-rolled
 // rather than pulling in a charting library — keeps the bundle lean and matches
@@ -32,8 +33,9 @@ function fmtCompact(n: number): string {
 }
 
 export function EquityCurveChart({ points }: { points: CurvePoint[] }) {
+  const c = useT().journal.charts;
   if (points.length < 2) {
-    return <EmptyChart label="Not enough closed trades yet" />;
+    return <EmptyChart label={c.notEnough} />;
   }
   const values = points.map((p) => p.value);
   const min = Math.min(0, ...values);
@@ -52,7 +54,7 @@ export function EquityCurveChart({ points }: { points: CurvePoint[] }) {
   const color = up ? GREEN : RED;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Cumulative profit and loss over time">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={c.ariaEquity}>
       <line x1={PAD.l} y1={y(0)} x2={W - PAD.r} y2={y(0)} stroke="#d1d5db" strokeWidth="1" />
       <polygon points={area} fill={color} opacity="0.08" />
       <polyline points={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
@@ -63,8 +65,9 @@ export function EquityCurveChart({ points }: { points: CurvePoint[] }) {
 }
 
 export function DrawdownChart({ points }: { points: CurvePoint[] }) {
+  const c = useT().journal.charts;
   if (points.length < 2) {
-    return <EmptyChart label="Not enough closed trades yet" />;
+    return <EmptyChart label={c.notEnough} />;
   }
   const values = points.map((p) => p.value); // all ≤ 0
   const min = Math.min(...values, 0);
@@ -80,7 +83,7 @@ export function DrawdownChart({ points }: { points: CurvePoint[] }) {
   const area = `${PAD.l},${y(0)} ${line} ${W - PAD.r},${y(0)}`;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Drawdown below running peak over time">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={c.ariaDrawdown}>
       <line x1={PAD.l} y1={y(0)} x2={W - PAD.r} y2={y(0)} stroke="#d1d5db" strokeWidth="1" />
       <polygon points={area} fill={RED} opacity="0.12" />
       <polyline points={line} fill="none" stroke={RED} strokeWidth="1.6" strokeLinejoin="round" />
@@ -91,8 +94,9 @@ export function DrawdownChart({ points }: { points: CurvePoint[] }) {
 }
 
 export function PnlHistogram({ bins }: { bins: HistogramBin[] }) {
+  const c = useT().journal.charts;
   if (bins.length === 0) {
-    return <EmptyChart label="No closed trades yet" />;
+    return <EmptyChart label={c.noClosed} />;
   }
   const maxCount = Math.max(...bins.map((b) => b.count), 1);
   const gap = 4;
@@ -100,7 +104,7 @@ export function PnlHistogram({ bins }: { bins: HistogramBin[] }) {
   const y = scale([0, maxCount], 0, maxCount, H - PAD.b, PAD.t);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Distribution of trade profit and loss">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={c.ariaHistogram}>
       <line x1={PAD.l} y1={H - PAD.b} x2={W - PAD.r} y2={H - PAD.b} stroke="#d1d5db" strokeWidth="1" />
       {bins.map((b, i) => {
         const bx = PAD.l + i * (barW + gap);
@@ -123,6 +127,7 @@ export function PnlHistogram({ bins }: { bins: HistogramBin[] }) {
 
 // Generic radar/spider chart. Each axis value is normalised 0..1. Brand-tinted.
 export function RadarChart({ axes }: { axes: { label: string; value: number }[] }) {
+  const ariaLabel = useT().journal.charts.ariaRadar;
   const N = axes.length;
   const cx = 100;
   const cy = 94;
@@ -137,7 +142,7 @@ export function RadarChart({ axes }: { axes: { label: string; value: number }[] 
 
   return (
     // extra horizontal room in the viewBox so the side axis labels never clip
-    <svg viewBox="-28 0 256 200" className="mx-auto w-full max-w-[260px]" role="img" aria-label="Trading profile across five dimensions">
+    <svg viewBox="-28 0 256 200" className="mx-auto w-full max-w-[260px]" role="img" aria-label={ariaLabel}>
       {[0.25, 0.5, 0.75, 1].map((g) => (
         <polygon key={g} points={ring(g)} fill="none" className="stroke-line" strokeWidth="1" />
       ))}

@@ -7,6 +7,8 @@ import { validatePassword } from "@/lib/auth/password";
 import { friendlyAuthError } from "@/lib/auth/authErrors";
 import { OtpCodeInput } from "./OtpCodeInput";
 import { Captcha, type CaptchaHandle } from "./Captcha";
+import { useT } from "@/i18n/client";
+import { rich } from "@/i18n/rich";
 
 type Stage = "request" | "code" | "reset";
 type Status = "idle" | "sending" | "error";
@@ -21,6 +23,8 @@ export function ForgotPasswordForm() {
   const [errorMsg, setErrorMsg] = useState("");
   const [resent, setResent] = useState(false);
   const captchaRef = useRef<CaptchaHandle>(null);
+  const t = useT();
+  const a = t.auth;
 
   function fail(msg: string) {
     setErrorMsg(msg);
@@ -53,7 +57,7 @@ export function ForgotPasswordForm() {
     const supabase = createClient();
     const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "recovery" });
     if (error) {
-      fail(friendlyAuthError(error.message));
+      fail(friendlyAuthError(error.message, a.errors));
       return;
     }
     setStatus("idle");
@@ -63,7 +67,7 @@ export function ForgotPasswordForm() {
   async function handleReset(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === "sending") return;
-    const pw = validatePassword(password);
+    const pw = validatePassword(password, a.errors);
     if (!pw.ok) {
       fail(pw.message);
       return;
@@ -73,7 +77,7 @@ export function ForgotPasswordForm() {
     const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
-      fail(friendlyAuthError(error.message));
+      fail(friendlyAuthError(error.message, a.errors));
       return;
     }
     window.location.assign("/dashboard");
@@ -92,16 +96,16 @@ export function ForgotPasswordForm() {
   if (stage === "request") {
     return (
       <>
-        <p className="rise text-[13px] font-semibold uppercase tracking-wider text-orange">Account recovery</p>
+        <p className="rise text-[13px] font-semibold uppercase tracking-wider text-orange">{a.forgotEyebrow}</p>
         <h2 className="rise mt-2 font-display text-3xl font-bold tracking-tight text-ink" style={{ animationDelay: "0.04s" }}>
-          Reset your password
+          {a.forgotTitle}
         </h2>
         <p className="rise mt-2 text-[15px] leading-relaxed text-subtle" style={{ animationDelay: "0.08s" }}>
-          Enter your email and we&apos;ll send a 6-digit code to set a new password.
+          {a.forgotBody}
         </p>
 
         <form onSubmit={handleRequest} className="rise mt-8" style={{ animationDelay: "0.12s" }}>
-          <label htmlFor="email" className="mb-2 block text-sm font-medium text-ink">Email address</label>
+          <label htmlFor="email" className="mb-2 block text-sm font-medium text-ink">{a.emailLabel}</label>
           <div className={fieldBorder(false)}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="text-faint">
               <rect x="2.5" y="4.5" width="15" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
@@ -110,7 +114,7 @@ export function ForgotPasswordForm() {
             <input
               id="email" type="email" inputMode="email" autoComplete="email" required autoFocus
               value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={a.emailPlaceholder}
               className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-faint focus:outline-none"
             />
           </div>
@@ -118,15 +122,15 @@ export function ForgotPasswordForm() {
             type="submit" disabled={status === "sending"}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {status === "sending" ? "Sending…" : "Send reset code"}
+            {status === "sending" ? a.sending : a.sendCode}
           </button>
 
           <Captcha ref={captchaRef} />
         </form>
 
         <p className="rise mt-6 text-center text-[13px] text-subtle" style={{ animationDelay: "0.18s" }}>
-          Remembered it?{" "}
-          <Link href="/login" className="font-semibold text-orange transition-colors hover:text-accent-ink">Back to sign in →</Link>
+          {a.remembered}{" "}
+          <Link href="/login" className="font-semibold text-orange transition-colors hover:text-accent-ink">{a.backToSignIn}</Link>
         </p>
       </>
     );
@@ -136,9 +140,9 @@ export function ForgotPasswordForm() {
   if (stage === "code") {
     return (
       <div className="rise">
-        <h2 className="font-display text-2xl font-bold tracking-tight text-ink">Enter your code</h2>
+        <h2 className="font-display text-2xl font-bold tracking-tight text-ink">{a.verifyTitle}</h2>
         <p className="mt-2 text-[15px] leading-relaxed text-subtle">
-          If <span className="font-semibold text-ink">{email}</span> has an account, a 6-digit code is on its way. Enter it below.
+          {rich(a.forgotCodeBody, { email: <span className="font-semibold text-ink">{email}</span> })}
         </p>
         <form onSubmit={handleCode} className="mt-6">
           <OtpCodeInput value={code} onChange={(v) => { setCode(v); if (status === "error") setStatus("idle"); }} autoFocus />
@@ -147,15 +151,15 @@ export function ForgotPasswordForm() {
             type="submit" disabled={status === "sending" || code.length < 6}
             className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {status === "sending" ? "Verifying…" : "Verify code"}
+            {status === "sending" ? a.verifying : a.verifyCode}
           </button>
         </form>
         <div className="mt-5 flex items-center justify-between text-[13px]">
           <button type="button" onClick={resend} className="font-semibold text-orange hover:text-accent-ink">
-            {resent ? "Code resent ✓" : "Resend code"}
+            {resent ? a.codeResent : a.resendCode}
           </button>
           <button type="button" onClick={() => { setStage("request"); setCode(""); setStatus("idle"); }} className="font-medium text-subtle hover:text-ink">
-            ← Use a different email
+            {a.differentEmail}
           </button>
         </div>
       </div>
@@ -165,10 +169,10 @@ export function ForgotPasswordForm() {
   // ---- reset stage ----
   return (
     <div className="rise">
-      <h2 className="font-display text-2xl font-bold tracking-tight text-ink">Set a new password</h2>
-      <p className="mt-2 text-[15px] leading-relaxed text-subtle">Choose a password for your account.</p>
+      <h2 className="font-display text-2xl font-bold tracking-tight text-ink">{a.newTitle}</h2>
+      <p className="mt-2 text-[15px] leading-relaxed text-subtle">{a.newBody}</p>
       <form onSubmit={handleReset} className="mt-6">
-        <label htmlFor="new-password" className="mb-2 block text-sm font-medium text-ink">New password</label>
+        <label htmlFor="new-password" className="mb-2 block text-sm font-medium text-ink">{a.newPassword}</label>
         <div className={fieldBorder(status === "error")}>
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden className="text-faint">
             <rect x="4" y="9" width="12" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
@@ -178,20 +182,20 @@ export function ForgotPasswordForm() {
             id="new-password" type={showPw ? "text" : "password"} autoComplete="new-password" required autoFocus
             value={password}
             onChange={(e) => { setPassword(e.target.value); if (status === "error") setStatus("idle"); }}
-            placeholder="At least 8 characters"
+            placeholder={a.newPasswordPlaceholder}
             className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-faint focus:outline-none"
           />
           <button type="button" onClick={() => setShowPw((s) => !s)} className="text-[13px] font-medium text-faint hover:text-subtle">
-            {showPw ? "Hide" : "Show"}
+            {showPw ? a.hide : a.show}
           </button>
         </div>
-        <p className="mt-1.5 text-[12px] text-faint">8+ characters, with a letter and a number.</p>
+        <p className="mt-1.5 text-[12px] text-faint">{a.passwordHint}</p>
         {status === "error" && <p role="alert" className="mt-2.5 text-sm text-red-600">{errorMsg}</p>}
         <button
           type="submit" disabled={status === "sending"}
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {status === "sending" ? "Saving…" : "Set password & sign in"}
+          {status === "sending" ? t.common.saving : a.setPasswordSignIn}
         </button>
       </form>
     </div>

@@ -1,12 +1,16 @@
 import type { DimensionScores } from './types';
-import { DIMENSIONS, rankDimensions } from './dimensions';
+import { rankDimensions } from './dimensions';
+import { en } from '@/i18n/messages/en';
+import type { Messages } from '@/i18n/messages/types';
 
 // Builds a self-contained, email-safe HTML body of a KYS result: branded header,
 // the six-dimension profile as table-based bars, and the written report. Inline
 // styles + table layout only — no flexbox/grid/JS — so it survives Gmail/Outlook.
-// The member app emails this string as-is via SendPulse.
+// The member app emails this string as-is via SendPulse. It is written in the
+// reader's language (English by default), like the report it carries.
 
-const byId = Object.fromEntries(DIMENSIONS.map((d) => [d.id, d]));
+/** The dictionary parts the email's words come from. */
+type EmailWords = Pick<Messages, 'kys' | 'dimensions'>;
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -104,10 +108,10 @@ function reportBodyHtml(markdown: string): string {
   return out.join('\n');
 }
 
-function dimensionBlocksHtml(scores: DimensionScores): string {
+function dimensionBlocksHtml(scores: DimensionScores, words: EmailWords): string {
   return rankDimensions(scores)
     .map(({ id, score }) => {
-      const d = byId[id];
+      const d = words.dimensions[id];
       const color = bandColor(score);
       const fill = Math.max(2, Math.min(100, score));
       return `
@@ -143,13 +147,14 @@ export function buildResultEmailHtml(input: {
   archetypeName: string;
   dimensions: DimensionScores;
   markdown: string;
+  words?: EmailWords;
 }): string {
-  const { archetypeName, dimensions, markdown } = input;
+  const { archetypeName, dimensions, markdown, words = en } = input;
   return `<div style="background:#FBE7DA;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;">
   <table role="presentation" align="center" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;margin:0 auto;background:#FFFDFB;border:1px solid #F0E0D2;border-radius:16px;">
     <tr>
       <td style="padding:28px 28px 4px;">
-        <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#D9531A;">Know Your Style · Your Trading Style</div>
+        <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#D9531A;">${esc(words.kys.emailEyebrow)}</div>
         <div style="font-family:Arial,Helvetica,sans-serif;font-size:30px;font-weight:bold;color:#241007;margin-top:8px;line-height:1.1;">${esc(
           archetypeName
         )}</div>
@@ -158,9 +163,9 @@ export function buildResultEmailHtml(input: {
     </tr>
     <tr>
       <td style="padding:14px 28px 28px;">
-        <h2 style="font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;color:#241007;margin:0 0 4px;">Your profile</h2>
-        <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#6f5847;margin:0 0 16px;">Six dimensions of how you trade. Your weakest are where the money leaks.</p>
-        ${dimensionBlocksHtml(dimensions)}
+        <h2 style="font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;color:#241007;margin:0 0 4px;">${esc(words.kys.profileTitle)}</h2>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#6f5847;margin:0 0 16px;">${esc(words.kys.emailProfileBody)}</p>
+        ${dimensionBlocksHtml(dimensions, words)}
         ${reportBodyHtml(markdown)}
       </td>
     </tr>

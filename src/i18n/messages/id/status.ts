@@ -1,0 +1,27 @@
+import type { Messages } from "../types";
+
+export const status: Messages["status"] = {
+  trialEyebrow: "Uji coba · Akses penuh",
+  trialTitleOne: "Sisa {n} hari masa uji coba Anda",
+  trialTitleOther: "Sisa {n} hari masa uji coba Anda",
+  trialBody: "Semua fitur di meja terbuka selama waktu masih berjalan.",
+  trialCta: "Kunci akses Anda kapan saja",
+  retrialEyebrow: "Uji coba ulang · Akses penuh",
+  retrialTitleOne: "Sisa {n} hari uji coba ulang Anda",
+  retrialTitleOther: "Sisa {n} hari uji coba ulang Anda",
+  retrialBody: "Ini uji coba terakhir Anda — tidak ada lagi setelah ini.",
+  retrialCta: "Kunci akses Anda sebelum berakhir",
+  memberEyebrow: "Member",
+  memberTitle: "Anda member terdeposit",
+  memberBody: "Meja Anda tetap terbuka. Trading sesuai sesi.",
+  freeEyebrow: "Paket gratis",
+  freeTitle: "Anda di paket Gratis",
+  freeBody: "Analisis Harian, channel sinyal, kalender, berita, Kenali Gaya Anda, dan Modul 1 tetap terbuka. Deposit ke akun Anda untuk membuka sisanya.",
+  seeWhatUnlocks: "Lihat yang terbuka",
+  refreeTitle: "Anda di paket Gratis — deposit untuk membuka sisanya",
+  refreeBody: "Tidak ada uji coba lagi untuk akun ini. Alat gratis tetap terbuka.",
+  endedEyebrow: "Keanggotaan berakhir",
+  endedTitle: "Keanggotaan Anda telah dihapus",
+  endedBody: "Hubungi kami jika menurut Anda ini sebuah kesalahan.",
+  endedCta: "Pulihkan akses Anda",
+};

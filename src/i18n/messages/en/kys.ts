@@ -1,0 +1,102 @@
+// Know Your Style: the assessment, the report screen and the emailed copy.
+// moves.* are the "next move" buttons chosen from the two weakest dimensions
+// (src/lib/kys/routing.ts holds where each one goes).
+export const kys = {
+  eyebrow: "Bots · Profile",
+  subtitle: "Fourteen questions, then a written breakdown of how you trade: your archetype, your six dimensions, and the leak costing you money.",
+  headline: "Every trader has a {tell} {find}",
+  headlineTell: "tell.",
+  headlineFind: "Let's find yours.",
+  intro: "Fourteen questions, about six minutes. Answer them honestly — the report is only as good as what you tell it.",
+  getArchetype: "Your archetype —",
+  getArchetypeDetail: "which of {n} trader types you actually are.",
+  getDimensions: "Your six dimensions —",
+  getDimensionsDetail: "where you sit on each spectrum, scored from your answers.",
+  getLeak: "Your leak —",
+  getLeakDetail: "the weakest one, and what it is costing you.",
+  start: "Start the assessment →",
+  savedNote: "Saved to your profile — you can come back to it any time.",
+  measured: "What gets measured",
+  question: "Question",
+  analysing: {
+    s1: "Reading your answers…",
+    s2: "Mapping your risk behaviour…",
+    s3: "Cross-referencing {n} archetypes…",
+    s4: "Finding your leak…",
+    s5: "Writing your assessment…",
+  },
+  errorTitle: "That didn't finish.",
+  errorSession: "Your session has ended. Sign in again, then try once more.",
+  errorService: "The report couldn't be written just now (error {status}). Try again in a moment.",
+  errorNetwork: "We couldn't reach the report service. Check your connection and try again.",
+  errorKept: "Your answers are still here — try again.",
+  yourStyle: "Your trading style",
+  taken: "Taken {date} · your saved profile",
+  sendCopy: "Send me a copy",
+  sending: "Sending your copy…",
+  sent: "Sent — check your inbox.",
+  sendFailed: "That didn't send. Your profile is saved — try again from here any time.",
+  profileTitle: "Your profile",
+  profileBody: "Six dimensions of how you trade. You're not one thing — this is the full shape, and your weakest are where the money leaks.",
+  nextMoves: "Your next moves",
+  movesNote: "Chosen from your archetype and your two weakest dimensions",
+  retake: "Take it again",
+  fallbackName: "Your trader profile",
+  leak: "Your leak",
+  strength: "Strength",
+  score: "{score} / 100",
+  reportLanguageNote: "Your saved report is in the language you took the assessment in. Take it again to get it in this one.",
+  emailEyebrow: "Know Your Style · Your Trading Style",
+  emailProfileBody: "Six dimensions of how you trade. Your weakest are where the money leaks.",
+  emailSubject: "Your Know Your Style result — {archetype}",
+  moves: {
+    riskCourse: {
+      label: "Managing & Routine module",
+      why: "Daily loss limits and fixed sizing — the risk rules, encoded.",
+    },
+    decisionTreesRisk: {
+      label: "Decision Trees & Invalidation",
+      why: "Know exactly when you are wrong, before you enter.",
+    },
+    ifThen: {
+      label: "Read the If-Then eBook",
+      why: "Pre-commit your reactions so a loss cannot hijack you.",
+    },
+    liveClass: {
+      label: "Join a Live Class",
+      why: "Watch the desk manage a position calmly, in real time.",
+    },
+    startCourse: {
+      label: "Start the MM System Course",
+      why: "Learn to read structure yourself instead of leaning on signals.",
+    },
+    todaysRead: {
+      label: "Today's gold read",
+      why: "See a full read built and reasoned, session by session.",
+    },
+    backtest: {
+      label: "Backtest a strategy",
+      why: "Build trust in your rules so you can pull the trigger.",
+    },
+    decisionTreesDecide: {
+      label: "Decision Trees & Invalidation",
+      why: "A defined checklist kills hesitation at the chart.",
+    },
+    oneSystem: {
+      label: "Commit to one system",
+      why: "One framework, learned end to end, traded long enough to prove out.",
+    },
+    oneEdge: {
+      label: "One backtested edge",
+      why: "Pick a single strategy and give it a real sample.",
+    },
+    dailySop: {
+      label: "The Daily SOP",
+      why: "A repeatable routine: mark, bias, wait, confirm, manage, journal.",
+    },
+    dailyPlan: {
+      label: "Start with the daily plan",
+      why: "Begin every session knowing what the desk expects and why.",
+    },
+  },
+} as const;

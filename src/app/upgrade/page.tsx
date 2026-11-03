@@ -13,10 +13,16 @@ import { DepositSubmitForm } from "./DepositSubmitForm";
 import { LifetimePlans } from "./LifetimePlans";
 import { isLifetimePlan, LIFETIME_PLANS } from "@/lib/lifetimePlans";
 import { createClient } from "@/lib/supabase/server";
-import { nextTierFor, tierLabel } from "@/lib/tiers";
+import { nextTierFor } from "@/lib/tiers";
 import { depositRef } from "@/lib/depositRef";
 import { AmeliaLastStep } from "./AmeliaLastStep";
 import { regionFor } from "@/lib/brokerRegion";
+import { RiskNotice } from "@/components/RiskNotice";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { getT } from "@/i18n/server";
+import { fmt, plural } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
+import type { Messages } from "@/i18n/messages/types";
 
 // Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
 // a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
@@ -29,9 +35,9 @@ import { regionFor } from "@/lib/brokerRegion";
 // Copy stays compliance-safe: no profit/return language; the risk footer is
 // verbatim. Broker regions: the deposit-you-own model (no fee). US/UK: a paid
 // one-time lifetime membership, so the copy must differ, or it would falsely
-// claim "no fee" to people who do pay.
-const ASSURANCES_BROKER = ["No subscription", "No card on file", "No fee", "The deposit stays yours"];
-const ASSURANCES_CONTACT = ["One-time payment", "Lifetime access", "No recurring fees", "No broker account needed"];
+// claim "no fee" to people who do pay. Words: messages/<locale>/upgrade.ts.
+
+type Upgrade = Messages["upgrade"];
 
 function SectionHead({ id, eyebrow, title, sub }: { id?: string; eyebrow: string; title: string; sub?: string }) {
   return (
@@ -52,6 +58,8 @@ export default async function UpgradePage({
   if (!access.signedIn) {
     redirect("/login");
   }
+  const t = await getT();
+  const u: Upgrade = t.upgrade;
 
   // Admins can preview any region with ?geo=XX (e.g. ?geo=MY, ?geo=US). The
   // override is ignored for everyone else, so it can't be used to pick a broker.
@@ -107,28 +115,32 @@ export default async function UpgradePage({
   if (access.profile && !override) {
     logEventAfter(access.profile.id, "upgrade_viewed", { region });
   }
-  const assurances = isContact ? ASSURANCES_CONTACT : ASSURANCES_BROKER;
+  const assurances = Object.values(isContact ? u.assuranceContact : u.assuranceBroker);
 
   const headline = lifetimePlan === "team"
-    ? "You have Team MM. The full Mentorship is one message away."
+    ? u.headline.lifetimeTeam
     : earnedTier === "team"
-      ? "You have the whole desk."
+      ? u.headline.wholeDesk
       : isPaid && next
-        ? `You're on ${tierLabel(earnedTier)}. Top up $${next.topUp.toLocaleString("en-US")} to unlock ${tierLabel(next.next)}.`
+        ? fmt(u.headline.topUpTo, {
+            tier: t.tiers[earnedTier],
+            amount: `$${next.topUp.toLocaleString("en-US")}`,
+            next: t.tiers[next.next],
+          })
         : onFree
-          ? "You're on Free. Your desk is still set."
-          : "Keep your whole desk after the trial.";
+          ? u.headline.onFree
+          : u.headline.keepDesk;
   const subline = lifetimePlan
     ? lifetimePlan === "team"
-      ? `Your ${LIFETIME_PLANS.team.name} plan covers everything except the full course. Add the Mentorship whenever you're ready.`
-      : `Your ${LIFETIME_PLANS.team_mentorship.name} plan covers everything, for life.`
+      ? fmt(u.subline.lifetimeTeam, { plan: LIFETIME_PLANS.team.name })
+      : fmt(u.subline.lifetimeMentorship, { plan: LIFETIME_PLANS.team_mentorship.name })
     : earnedTier === "team"
-      ? "Team MM is the top tier: nothing left to unlock."
+      ? u.subline.topTier
       : isPaid
-        ? `You've deposited $${cumulative.toLocaleString("en-US")} so far, and it stays yours. Tiers count everything you've deposited, never your balance.`
+        ? fmt(u.subline.deposited, { amount: `$${cumulative.toLocaleString("en-US")}` })
         : onFree
-          ? "Your trial has ended, so you're on the Free plan. Daily Analysis, the signals channel, the calendar, news, Know Your Style and Module 1 of the course stay open. The rest is locked, not gone."
-          : "Right now everything is unlocked. Fund your account and it stays that way when your trial ends.";
+          ? u.subline.onFree
+          : u.subline.trial;
 
   return (
     <main className="min-h-screen bg-paper">
@@ -142,24 +154,23 @@ export default async function UpgradePage({
         <Link href="/dashboard">
           <Wordmark />
         </Link>
-        <Link
-          href="/dashboard"
-          className="text-[13px] font-semibold text-subtle transition-colors hover:text-ink"
-        >
-          ← Dashboard
-        </Link>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher short />
+          <Link
+            href="/dashboard"
+            className="whitespace-nowrap text-[13px] font-semibold text-subtle transition-colors hover:text-ink"
+          >
+            {u.backToDashboard}
+          </Link>
+        </div>
       </header>
 
       {/* A real countdown, never a manufactured one: only while a trial clock runs.
           An early depositor keeps the full desk until it ends (15 Sep rule). */}
       {!isContact && trialDaysLeft > 0 && (
         <div className="border-b border-orange/20 bg-accent-soft/50 px-5 py-2.5 text-center text-[13px] text-ink sm:px-8">
-          <span className="font-semibold">
-            {trialDaysLeft} {trialDaysLeft === 1 ? "day" : "days"} left on your trial.
-          </span>{" "}
-          {isMember
-            ? `You keep the full desk until it ends, then stay on ${tierLabel(earnedTier)}.`
-            : "Deposit any time: you keep the full desk until it ends."}
+          <span className="font-semibold">{plural(trialDaysLeft, u.trialDaysOne, u.trialDaysOther)}</span>{" "}
+          {isMember ? fmt(u.trialMember, { tier: t.tiers[earnedTier] }) : u.trialDeposit}
         </div>
       )}
 
@@ -176,26 +187,19 @@ export default async function UpgradePage({
         {isContact ? (
           <div className="max-w-2xl">
             {/* Phase 6 — the US/UK lifetime plans */}
-            <p className="mt-10 text-[11px] font-semibold uppercase tracking-wider text-faint">
-              Lifetime plans · pay once, keep it for life
-            </p>
+            <p className="mt-10 text-[11px] font-semibold uppercase tracking-wider text-faint">{u.lifetimeHead}</p>
             <LifetimePlans currentPlan={lifetimePlan} />
           </div>
         ) : (
           <>
             {/* Tier cards */}
             <div className="mt-12 flex flex-wrap items-end justify-between gap-3">
-              <SectionHead
-                id="tiers"
-                eyebrow="Three tiers"
-                title="Pick what you want the desk to do for you"
-                sub="Tiers count everything you've deposited to your own trading account, never your balance. Every tier includes the ones before it."
-              />
+              <SectionHead id="tiers" eyebrow={u.tiersEyebrow} title={u.tiersTitle} sub={u.tiersSub} />
               <a
                 href="#finder"
                 className="rounded-xl border border-line-strong bg-card px-3.5 py-2 text-[13px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink"
               >
-                Not sure which tier? →
+                {u.notSure}
               </a>
             </div>
             <TierCards earnedTier={earnedTier} cumulative={cumulative} isMember={isMember} />
@@ -203,16 +207,13 @@ export default async function UpgradePage({
             {/* Slider + finder */}
             <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div>
-                <SectionHead
-                  eyebrow="Try an amount"
-                  title={isMember ? "See what a top-up opens" : "See what a deposit opens"}
-                />
+                <SectionHead eyebrow={u.tryEyebrow} title={isMember ? u.tryTitleMember : u.tryTitle} />
                 <div className="mt-4">
                   <DepositSlider cumulative={cumulative} isMember={isMember} />
                 </div>
               </div>
               <div>
-                <SectionHead id="finder" eyebrow="Not sure?" title="Find your tier in two taps" />
+                <SectionHead id="finder" eyebrow={u.finderEyebrow} title={u.finderTitle} />
                 <div className="mt-4">
                   <PlanFinder archetype={access.profile?.kys_archetype ?? null} isMember={isMember} />
                 </div>
@@ -225,17 +226,9 @@ export default async function UpgradePage({
           {/* The reframe — region-aware (broker deposit model vs US/UK lifetime fee) */}
           <div className="mt-14">
             <p className="font-display text-2xl font-bold leading-snug tracking-tight text-ink sm:text-[28px]">
-              {isContact ? (
-                <>
-                  In your region, access is a one-time{" "}
-                  <span className="text-orange">lifetime membership.</span>
-                </>
-              ) : (
-                <>
-                  None of it is a purchase. Start at $50, and{" "}
-                  <span className="text-orange">it stays yours.</span>
-                </>
-              )}
+              {isContact
+                ? rich(u.reframeContact, { highlight: <span className="text-orange">{u.reframeContactHighlight}</span> })
+                : rich(u.reframeBroker, { highlight: <span className="text-orange">{u.reframeBrokerHighlight}</span> })}
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {assurances.map((a) => (
@@ -252,32 +245,15 @@ export default async function UpgradePage({
 
           {/* The mechanism — founder voice, region-aware */}
           <blockquote className="mt-10 rounded-2xl border border-line bg-accent-soft/40 p-6">
-            <p className="text-[16px] leading-relaxed text-ink">
-              {isContact ? (
-                <>
-                  Where you are, the brokers I work with can&apos;t take clients — so
-                  I can&apos;t fund your seat through a deposit like I do elsewhere.
-                  Instead it&apos;s a single lifetime payment, and we&apos;ll sort the
-                  details with you directly on Telegram.
-                </>
-              ) : (
-                <>
-                  I don&apos;t charge traders for education, and I never will. When you
-                  fund your own account, the broker funds your seat — your money goes
-                  into your trading, not a subscription.
-                </>
-              )}
-            </p>
+            <p className="text-[16px] leading-relaxed text-ink">{isContact ? u.quoteContact : u.quoteBroker}</p>
           </blockquote>
 
           {/* How to open or top up — the geo-routed pathway */}
           <div id="get-started" className="mt-14 scroll-mt-6">
             <h2 className="font-display text-2xl font-bold tracking-tight text-ink">
-              {isPaid ? "Top up through your broker" : onFree ? "Reopen your desk" : "Keep your desk"}
+              {isPaid ? u.startTitlePaid : onFree ? u.startTitleFree : u.startTitleTrial}
             </h2>
-            <p className="mt-2 text-[15px] leading-relaxed text-subtle">
-              A few steps and your access switches on. Follow the path that fits you.
-            </p>
+            <p className="mt-2 text-[15px] leading-relaxed text-subtle">{u.startSub}</p>
             <div className="mt-7">
               <UpgradeFlow region={region} />
             </div>
@@ -288,12 +264,9 @@ export default async function UpgradePage({
           {!isContact && (
             <section id="submit-deposit" className="mt-14 scroll-mt-6 rounded-2xl border border-orange/30 bg-card p-6 shadow-soft sm:p-7">
               <h2 className="font-display text-2xl font-bold tracking-tight text-ink">
-                {isPaid ? "Submit a top-up" : "Deposited? Submit it here"}
+                {isPaid ? u.submitTitlePaid : u.submitTitle}
               </h2>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-subtle">
-                Upload a screenshot of the deposit. We check it against your account and switch your
-                access on. Tiers count every deposit you&apos;ve made, so a top-up moves you up.
-              </p>
+              <p className="mt-2 text-[14.5px] leading-relaxed text-subtle">{u.submitSub}</p>
               <div className="mt-6">
                 {latestSubmission?.status === "pending" && refCode ? (
                   // The last step after submitting: message Admin Amelia. Stays
@@ -309,10 +282,11 @@ export default async function UpgradePage({
                 ) : (
                   <>
                     {latestSubmission?.status === "rejected" && (
+                      // The reason is written by the admin, so it shows as written.
                       <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[13.5px] text-red-800">
-                        Your last submission wasn&apos;t verified
-                        {latestSubmission.reject_reason ? `: ${latestSubmission.reject_reason}` : "."} You can
-                        submit again below.
+                        {latestSubmission.reject_reason
+                          ? fmt(u.rejectedWithReason, { reason: latestSubmission.reject_reason })
+                          : u.rejected}
                       </p>
                     )}
                     <DepositSubmitForm
@@ -324,9 +298,7 @@ export default async function UpgradePage({
                   </>
                 )}
               </div>
-              <p className="mt-5 text-[12.5px] text-faint">
-                Need help? Message us on WhatsApp or Telegram using the buttons above.
-              </p>
+              <p className="mt-5 text-[12.5px] text-faint">{u.needHelp}</p>
             </section>
           )}
         </div>
@@ -334,13 +306,13 @@ export default async function UpgradePage({
         {!isContact && (
           <>
             <div className="mt-16">
-              <SectionHead eyebrow="Compare" title="Every tier, side by side" />
+              <SectionHead eyebrow={u.compareEyebrow} title={u.compareTitle} />
               <div className="mt-4">
                 <CompareGrid current={isPaid ? earnedTier : onFree ? "free" : null} />
               </div>
             </div>
             <div className="mx-auto mt-16 max-w-2xl">
-              <SectionHead eyebrow="Questions" title="Before you deposit" />
+              <SectionHead eyebrow={u.faqEyebrow} title={u.faqTitle} />
               <div className="mt-4">
                 <UpgradeFaq />
               </div>
@@ -350,10 +322,7 @@ export default async function UpgradePage({
 
         {/* Compliance footer — verbatim, do not remove */}
         <footer className="mt-16 border-t border-line pt-6 text-center">
-          <p className="text-[12px] leading-relaxed text-faint">
-            Trading involves risk, including the possible loss of capital. No
-            returns are guaranteed.
-          </p>
+          <RiskNotice className="text-[12px] leading-relaxed text-faint" />
         </footer>
       </article>
     </main>

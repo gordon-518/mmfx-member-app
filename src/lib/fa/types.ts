@@ -105,7 +105,10 @@ export interface PriceQuote {
   symbol: string;
 }
 
-/** A desk instrument. `nickname` is the desk's own label for the asset. */
+/**
+ * A desk instrument. `nickname` is the desk's own label for the asset, in
+ * English; the screens show fundamental.nicknames[id] in the reader's language.
+ */
 export interface DeskInstrument {
   id: string;
   display: string;
@@ -139,9 +142,5 @@ export function deskInstrument(id: string | undefined | null): DeskInstrument | 
   return (id && BY_ID.get(id)) || null;
 }
 
-/** Grid section order + headings. */
-export const ASSET_CLASS_LABELS: { key: AssetClass; label: string }[] = [
-  { key: "metal", label: "Metals" },
-  { key: "fx_major", label: "FX majors" },
-  { key: "crypto", label: "Crypto" },
-];
+/** Grid section order. The headings are in the dictionary (fundamental.assetClasses). */
+export const ASSET_CLASS_ORDER: AssetClass[] = ["metal", "fx_major", "crypto"];

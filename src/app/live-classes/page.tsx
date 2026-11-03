@@ -3,6 +3,7 @@ import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon } from "@/components/icons";
 import { createClient } from "@/lib/supabase/server";
+import { getLocale, getT } from "@/i18n/server";
 
 interface ClassRow {
   id: string;
@@ -43,30 +44,27 @@ export default async function LiveClassesPage() {
     .order("starts_at", { ascending: true });
   const all = (data ?? []) as ClassRow[];
   const { upcoming, past } = splitByTime(all);
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  const lc = t.liveClasses;
 
   return (
     <AppShell email={profile.email} accountStatus={profile.account_status} memberTier={gate.viewer.tier} isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-            Live · London / New York
-          </p>
-          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">
-            Live Classes
-          </h1>
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">
-            Live on the charts with the desk. Times are shown in UTC.
-          </p>
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{lc.eyebrow}</p>
+          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{lc.title}</h1>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{lc.subtitle}</p>
+          {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{lc.contentNote}</p>}
         </div>
 
         {/* Upcoming */}
         <p className="rise mb-4 mt-9 text-[12px] font-semibold uppercase tracking-wider text-orange">
-          Upcoming
+          {lc.upcoming}
         </p>
         {upcoming.length === 0 ? (
           <p className="rise rounded-2xl border border-line bg-card px-5 py-10 text-center text-[14px] text-subtle shadow-soft">
-            No classes scheduled yet. Check back soon.
+            {lc.empty}
           </p>
         ) : (
           <div className="rise space-y-3">
@@ -90,7 +88,7 @@ export default async function LiveClassesPage() {
                     rel="noopener noreferrer"
                     className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
                   >
-                    Join the live class <ExternalIcon width={15} height={15} />
+                    {lc.join} <ExternalIcon width={15} height={15} />
                   </a>
                 )}
               </div>
@@ -102,7 +100,7 @@ export default async function LiveClassesPage() {
         {past.length > 0 && (
           <>
             <p className="mb-4 mt-10 text-[12px] font-semibold uppercase tracking-wider text-faint">
-              Past
+              {lc.past}
             </p>
             <div className="space-y-2">
               {past.map((c) => (

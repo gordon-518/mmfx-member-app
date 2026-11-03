@@ -12,8 +12,11 @@ import {
   inWatchZone,
   priceDecimals,
   theLine,
+  trendFilterSentence,
 } from "./format";
-import type { Invalidation, SummaryInstrument } from "./types";
+import { FA_INSTRUMENTS, type Analysis, type Invalidation, type SummaryInstrument } from "./types";
+import { LOCALES } from "@/i18n/config";
+import { MESSAGES } from "@/i18n/messages";
 
 // Levels below are real values from the live desk API (2026-10-21).
 describe("price precision", () => {
@@ -212,5 +215,44 @@ describe("grid grouping", () => {
     const groups = groupByAssetClass([row("XAUUSD"), row("DOGEUSD")]);
     expect(groups).toHaveLength(1);
     expect(groups[0].items.map((i) => i.id)).toEqual(["XAUUSD"]);
+  });
+});
+
+describe("in the reader's language", () => {
+  const zh = MESSAGES["zh-Hans"].fundamental;
+  const now = Date.parse("2026-10-21T10:00:00Z");
+
+  it("ages a thesis in their words", () => {
+    expect(formatAge("2026-10-21T09:48:00Z", now, zh)).toBe("12 分钟前");
+    expect(formatAge("2026-10-21T07:01:00Z", now, MESSAGES.ms.fundamental)).toBe("2 jam 59 minit lalu");
+  });
+
+  it("stamps the time in their date format, still in UTC", () => {
+    expect(formatUtc("2026-10-21T07:01:49Z", "zh-CN", zh.utcStamp)).toBe("10月21日 07:01 UTC");
+  });
+
+  it("states the trend filter in their words, with the indicator as traders write it", () => {
+    const a = {
+      invalidation: {
+        trend_filter: { indicator: "EMA", period: 50, timeframe: "H4", required_position: "below", confirmation: "" },
+      },
+    } as unknown as Analysis;
+    expect(trendFilterSentence(a)).toBe("Holds while price stays below the H4 50 EMA");
+    expect(trendFilterSentence(a, zh.thesis)).toBe("只要价格保持在 H4 50 EMA 下方，即成立");
+  });
+
+  it("heads the grid sections in their words", () => {
+    const row = (id: string): SummaryInstrument => ({
+      id, display: id, asset_class: "x", available: true, bias: null, confidence: null, state: null, generated_at: null,
+    });
+    expect(groupByAssetClass([row("XAUUSD"), row("BTCUSD")], zh.assetClasses).map((g) => g.label)).toEqual(["贵金属", "加密货币"]);
+  });
+
+  it("names every instrument and state in every language", () => {
+    for (const locale of LOCALES) {
+      const desk = MESSAGES[locale].fundamental;
+      for (const i of FA_INSTRUMENTS) expect((desk.nicknames as Record<string, string>)[i.id], `${locale}/${i.id}`).toBeTruthy();
+      for (const s of ["FRESH", "WATCH", "STALE"] as const) expect(desk.states[s].label, `${locale}/${s}`).toBeTruthy();
+    }
   });
 });

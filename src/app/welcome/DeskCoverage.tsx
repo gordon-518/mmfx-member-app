@@ -7,6 +7,8 @@ import {
 } from "@/components/icons";
 import { FEATURE_KEYS, type FeatureKey } from "@/lib/access/featureKeys";
 import { FEATURE_HREF, canAccess, type Viewer } from "@/lib/access/features";
+import { getT } from "@/i18n/server";
+import { fmt, plural } from "@/i18n/format";
 
 // Which of the desk's tools this member has actually opened. Not a guess:
 // requireFeature logs a feature_view for every granted page view, and
@@ -16,27 +18,30 @@ import { FEATURE_HREF, canAccess, type Viewer } from "@/lib/access/features";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-const META: Record<FeatureKey, { label: string; icon: Icon }> = {
-  "daily-analysis": { label: "Daily Analysis", icon: AnalysisIcon },
-  "fundamental-desk": { label: "Fundamental Desk", icon: DeskIcon },
-  news: { label: "News", icon: NewsIcon },
-  calendar: { label: "Calendar", icon: CalendarIcon },
-  signals: { label: "Signals", icon: SignalsIcon },
-  indicators: { label: "Indicators", icon: IndicatorsIcon },
-  strategies: { label: "Strategies", icon: StrategiesIcon },
-  "live-classes": { label: "Live Classes", icon: LiveIcon },
-  "know-your-style": { label: "Know Your Style", icon: StyleIcon },
-  "ai-trading-assistant": { label: "AI Assistant", icon: JournalIcon },
-  "team-mm": { label: "Team MM", icon: TelegramIcon },
-  course: { label: "The Course", icon: CourseIcon },
-  library: { label: "Library", icon: LibraryIcon },
+const META: Record<FeatureKey, { icon: Icon }> = {
+  "daily-analysis": { icon: AnalysisIcon },
+  "fundamental-desk": { icon: DeskIcon },
+  news: { icon: NewsIcon },
+  calendar: { icon: CalendarIcon },
+  signals: { icon: SignalsIcon },
+  indicators: { icon: IndicatorsIcon },
+  strategies: { icon: StrategiesIcon },
+  "live-classes": { icon: LiveIcon },
+  "know-your-style": { icon: StyleIcon },
+  "ai-trading-assistant": { icon: JournalIcon },
+  "team-mm": { icon: TelegramIcon },
+  course: { icon: CourseIcon },
+  library: { icon: LibraryIcon },
 };
 
-export function DeskCoverage({ opened, viewer }: { opened: string[]; viewer: Viewer }) {
+export async function DeskCoverage({ opened, viewer }: { opened: string[]; viewer: Viewer }) {
+  const t = await getT();
+  const w = t.welcome;
   const seen = new Set(opened);
   const rows = FEATURE_KEYS.map((key) => ({
     key,
     ...META[key],
+    label: w.tools[key],
     href: FEATURE_HREF[key],
     open: canAccess(key, viewer),
     used: seen.has(key),
@@ -50,15 +55,15 @@ export function DeskCoverage({ opened, viewer }: { opened: string[]; viewer: Vie
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-orange">
-            The tools you can use
+            {w.coverageEyebrow}
           </p>
           <h3 className="mt-1.5 font-display text-[19px] font-bold tracking-tight text-ink">
-            You&apos;ve opened {usedCount} of your {reachable.length}
+            {fmt(w.coverageTitle, { used: usedCount, total: reachable.length })}
           </h3>
         </div>
         {locked > 0 && (
           <p className="text-[12.5px] text-faint">
-            {locked} more {locked === 1 ? "unlocks" : "unlock"} on a higher tier
+            {plural(locked, w.moreUnlockOne, w.moreUnlockOther)}
           </p>
         )}
       </div>
@@ -89,7 +94,7 @@ export function DeskCoverage({ opened, viewer }: { opened: string[]; viewer: Vie
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[12.5px] font-semibold text-ink">{r.label}</span>
                 <span className="block text-[10.5px] font-semibold uppercase tracking-wide text-faint">
-                  {r.used ? "Opened" : r.open ? "Not yet" : "Locked"}
+                  {r.used ? w.opened : r.open ? w.notYet : w.locked}
                 </span>
               </span>
               {r.used ? (

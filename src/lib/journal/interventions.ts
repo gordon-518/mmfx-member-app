@@ -1,10 +1,14 @@
 import type { Health } from "./health";
 import type { LeakResult } from "./leaks";
 import type { RulesResult } from "./rules";
+import { fmt, plural } from "@/i18n/format";
+import { en } from "@/i18n/messages/en";
+import type { JournalEngineMessages } from "./labels";
 
 // Pure intervention engine. decideInterventions returns what is CURRENTLY true;
 // dedup/cadence lives in filterUnsent (send layer). `now` is passed in so the
-// module stays deterministic (no Date.now()).
+// module stays deterministic (no Date.now()). The text is in the reader's
+// language (m); the email cron uses the English default.
 
 export type InterventionKind = "blowup_alert" | "weekly_focus" | "inactivity_nudge";
 
@@ -21,6 +25,8 @@ export interface Intervention {
   severity: "critical" | "info";
   channels: ("email" | "banner")[];
   headline: string;
+  /** The weekly focus on its own, without the "This week's focus:" lead-in. */
+  title?: string;
   body: string;
   action: string;
   episodeKey: string;
@@ -53,13 +59,16 @@ function fmtMoney(n: number): string {
   return `${n < 0 ? "−" : "+"}$${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
-function pickWeeklyFocus(s: InterventionSignals): { title: string; body: string; action: string } {
+function pickWeeklyFocus(
+  s: InterventionSignals,
+  I: JournalEngineMessages["interventions"]
+): { title: string; body: string; action: string } {
   const leak = s.leaks.leaks[0];
   if (leak) {
     return {
       title: leak.title,
-      body: `${leak.detail} That's your biggest bleed right now (${fmtMoney(leak.dollarImpact)}).`,
-      action: "Watch for this exact pattern on every trade this week.",
+      body: fmt(I.leakBody, { detail: leak.detail, amount: fmtMoney(leak.dollarImpact) }),
+      action: I.leakAction,
     };
   }
   const worstRule = s.rules.perRule
@@ -68,18 +77,23 @@ function pickWeeklyFocus(s: InterventionSignals): { title: string; body: string;
   if (worstRule) {
     return {
       title: worstRule.title,
-      body: `You broke this rule ${worstRule.breachCount} time${worstRule.breachCount > 1 ? "s" : ""} recently — the one to tighten up.`,
-      action: "Make respecting this rule your single measure of a good week.",
+      body: plural(worstRule.breachCount, I.ruleBodyOne, I.ruleBodyOther),
+      action: I.ruleAction,
     };
   }
   return {
-    title: "Build your baseline",
-    body: "Nothing to flag yet — set your discipline rules so the journal can hold you to them.",
-    action: "Set your rules and log how each trade felt.",
+    title: I.baselineTitle,
+    body: I.baselineBody,
+    action: I.baselineAction,
   };
 }
 
-export function decideInterventions(s: InterventionSignals, now: string): Intervention[] {
+export function decideInterventions(
+  s: InterventionSignals,
+  now: string,
+  m: JournalEngineMessages = en.journalEngine
+): Intervention[] {
+  const I = m.interventions;
   const out: Intervention[] = [];
   const today = now.slice(0, 10);
 
@@ -88,19 +102,20 @@ export function decideInterventions(s: InterventionSignals, now: string): Interv
       kind: "blowup_alert",
       severity: "critical",
       channels: ["email", "banner"],
-      headline: "Your account is close to its limit",
+      headline: I.blowupHeadline,
       body: s.health.runwaySentence,
-      action: "Step your size right down or stop for the day — protect the account first.",
+      action: I.blowupAction,
       episodeKey: `blowup:${today}`,
     });
   }
 
-  const focus = pickWeeklyFocus(s);
+  const focus = pickWeeklyFocus(s, I);
   out.push({
     kind: "weekly_focus",
     severity: "info",
     channels: ["email", "banner"],
-    headline: `This week's focus: ${focus.title}`,
+    headline: fmt(I.focusHeadline, { title: focus.title }),
+    title: focus.title,
     body: focus.body,
     action: focus.action,
     episodeKey: `weekly:${isoWeek(now)}`,
@@ -113,9 +128,9 @@ export function decideInterventions(s: InterventionSignals, now: string): Interv
         kind: "inactivity_nudge",
         severity: "info",
         channels: ["email"],
-        headline: "Your trading's gone quiet",
-        body: `You haven't logged a trade in ${days} days. Your journal and stats are still here whenever you're ready.`,
-        action: "Open your journal to pick up where you left off.",
+        headline: I.quietHeadline,
+        body: fmt(I.quietBody, { days }),
+        action: I.quietAction,
         episodeKey: `inactivity:${s.lastTradeAt.slice(0, 10)}`,
       });
     }

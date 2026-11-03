@@ -8,8 +8,10 @@ import {
 } from "@/lib/brokerLinks";
 import type { FactSheet, SupportSettings } from "./types";
 
-/** New-signup trial length. Source of truth: handle_new_user (supabase/migrations). */
-export const TRIAL_DAYS = 14;
+// Lives in lib/trial so client components can read it without pulling in the
+// support agent; re-exported here because the fact sheet has always owned it.
+import { TRIAL_DAYS } from "@/lib/trial/days";
+export { TRIAL_DAYS };
 
 const APP = "https://app.marketmakersfx.net";
 const APP_PATHS = ["/", "/signup", "/login", "/upgrade", "/indicators", "/team-mm", "/course", "/daily-analysis"];

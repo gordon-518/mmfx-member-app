@@ -1,0 +1,35 @@
+// The indicators page. Indicator names (MM Squeeze Pulse...) are product names
+// and stay as they are; types and signal lines are by type key / slug.
+export const indicators = {
+  eyebrow: "Tools · XAU/USD",
+  title: "Indicators",
+  subtitle: "{n} TradingView indicators, granted to your account. Submit your TradingView username below and we add you to all {n}.",
+  grantedWhat: "all {n} indicators",
+  requestBody: "Enter your TradingView username to get access to all {n} indicators. Access is granted automatically — you'll be added within a few hours.",
+  suite: "The Suite · {n}",
+  view: "View on TradingView",
+  soon: "Publishing soon",
+  imageAlt: "{name} chart preview",
+  types: {
+    Momentum: "Momentum",
+    Oscillator: "Oscillator",
+    Structure: "Structure",
+    MLClassifier: "ML Classifier",
+    Trend: "Trend",
+    MultiTimeframe: "Multi-Timeframe",
+    Statistical: "Statistical",
+    Entry: "Entry",
+  },
+  signals: {
+    "squeeze-pulse": "Squeeze release + direction",
+    "wave-pressure": "Overbought/oversold zone crosses",
+    "structure-map": "BOS/CHoCH + OB/FVG zones",
+    "echo-predictor": "Bar-color direction bias",
+    "trend-rail": "Trail direction + flip",
+    "pivot-trend": "Early reversal detection",
+    "mtf-minicharts": "Six timeframes beside live price",
+    "auto-trendlines": "Break-and-retest patterns",
+    "adaptive-ma": "Slope direction + efficiency ratio",
+    "reversion-bands": "Outer-band stretch signals",
+  },
+} as const;

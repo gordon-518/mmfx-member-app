@@ -1,0 +1,27 @@
+import type { Messages } from "../types";
+
+export const status: Messages["status"] = {
+  trialEyebrow: "試用期 · 完整權限",
+  trialTitleOne: "試用期還剩 {n} 天",
+  trialTitleOther: "試用期還剩 {n} 天",
+  trialBody: "試用期間，交易台的所有功能都向你開放。",
+  trialCta: "隨時鎖定你的權限",
+  retrialEyebrow: "再次試用 · 完整權限",
+  retrialTitleOne: "再次試用還剩 {n} 天",
+  retrialTitleOther: "再次試用還剩 {n} 天",
+  retrialBody: "這是你最後一次試用——之後不會再有新的試用。",
+  retrialCta: "在結束前鎖定你的權限",
+  memberEyebrow: "會員",
+  memberTitle: "你是已入金會員",
+  memberBody: "你的交易台持續開放。把握每個交易時段。",
+  freeEyebrow: "免費方案",
+  freeTitle: "你目前使用免費方案",
+  freeBody: "每日分析、訊號頻道、經濟日曆、新聞、交易風格測評和模組 1 仍然開放。為帳戶入金即可解鎖其餘功能。",
+  seeWhatUnlocks: "查看可解鎖內容",
+  refreeTitle: "你目前使用免費方案——入金即可解鎖其餘功能",
+  refreeBody: "此帳戶已沒有更多試用機會。免費工具仍然開放。",
+  endedEyebrow: "會員資格已結束",
+  endedTitle: "你的會員資格已被移除",
+  endedBody: "如果你認為這是個錯誤，請聯絡我們。",
+  endedCta: "恢復你的權限",
+};

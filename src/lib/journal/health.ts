@@ -1,8 +1,12 @@
 import type { JournalTradeRow, JournalGoalsRow } from "./types";
 import type { JournalAnalytics } from "./analytics";
+import { fmt, plural } from "@/i18n/format";
+import { en } from "@/i18n/messages/en";
+import type { JournalEngineMessages } from "./labels";
 
 // Pure account-health / anti-blowup indicator. Drawdown uses the FULL-history
-// equity curve (not windowed) so we never understate how close they are.
+// equity curve (not windowed) so we never understate how close they are. The
+// runway sentence and factors are in the reader's language (m).
 
 export interface Health {
   status: "healthy" | "at_risk" | "critical";
@@ -23,8 +27,10 @@ export function accountHealth(
   trades: JournalTradeRow[],
   analytics: JournalAnalytics,
   goals: JournalGoalsRow | null,
-  activeLeakCount: number
+  activeLeakCount: number,
+  m: JournalEngineMessages = en.journalEngine
 ): Health {
+  const H = m.health;
   const tolerance = goals?.max_drawdown_pct ?? DEFAULT_TOLERANCE;
   const usedDefaultTolerance = goals?.max_drawdown_pct == null;
 
@@ -57,13 +63,13 @@ export function accountHealth(
   const runwayTrades =
     hasEquityBasis && avgLoss > 0 ? Math.floor(remainingRoom / avgLoss) : null;
   const runwaySentence = !hasEquityBasis
-    ? "We’ll show your survival runway once your account balance syncs."
+    ? H.runwayNoBasis
     : runwayTrades != null
-      ? `~${runwayTrades} losing trade${runwayTrades === 1 ? "" : "s"} from your ${tolerance}% drawdown limit`
-      : "Set a max-drawdown goal to see your survival runway";
+      ? plural(runwayTrades, H.runwayOne, H.runwayOther, { tol: tolerance })
+      : H.runwayNoGoal;
 
   const factors = hasEquityBasis
-    ? [`Drawdown ${currentDrawdownPct}% of ${tolerance}%`]
+    ? [fmt(H.factorDrawdown, { dd: currentDrawdownPct, tol: tolerance })]
     : [];
   const closed = trades
     .filter((t) => t.status === "closed" && t.close_time)
@@ -73,10 +79,10 @@ export function accountHealth(
     const earlier = closed.slice(0, -10);
     const avg = (arr: JournalTradeRow[]) =>
       arr.reduce((s, t) => s + t.volume, 0) / arr.length;
-    if (avg(last10) > avg(earlier) * 1.2) factors.push("Risk per trade escalating");
+    if (avg(last10) > avg(earlier) * 1.2) factors.push(H.factorEscalating);
   }
   if (activeLeakCount > 0)
-    factors.push(`${activeLeakCount} leak${activeLeakCount === 1 ? "" : "s"} active`);
+    factors.push(plural(activeLeakCount, H.factorLeaksOne, H.factorLeaksOther));
 
   return {
     status,

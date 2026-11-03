@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { getT } from "@/i18n/server";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
 
-export const metadata: Metadata = {
-  title: "Reset password — Market Makers FX",
-  description: "Reset your Market Makers FX password with a secure code.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t.auth.forgotMetaTitle, description: t.auth.forgotMetaDescription };
+}
 
 export default function ForgotPasswordPage() {
   return (

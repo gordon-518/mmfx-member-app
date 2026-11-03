@@ -2,23 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ARCHETYPES } from "@/lib/kys/archetypes";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 // The report takes a few seconds to write. Saying what it's doing beats a
 // spinner that implies nothing is happening.
-const STEPS = [
-  "Reading your answers…",
-  "Mapping your risk behaviour…",
-  "Cross-referencing 8 archetypes…",
-  "Finding your leak…",
-  "Writing your assessment…",
-];
+const STEP_KEYS = ["s1", "s2", "s3", "s4", "s5"] as const;
+const STEP_MS = 1600;
 
 export function Analysing() {
   const [step, setStep] = useState(0);
   const reduce = useReducedMotion();
+  const words = useT().kys.analysing;
 
   useEffect(() => {
-    const id = setInterval(() => setStep((s) => (s + 1) % STEPS.length), 1600);
+    const id = setInterval(() => setStep((s) => (s + 1) % STEP_KEYS.length), STEP_MS);
     return () => clearInterval(id);
   }, []);
 
@@ -52,7 +51,7 @@ export function Analysing() {
             transition={{ duration: 0.35 }}
             className="font-mono text-[13px] tracking-wide text-subtle"
           >
-            {STEPS[step]}
+            {fmt(words[STEP_KEYS[step]], { n: ARCHETYPES.length })}
           </motion.p>
         </AnimatePresence>
       </div>

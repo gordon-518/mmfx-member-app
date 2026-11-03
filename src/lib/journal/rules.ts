@@ -1,11 +1,15 @@
 import type { JournalTradeRow, JournalGoalsRow, JournalRulesConfig } from "./types";
 import { sessionOf } from "./leaks";
 import { dayKey } from "./analytics";
+import { fmt } from "@/i18n/format";
+import { en } from "@/i18n/messages/en";
+import { sessionLabel, type JournalEngineMessages } from "./labels";
 
 // Pure discipline-rule evaluation. Trades are already windowed (last 30d) by the
 // caller so this stays deterministic (no Date). Detect + score after the fact —
 // every breach links to the exact trades behind it, and the score rewards
-// process (clean trading days), independent of P&L.
+// process (clean trading days), independent of P&L. Titles and details are in
+// the reader's language (m); the rule keys are what the config stores.
 
 export type RuleKey =
   | "max_daily_loss"
@@ -40,23 +44,17 @@ export interface RulesResult {
   breaches: Breach[]; // most recent first
 }
 
-const TITLES: Record<RuleKey, string> = {
-  max_daily_loss: "Max daily loss",
-  max_trades_per_day: "Max trades per day",
-  max_consec_losses: "No trading after losses",
-  max_lots: "Max position size",
-  instruments_only: "Instruments only",
-  allowed_sessions: "Allowed sessions",
-};
-
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export function evaluateRules(
   trades: JournalTradeRow[],
   config: JournalRulesConfig,
   goals: JournalGoalsRow | null,
-  startingBalance: number | null
+  startingBalance: number | null,
+  m: JournalEngineMessages = en.journalEngine
 ): RulesResult {
+  const R = m.rules;
+  const TITLES: Record<RuleKey, string> = R.titles;
   const closed = trades
     .filter((t) => t.status === "closed" && t.close_time)
     .sort((a, b) => (a.close_time as string).localeCompare(b.close_time as string));
@@ -130,7 +128,7 @@ export function evaluateRules(
               rule: "max_daily_loss",
               title: TITLES.max_daily_loss,
               when: day,
-              detail: `Lost $${r2(-net)} vs your $${r2(limit)} limit`,
+              detail: fmt(R.dailyLoss, { lost: r2(-net), limit: r2(limit) }),
               tradeIds: arr.map((t) => t.id),
             });
           }
@@ -152,7 +150,7 @@ export function evaluateRules(
             rule: "max_trades_per_day",
             title: TITLES.max_trades_per_day,
             when: day,
-            detail: `${arr.length} trades vs your ${c.value} limit`,
+            detail: fmt(R.tradesPerDay, { n: arr.length, limit: c.value }),
             tradeIds: arr.map((t) => t.id),
           });
         }
@@ -180,7 +178,7 @@ export function evaluateRules(
             rule: "max_consec_losses",
             title: TITLES.max_consec_losses,
             when: day,
-            detail: `Kept trading after ${c.value} losses in a row`,
+            detail: fmt(R.consecLosses, { n: c.value }),
             tradeIds: triggers,
           });
         }
@@ -239,7 +237,7 @@ export function evaluateRules(
     !!(config.max_lots?.enabled && typeof config.max_lots.value === "number"),
     false,
     (t) => t.volume > (config.max_lots!.value as number),
-    (t) => `${t.volume} lots vs your ${config.max_lots!.value} limit`
+    (t) => fmt(R.maxLots, { lots: t.volume, limit: config.max_lots!.value as number })
   );
 
   tradeRule(
@@ -247,7 +245,7 @@ export function evaluateRules(
     !!config.instruments_only?.enabled,
     instruments.length === 0,
     (t) => !instruments.includes(t.symbol.toUpperCase()),
-    (t) => `Traded ${t.symbol}, outside your instruments`
+    (t) => fmt(R.instruments, { symbol: t.symbol })
   );
 
   tradeRule(
@@ -255,7 +253,7 @@ export function evaluateRules(
     !!(config.allowed_sessions?.enabled && (config.allowed_sessions.value?.length ?? 0) > 0),
     false,
     (t) => !(config.allowed_sessions!.value as string[]).includes(sessionOf(t.open_time)),
-    (t) => `Traded the ${sessionOf(t.open_time)} session`
+    (t) => fmt(R.session, { session: sessionLabel(sessionOf(t.open_time), m) })
   );
 
   const cleanDays = days.filter((d) => !anyBreachDay.has(d)).length;

@@ -1,0 +1,17 @@
+export const news = {
+  eyebrow: "Markets · Forex & commodities",
+  title: "News & Articles",
+  intro: "The headlines moving the markets — the pairs you trade, gold and commodities, the dollar, the Fed and rates — each tagged with sentiment. Filter to what you trade.",
+  sourceNote: "Headlines come straight from the news wire, in English.",
+  all: "All",
+  gold: "Gold",
+  silver: "Silver",
+  positive: "Positive",
+  negative: "Negative",
+  neutral: "Neutral",
+  articles: "{n} articles",
+  emptyPair: "No articles available right now. Try another pair, or check back shortly.",
+  emptyFilter: "No articles match that filter.",
+  video: "Video",
+  read: "Read",
+} as const;

@@ -13,15 +13,17 @@ import { AppShell } from "@/components/AppShell";
 import { TradingAccountGate } from "../dashboard/TradingAccountGate";
 import { RoadmapJourney } from "./RoadmapJourney";
 import { EnterDeskButton, MarkRoadmapSeen } from "./EnterDeskButton";
+import { getT } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: "Your roadmap — Market Makers FX",
-  description: "Your path from reading the market to managing trades like a pro.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t.welcome.metaTitle, description: t.welcome.metaDescription };
+}
 
 export default async function WelcomePage() {
   const access = await getAccess();
   if (!access.signedIn) redirect("/login");
+  const t = await getT();
 
   // A funded member who hasn't saved a trading account number sees THAT first —
   // not the roadmap. The first-run proxy gate sends new users here, and every
@@ -93,9 +95,7 @@ export default async function WelcomePage() {
         </div>
         <div className="mt-10 flex flex-col items-center gap-2 border-t border-line pt-8">
           <EnterDeskButton />
-          <p className="text-[12.5px] text-faint">
-            Everything here stays under &ldquo;Start here&rdquo; in the menu.
-          </p>
+          <p className="text-[12.5px] text-faint">{t.welcome.enterFootnote}</p>
         </div>
       </div>
     </AppShell>
