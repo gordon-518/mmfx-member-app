@@ -44,7 +44,7 @@ export function memberPingHtml(member: MemberContext | null, now: Date = new Dat
   const lines: string[] = [];
   lines.push(
     `👤 <b>${esc(tierLabel(member.tier))}</b> · ref <code>${esc(depositRef(member.userId))}</code>` +
-      (member.email ? ` · ${esc(member.email)}` : "")
+      (member.email ? ` · <code>${esc(member.email)}</code>` : "")
   );
 
   const account = member.tradingAccount

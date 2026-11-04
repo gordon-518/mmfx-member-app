@@ -67,6 +67,10 @@ describe("memberPingHtml", () => {
     expect(h).toContain("a&lt;b&gt;@x.com");
   });
 
+  it("shows the email as code: copyable, never a link", () => {
+    expect(memberPingHtml(base, NOW)).toContain(`<code>${base.email}</code>`);
+  });
+
   it("defuses a link typed into a free-text field", () => {
     const h = memberPingHtml({
       ...base,

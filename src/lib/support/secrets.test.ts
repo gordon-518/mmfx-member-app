@@ -27,3 +27,43 @@ describe("maskSecrets", () => {
     }
   });
 });
+
+describe("maskSecrets: the formats members actually paste (security review, 4 Nov)", () => {
+  it.each([
+    ["password abc123", "password [hidden]"],
+    ["Login 51234567\nPassword Abc123", "Login 51234567\nPassword [hidden]"],
+    ["PIN 1234", "PIN [hidden]"],
+    ["pw: hunter", "pw: [hidden]"],
+    ["pass Abc123!", "pass [hidden]"],
+    ["password - Xy9z", "password - [hidden]"],
+    ["密码 abc123", "密码 [hidden]"],
+    ["PIN码是4821", "PIN码是[hidden]"],
+    ["口令是Qw8!", "口令是[hidden]"],
+    ["passwordnya: Rahasia9", "passwordnya: [hidden]"],
+    ["password saya adalah Rahasia9", "password saya adalah [hidden]"],
+    ["kata laluan saya ialah Rahsia88", "kata laluan saya ialah [hidden]"],
+    ["kata sandi saya adalah Sandi77", "kata sandi saya adalah [hidden]"],
+    ["pinnya 4821", "pinnya [hidden]"],
+  ])("masks %s", (input, out) => {
+    expect(maskSecrets(input)).toBe(out);
+  });
+
+  it("masks the whole of a seed or recovery phrase", () => {
+    expect(maskSecrets("seed phrase: apple banana cherry date")).toBe("seed phrase: [hidden]");
+    expect(maskSecrets("助记词：苹果 香蕉 樱桃")).toBe("助记词：[hidden]");
+  });
+
+  it("leaves a reference code alone, so the member can still be found", () => {
+    expect(maskSecrets("verification code: MM-1A2B3C")).toBe("verification code: MM-1A2B3C");
+  });
+
+  it.each([
+    "my password isn't working",
+    "my password is wrong",
+    "Is there a secret to trading?",
+    "密码是对的吗",
+    "I passed the test",
+  ])("leaves %s alone", (q) => {
+    expect(maskSecrets(q)).toBe(q);
+  });
+});

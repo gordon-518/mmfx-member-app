@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 interface ChatRow { contact_id: string; telegram_username: string | null; is_business: boolean; handoff_reason: string | null; updated_at: string }
 interface EventRow {
-  id: number; contact_id: string; kind: string; topic: string | null; member_text: string | null;
+  id: number; contact_id: string; kind: string; dedupe_key: string | null; topic: string | null; member_text: string | null;
   reply_text: string | null; skip_reason: string | null; latency_ms: number | null;
   created_at: string; delivered_at: string | null;
 }
@@ -30,8 +30,10 @@ function sgtMidnightIso(): string {
  * was never answered and nobody was told. Anything younger is just in flight. */
 const UNDELIVERED_AFTER_MS = 5 * 60_000;
 const undelivered = (e: EventRow) =>
-  (e.kind === "reply" || e.kind === "handoff") && !e.delivered_at &&
-  Date.now() - Date.parse(e.created_at) > UNDELIVERED_AFTER_MS;
+  // A draft claim left open is a run that died mid-draft: the member's message
+  // was taken and never answered (run.ts closes it however a run ends).
+  (e.kind === "reply" || e.kind === "handoff" || (e.kind === "incoming" && Boolean(e.dedupe_key?.startsWith("draft:")))) &&
+  !e.delivered_at && Date.now() - Date.parse(e.created_at) > UNDELIVERED_AFTER_MS;
 
 const field = "w-full rounded-xl border border-line bg-paper px-3 py-2 text-[13.5px] text-ink";
 const label = "text-[11px] font-semibold uppercase tracking-wider text-faint";
@@ -51,7 +53,7 @@ export default async function SupportAdminPage() {
     // queue would miss exactly the chats that broke.
     supabase.from("support_chats").select("contact_id, telegram_username, is_business, handoff_reason, updated_at")
       .eq("state", "needs_amelia").order("updated_at", { ascending: false }).limit(50),
-    supabase.from("support_events").select("id, contact_id, kind, topic, member_text, reply_text, skip_reason, latency_ms, created_at, delivered_at")
+    supabase.from("support_events").select("id, contact_id, kind, dedupe_key, topic, member_text, reply_text, skip_reason, latency_ms, created_at, delivered_at")
       .order("created_at", { ascending: false }).limit(150),
   ]);
   const settings = s as SupportSettings | null;

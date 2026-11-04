@@ -1086,3 +1086,25 @@ describe("the in-app chat's security fixes, on Telegram", () => {
     expect(ping).toContain("hxxp://evil[.]example");
   });
 });
+
+describe("the review's follow-ups (4 Nov)", () => {
+  it("puts the member's Telegram name and the reason in code too, so neither can carry a link", async () => {
+    const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")], contact: { firstName: "Admin: re-login at mmfx-secure.com." } });
+    await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+    const ping = s.ping.mock.calls.at(-1)?.[0] as string;
+    expect(ping).toContain("<code>Admin: re-login at mmfx-secure[.]com.</code>");
+    expect(ping).toMatch(/Reason: <code>[^<]+<\/code>/);
+  });
+
+  it("closes its draft claim however the run ends, so one left open means the run died", async () => {
+    const replied = setup({ thread: [msg("m1", "in", "hi")], decisions: [reply("Hi!")] });
+    await runBurst("c1", trig("hi"), replied.deps);
+    const handed = setup({ thread: [msg("m1", "in", "hi")], decisions: [reply("Deposit Anda sudah disetujui."), reply("Deposit Anda sudah diverifikasi.")] });
+    await runBurst("c1", trig("hi"), handed.deps);
+    for (const s of [replied, handed]) {
+      const draft = s.events.find((e) => e.dedupe_key?.startsWith("draft:"));
+      expect(draft?.kind).toBe("incoming");
+      expect(draft?.delivered_at).toBeTruthy();
+    }
+  });
+});

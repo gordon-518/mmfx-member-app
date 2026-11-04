@@ -70,3 +70,38 @@ describe("checkMultilingual: money safe, profits, advice, links", () => {
     expect(checkMultilingual("Open https://app.marketmakersfx.net/indicators", verified)).toEqual([]);
   });
 });
+
+// The Telegram agent's security review (4 Nov): a hedge anywhere in the
+// sentence let a claim through, a decimal price was split in two, and five
+// natural replies were flagged.
+describe("checkMultilingual: hedges count only before the claim, in its own clause", () => {
+  it.each([
+    ["您的入金已经批准，团队会尽快为您开通。", "says a deposit is approved"],
+    ["Deposit anda telah diluluskan dan anda akan menerima emel.", "says a deposit is approved"],
+    ["您的资金很安全，我们不会让您亏钱。", "says money is safe"],
+  ])("catches %s", (reply, reason) => {
+    expect(checkMultilingual(reply, pending).join(" ")).toContain(reason);
+  });
+
+  it("still lets a negated or conditional line through", () => {
+    for (const reply of ["我们不能保证您的资金安全。", "Deposit anda belum diluluskan, pasukan akan semak."]) {
+      expect(checkMultilingual(reply, pending), reply).toEqual([]);
+    }
+  });
+});
+
+describe("checkMultilingual: trading advice without false alarms", () => {
+  it("reads a decimal FX price as one number", () => {
+    expect(checkMultilingual("Sell GBPUSD now at 1.2650.", verified)).toContain("gives a price with a buy/sell instruction (trading advice)");
+  });
+
+  it.each([
+    "Your trial ends on 15 Dec 2026, so enter it at sign-up.",
+    "You can buy the lifetime plan for USD 1,588.",
+    "不保证盈利，交易有风险。",
+    "Lepas deposit, selamat datang ke Foundation!",
+    "Akun Anda sudah berhasil dibuat, lalu lakukan deposit pertama.",
+  ])("leaves %s alone", (reply) => {
+    expect(checkMultilingual(reply, pending), reply).toEqual([]);
+  });
+});

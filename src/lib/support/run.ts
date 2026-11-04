@@ -205,6 +205,7 @@ export async function runBurst(
     await store.log({ contact_id: contactId, kind: "skip", skip_reason: reason });
     return { kind: "skip", reason };
   };
+  let ownedDraftKey: string | null = null;
 
   try {
     const settings = await store.getSettings();
@@ -355,7 +356,12 @@ export async function runBurst(
     // webhooks for "hi" a second apart, a burst of identical texts) each used
     // to pay for a model call before the outcome claim below picked a winner.
     // The same rules as that claim: the loser skips, unless its read was stale.
-    const draftClaim = await store.log({ contact_id: contactId, kind: "incoming", dedupe_key: `draft:${contactId}:${latest.id}` });
+    const draftKey = `draft:${contactId}:${latest.id}`;
+    const draftClaim = await store.log({ contact_id: contactId, kind: "incoming", dedupe_key: draftKey });
+    // Closed in the finally below however this run ends. One left open past a
+    // few minutes means the run died mid-draft, and the daily summary and
+    // /admin/support count it as undelivered.
+    if (draftClaim.status === "ok") ownedDraftKey = draftKey;
     if (draftClaim.status === "duplicate") {
       if (staleRead) {
         return handoff({ ...ctx, dedupeKey: `${dedupeKey}:stale-dup`, staleRead: false }, "duplicate claim (stale read)");
@@ -477,13 +483,15 @@ export async function runBurst(
       // that failure is correlated with whatever put us in this catch (a
       // database outage breaks the read AND the write). Alerting a human is
       // the whole point of this path, so it must not depend on the write.
-      await deps.ping(`⚠️ <b>Support agent error</b> · contact ${escapeHtml(contactId)}\n<i>${escapeHtml(quoteForAlert(reason, 300))}</i>`);
+      await deps.ping(`⚠️ <b>Support agent error</b> · contact ${escapeHtml(contactId)}\n<code>${escapeHtml(quoteForAlert(reason, 300))}</code>`);
       await store.saveChat({ contact_id: contactId, state: "needs_amelia", handoff_reason: reason }).catch(() => undefined);
     } catch {
       // Best-effort only — the error event below is logged either way.
     }
     await store.log({ contact_id: contactId, kind: "error", skip_reason: reason }).catch(() => undefined);
     return { kind: "error", reason };
+  } finally {
+    if (ownedDraftKey) await store.markDelivered(ownedDraftKey).catch(() => undefined);
   }
 }
 
@@ -560,12 +568,12 @@ async function handoff(
   // Telegram sits outside the 90-day support_events purge, so an email or
   // phone number pasted by a member must never linger there indefinitely.
   // Anything a member wrote (their message, their Telegram name) or a model
-  // wrote (the reason) is defused by quoteForAlert and the message sits in
-  // <code>, which Telegram never turns into a link: a member must not be able
-  // to plant a convincing "sign in here" link above the real admin one.
+  // wrote (the reason) is defused by quoteForAlert and sits in <code>, which
+  // Telegram never turns into a link: a member must not be able to plant a
+  // convincing "sign in here" link above the real admin one.
   const pingResult = await deps.ping(
-    `🙋 <b>Needs Amelia</b> · ${escapeHtml(quoteForAlert(contact.firstName || "Member", 64))}${contact.username ? ` (@${escapeHtml(contact.username)})` : ""}` +
-    `\n<code>${escapeHtml(quoteForAlert(redactForModel(memberText), 300))}</code>\n<i>Reason: ${escapeHtml(quoteForAlert(reason, 200))}</i>` +
+    `🙋 <b>Needs Amelia</b> · <code>${escapeHtml(quoteForAlert(contact.firstName || "Member", 64))}</code>${contact.username ? ` (@${escapeHtml(contact.username)})` : ""}` +
+    `\n<code>${escapeHtml(quoteForAlert(redactForModel(memberText), 300))}</code>\nReason: <code>${escapeHtml(quoteForAlert(reason, 200))}</code>` +
     memberPingHtml(ctx.member ?? null, deps.now())
   );
   // setTag/setPauseAutomation/openChat/ping/saveChat results used to be
