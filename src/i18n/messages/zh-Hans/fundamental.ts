@@ -131,4 +131,21 @@ export const fundamental: Messages["fundamental"] = {
     generic: "出了点问题。请稍后再试。",
     network: "网络错误——请检查网络后重试。",
   },
+  // "In plain words" + tap-to-explain terms on a thesis (4 Nov).
+  plain: {
+    title: "通俗解读",
+    meta: "用简单的话讲清这份观点",
+    whatHappened: "发生了什么",
+    deskView: "Fundamental Desk 怎么看",
+    whatChanges: "什么会让它改变看法",
+    loading: "正在为这份观点撰写通俗版本——首次生成可能需要半分钟左右。",
+    note: "由 AI 根据 Fundamental Desk 的观点撰写，仅供学习，不构成交易建议。",
+  },
+  glossary: {
+    title: "本文关键术语",
+    meta: "也可以点击正文中带下划线的词",
+    whatItMeans: "这是什么",
+    howItMoves: "对 {asset} 的影响",
+    close: "关闭",
+  },
 };

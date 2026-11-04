@@ -131,4 +131,21 @@ export const fundamental: Messages["fundamental"] = {
     generic: "Terjadi kesalahan. Coba lagi sebentar lagi.",
     network: "Kesalahan jaringan — cek koneksi Anda dan coba lagi.",
   },
+  // "In plain words" + tap-to-explain terms on a thesis (4 Nov).
+  plain: {
+    title: "Dalam bahasa sederhana",
+    meta: "Tesis ini, dijelaskan dengan mudah",
+    whatHappened: "Apa yang terjadi",
+    deskView: "Pandangan Fundamental Desk",
+    whatChanges: "Apa yang bisa mengubah pandangannya",
+    loading: "Sedang menulis versi sederhana tesis ini — pertama kali bisa memakan waktu hingga setengah menit.",
+    note: "Ditulis oleh AI dari tesis Fundamental Desk, untuk belajar — bukan saran trading.",
+  },
+  glossary: {
+    title: "Istilah penting di tesis ini",
+    meta: "Anda juga bisa ketuk kata bergaris di tesis",
+    whatItMeans: "Artinya",
+    howItMoves: "Pengaruhnya ke {asset}",
+    close: "Tutup",
+  },
 };

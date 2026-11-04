@@ -19,6 +19,10 @@ import { ComplianceText } from "@/components/ComplianceText";
 import { BiasPill, ConvictionBar, Panel, StateBadge } from "./parts";
 import { LiveHero } from "./LiveHero";
 import { SendCopyButton } from "./SendCopyButton";
+import { Glossed, KeyTerms, type Gloss } from "./Glossed";
+import { PlainEnglish } from "./PlainEnglish";
+import { GLOSSARY } from "@/lib/fa/glossary/content";
+import { assetName, resolveTerm, termsIn } from "@/lib/fa/glossary/match";
 
 // The full thesis for one instrument, rendered natively. Every field comes
 // from the desk's output contract (desk BUILD.md §6) — nothing is inferred,
@@ -56,7 +60,7 @@ function ContractRow({ label, children }: { label: string; children: React.React
   );
 }
 
-function Bullets({ items, empty }: { items: string[]; empty: string }) {
+function Bullets({ items, empty, gloss }: { items: string[]; empty: string; gloss?: Gloss }) {
   if (items.length === 0) {
     return <p className="text-[13.5px] leading-relaxed text-subtle">{empty}</p>;
   }
@@ -65,7 +69,7 @@ function Bullets({ items, empty }: { items: string[]; empty: string }) {
       {items.map((item) => (
         <li key={item} className="flex gap-2.5 text-[13.5px] leading-relaxed text-ink">
           <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-orange" />
-          <span>{item}</span>
+          <span>{gloss ? <Glossed text={item} gloss={gloss} /> : item}</span>
         </li>
       ))}
     </ul>
@@ -89,6 +93,27 @@ export async function Thesis({
   const tf = inv.trend_filter;
   const line = theLine(inv);
   const driver = humanize(a.dominant_driver);
+
+  // Tap-to-explain: the desk's jargon in the prose sections, resolved for this
+  // instrument ("a stronger dollar pushes EUR/USD down") and this language.
+  const asset = assetName(instrument, nickname);
+  const prose = [
+    a.regime_summary,
+    a.narrative_summary,
+    ...a.active_catalysts.map((c) => c.explanation),
+    ...inv.external_triggers.flatMap((trigger) => [trigger.event, trigger.rationale]),
+    ...a.confidence_drivers,
+  ];
+  const keyTerms = termsIn(prose, instrument.assetClass).map((id) => resolveTerm(GLOSSARY[locale], id, instrument, asset));
+  const gloss: Gloss = {
+    assetClass: instrument.assetClass,
+    terms: Object.fromEntries(keyTerms.map((term) => [term.id, term])),
+    labels: {
+      whatItMeans: desk.glossary.whatItMeans,
+      howItMoves: fmt(desk.glossary.howItMoves, { asset }),
+      close: desk.glossary.close,
+    },
+  };
 
   return (
     <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8 lg:py-10">
@@ -154,6 +179,8 @@ export async function Thesis({
           </p>
         </div>
 
+        <PlainEnglish instrument={instrument.id} labels={desk.plain} />
+
         {/* The numbers behind the read */}
         <dl
           className="rise grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line shadow-soft lg:grid-cols-4"
@@ -183,11 +210,15 @@ export async function Thesis({
         </Panel>
 
         <Panel title={w.regime} meta={w.regimeMeta} delay={0.32}>
-          <p className="text-[14px] leading-relaxed text-ink">{a.regime_summary}</p>
+          <p className="text-[14px] leading-relaxed text-ink">
+            <Glossed text={a.regime_summary} gloss={gloss} />
+          </p>
         </Panel>
 
         <Panel title={w.thesis} meta={driver} delay={0.36}>
-          <p className="text-[15px] leading-relaxed text-ink">{a.narrative_summary}</p>
+          <p className="text-[15px] leading-relaxed text-ink">
+            <Glossed text={a.narrative_summary} gloss={gloss} />
+          </p>
         </Panel>
 
         <Panel title={w.catalysts} meta={w.catalystsMeta} delay={0.4}>
@@ -211,7 +242,7 @@ export async function Thesis({
                     />
                   </div>
                   <p className="mt-1.5 text-[13.5px] leading-relaxed text-subtle">
-                    {c.explanation}
+                    <Glossed text={c.explanation} gloss={gloss} />
                   </p>
                 </li>
               ))}
@@ -259,9 +290,13 @@ export async function Thesis({
                           ? w.actionWatch
                           : trigger.action}
                     </span>
-                    <span className="text-[13.5px] font-semibold text-ink">{trigger.event}</span>
+                    <span className="text-[13.5px] font-semibold text-ink">
+                      <Glossed text={trigger.event} gloss={gloss} />
+                    </span>
                   </div>
-                  <p className="mt-1 text-[13px] leading-relaxed text-subtle">{trigger.rationale}</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-subtle">
+                    <Glossed text={trigger.rationale} gloss={gloss} />
+                  </p>
                 </li>
               ))}
             </ul>
@@ -270,12 +305,18 @@ export async function Thesis({
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Panel title={w.whyConviction} delay={0.48}>
-            <Bullets items={a.confidence_drivers} empty={w.notStated} />
+            <Bullets items={a.confidence_drivers} empty={w.notStated} gloss={gloss} />
           </Panel>
           <Panel title={w.dataGaps} meta={w.dataGapsMeta} delay={0.5}>
             <Bullets items={a.data_gaps} empty={w.fullCoverage} />
           </Panel>
         </div>
+
+        {keyTerms.length > 0 && (
+          <Panel title={desk.glossary.title} meta={desk.glossary.meta} delay={0.52}>
+            <KeyTerms terms={keyTerms} labels={gloss.labels} />
+          </Panel>
+        )}
 
         {envelope.reads.length > 0 && (
           <Panel title={w.reading} meta={w.readingMeta} delay={0.54}>

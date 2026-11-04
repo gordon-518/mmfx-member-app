@@ -296,6 +296,26 @@ the hourly limit inside the same atomic step: `ok` / `busy` / `rate_limited`.
 
 `support_settings.chat_enabled` (boolean, default true) is the assistant's own
 switch on `/admin/chat`; off means every message goes straight to a person.
+
+### `fa_plain_summaries` (Fundamental Desk "In plain words", 4 Nov 2026)
+
+The desk's thesis retold for members without an economics background, in their
+language. Written by Claude (`src/lib/fa/plain.ts`) the first time anyone opens
+that thesis in that language, then reused. A new thesis has a new
+`generated_at`, so it gets a fresh row. RLS on with no policies: only the
+service role (`/api/fundamental/plain`, after `deskAuthorized()`) reads or writes.
+
+| Column | Type | Notes |
+|---|---|---|
+| `instrument` | `text` | desk id, e.g. `XAUUSD` |
+| `generated_at` | `timestamptz` | the thesis's own `generated_at` |
+| `locale` | `text` | `en`, `zh-Hans`, `zh-Hant`, `ms`, `id` |
+| `body` | `jsonb` | `{ what_happened, desk_view, what_changes }` |
+| `model` | `text` | the model that wrote it |
+| `created_at` | `timestamptz` | |
+
+PK `(instrument, generated_at, locale)`. The tap-to-explain term cards are not
+stored: they're fixed content in `src/lib/fa/glossary/content/<locale>.ts`.
 ## The member's language (`user_metadata.locale`)
 
 The app and every member email follow one value: `auth.users.raw_user_meta_data->>'locale'` (`en`, `zh-Hans`, `zh-Hant`, `ms`, `id`). The language switcher writes it (`setLocale`), sign-up writes the language the form was in, and the proxy saves the language the app is showing a member who never picked one. Defined in `20261104000003_member_locale.sql`:
