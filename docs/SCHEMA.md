@@ -249,10 +249,53 @@ The Telegram support agent's state. `support_settings` is the on/off switch and 
 | `latency_ms` | `integer` | yes | Time taken to produce the reply. |
 | `created_at` | `timestamptz` | no | `now()`. |
 
-**Retention:** `support_events` holds member message text and is purged after 90 days by the pg_cron job `support-events-purge` (`30 0 * * *`).
+**Retention:** `support_events` holds member message text (common password and code formats are masked before it's stored) and is purged after 90 days by the pg_cron job `support-events-purge` (`30 0 * * *`). `support_chats.handoff_reason` is cleared after 90 days untouched by `support-chats-reason-purge` (`40 0 * * *`, migration `20261104000004`), except on chats still waiting for Amelia.
 
 ---
 
+## Tables: `chat_threads`, `chat_messages` (in-app help chat)
+
+The help chat in the member app (migration `20261104000001_member_chat.sql`). The
+assistant answers from the support fact sheet plus the app guide
+(`src/lib/chat/guide.ts`); anything it can't answer safely is handed to a person,
+who replies from `/admin/chat`.
+
+RLS: admins can SELECT both tables (the `/admin/chat` inbox); members read
+their own thread only through `/api/chat`, never directly. No write policies:
+`/api/chat` and the `/admin/chat` actions write with the service role after
+checking who is asking. anon has no access.
+
+`fn_chat_claim(user, locale, hour_limit)` (service role only, migration
+`20261104000002`) gives `/api/chat` one request at a time per member and checks
+the hourly limit inside the same atomic step: `ok` / `busy` / `rate_limited`.
+
+### `chat_threads` (one row per member)
+
+| Column | Type | Notes |
+|---|---|---|
+| `user_id` | `uuid` PK → `profiles.id` | cascade on delete |
+| `state` | `text` | `bot` (the assistant answers) or `needs_human` (a person has it) |
+| `locale` | `text` | the app language the member last wrote from |
+| `handoff_reason` | `text` | why it was handed over; cleared after 180 days (`chat-threads-purge`) |
+| `last_ping_at` | `timestamptz` | last alert to the team; a new member message re-pings after 30 min |
+| `member_last_read_at` | `timestamptz` | drives the unread dot for staff replies |
+| `busy_until` | `timestamptz` | the member's in-flight claim (fn_chat_claim); expires on its own after 100s |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+### `chat_messages`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `bigint` identity PK | |
+| `user_id` | `uuid` → `profiles.id` | cascade on delete |
+| `role` | `text` | `member`, `assistant`, `staff`, or `system` (body is an event code: `handoff`, `resolved`) |
+| `body` | `text` | 1–4000 characters |
+| `topic`, `confidence`, `model`, `guard_failures` | | the assistant's decision, for the log |
+| `staff_id` | `uuid` → `profiles.id` | who replied (`set null` on delete) |
+| `created_at` | `timestamptz` | purged after 180 days (`chat-messages-purge`, 00:45 UTC daily) |
+
+`support_settings.chat_enabled` (boolean, default true) is the assistant's own
+switch on `/admin/chat`; off means every message goes straight to a person.
 ## The member's language (`user_metadata.locale`)
 
 The app and every member email follow one value: `auth.users.raw_user_meta_data->>'locale'` (`en`, `zh-Hans`, `zh-Hant`, `ms`, `id`). The language switcher writes it (`setLocale`), sign-up writes the language the form was in, and the proxy saves the language the app is showing a member who never picked one. Defined in `20261104000003_member_locale.sql`:

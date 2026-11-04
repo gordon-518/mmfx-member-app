@@ -754,3 +754,34 @@ describe("mustHandOff", () => {
     });
   });
 });
+
+// The in-app chat's review (4 Nov): both assistants route on these, and the
+// list knew Malay and Simplified Chinese but not Indonesian or Traditional.
+describe("mustHandOff in Indonesian and Traditional Chinese", () => {
+  it.each([
+    ["Bagaimana cara penarikan dana saya?", /withdraw/],
+    ["Saya mau tarik dana dari akun", /withdraw/],
+    ["我要提現", /withdraw/],
+    ["Tolong kembalikan uang saya", /refund/],
+    ["我要退錢", /refund/],
+    ["Saya udah transfer kemarin", /payment/],
+    ["我已經付款了，為什麼還沒開通？", /payment/],
+    ["Uang saya hilang setelah deposit", /funds/],
+    ["dana saya belum masuk", /funds/],
+    ["我的錢還沒到帳", /funds/],
+    ["Ini penipuan, saya akan lapor polisi", /complaint/],
+    ["這是詐騙，我要報警", /complaint/],
+    ["Tolong hapus akun saya", /deletion/],
+    ["請刪除我的帳戶", /deletion/],
+  ])("hands off %s", (text, why) => {
+    expect(mustHandOff(text, "other")).toMatch(why);
+  });
+
+  it.each([
+    "Berapa minimal deposit untuk Foundation?",
+    "Bagaimana cara daftar akun?",
+    "請問 Team MM 需要多少入金？",
+  ])("leaves %s alone", (text) => {
+    expect(mustHandOff(text, "other")).toBeNull();
+  });
+});

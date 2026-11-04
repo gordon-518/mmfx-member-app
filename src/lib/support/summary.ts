@@ -7,7 +7,8 @@ export interface SupportStats {
   replies: number;
   handoffs: number;
   waiting: number;
-  /** Outgoing rows logged but never confirmed sent — see UNDELIVERED_AFTER_MS. */
+  /** Outgoing rows logged but never confirmed sent, plus member messages a run
+   *  claimed and never finished — see UNDELIVERED_AFTER_MS. */
   undelivered: number;
   medianSeconds: number | null;
 }
@@ -36,11 +37,15 @@ export async function supportStats(db: SupabaseClient, since: Date): Promise<Sup
   const events = () => db.from("support_events").select("id", { count: "exact", head: true });
   // Counts, not row fetches: an earlier feature in this codebase undercounted
   // because a plain select caps at 1000 rows.
-  const [replies, handoffs, waiting, undelivered, latency] = await Promise.all([
+  const [replies, handoffs, waiting, undelivered, stuckDrafts, latency] = await Promise.all([
     events().eq("kind", "reply").gte("created_at", sinceIso),
     events().eq("kind", "handoff").gte("created_at", sinceIso),
     db.from("support_chats").select("contact_id", { count: "exact", head: true }).eq("state", "needs_amelia"),
     events().in("kind", ["reply", "handoff"]).is("delivered_at", null).gte("created_at", sinceIso).lt("created_at", staleBefore),
+    // A member message a run claimed (run.ts's draft claim) and never closed:
+    // the run died before any outcome, so nobody answered and nobody was told.
+    events().eq("kind", "incoming").like("dedupe_key", "draft:%").is("delivered_at", null)
+      .gte("created_at", sinceIso).lt("created_at", staleBefore),
     db.from("support_events").select("latency_ms").eq("kind", "reply").gte("created_at", sinceIso)
       .not("latency_ms", "is", null).order("created_at", { ascending: false }).limit(LATENCY_SAMPLE),
   ]);
@@ -52,7 +57,7 @@ export async function supportStats(db: SupabaseClient, since: Date): Promise<Sup
     replies: replies.count ?? 0,
     handoffs: handoffs.count ?? 0,
     waiting: waiting.count ?? 0,
-    undelivered: undelivered.count ?? 0,
+    undelivered: (undelivered.count ?? 0) + (stuckDrafts.count ?? 0),
     medianSeconds: lat.length ? Math.round(lat[Math.floor(lat.length / 2)] / 1000) : null,
   };
 }

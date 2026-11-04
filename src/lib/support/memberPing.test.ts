@@ -67,6 +67,19 @@ describe("memberPingHtml", () => {
     expect(h).toContain("a&lt;b&gt;@x.com");
   });
 
+  it("shows the email as code: copyable, never a link", () => {
+    expect(memberPingHtml(base, NOW)).toContain(`<code>${base.email}</code>`);
+  });
+
+  it("defuses a link typed into a free-text field", () => {
+    const h = memberPingHtml({
+      ...base,
+      submission: { status: "rejected", rejectReason: "see https://evil.example/x", createdAt: "2026-09-20T00:00:00Z", amount: 60, broker: "dupoin" },
+    }, NOW);
+    expect(h).toContain("hxxps://evil[.]example/x");
+    expect(h).not.toContain("https://evil");
+  });
+
   it("is empty when the chat isn't matched to a member", () => {
     expect(memberPingHtml(null, NOW)).toBe("");
   });

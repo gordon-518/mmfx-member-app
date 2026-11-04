@@ -2,6 +2,7 @@ import { describe, it } from "vitest";
 import fs from "node:fs";
 import { buildFactSheet } from "@/lib/support/facts";
 import { checkDraft, mustHandOff } from "@/lib/support/guard";
+import { checkMultilingual } from "@/lib/support/multilingual";
 import { decide } from "@/lib/support/agent";
 import { adminDb } from "@/lib/channel/db";
 import type { SupportSettings, ThreadMessage } from "@/lib/support/types";
@@ -60,13 +61,15 @@ describe.skipIf(!RUN)("support replay", () => {
         rows.push({ q, outcome: "handoff", topic: d.topic, confidence: d.confidence, reason: d.reason });
         continue;
       }
-      let fails = checkDraft(d.reply, ctx);
+      // Both guards, as run.ts applies them (no member here, so nothing is verified).
+      const check = (draft: string) => [...checkDraft(draft, ctx), ...checkMultilingual(draft, { depositVerified: false })];
+      let fails = check(d.reply);
       let reply = d.reply;
       if (fails.length) {
         calls++;
         const second = await decide({ facts, thread, contact, member: null, retryReasons: fails });
         const s = second.decision;
-        if (s && s.action === "reply" && !checkDraft(s.reply, ctx).length) { reply = s.reply; fails = []; }
+        if (s && s.action === "reply" && !check(s.reply).length) { reply = s.reply; fails = []; }
       }
       rows.push(fails.length
         ? { q, outcome: "handoff", topic: d.topic, reason: "guard", guard: fails }

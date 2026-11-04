@@ -1,10 +1,14 @@
 import "server-only";
 import { adminDb } from "@/lib/channel/db";
 import { sendTelegram, escapeHtml } from "@/lib/telegram";
+import { supportPingCredentials } from "@/lib/telegramCredentials";
 import * as sendpulse from "./sendpulse";
 import { decide as realDecide, redactForModel } from "./agent";
 import { buildFactSheet } from "./facts";
 import { checkDraft, mustHandOff } from "./guard";
+import { checkMultilingual } from "./multilingual";
+import { maskSecrets } from "./secrets";
+import { quoteForAlert } from "./quote";
 import { toTelegramHtml } from "./format";
 import { findMember as realFindMember } from "./member";
 import { memberPingHtml } from "./memberPing";
@@ -99,16 +103,17 @@ export interface RunDeps {
   now: () => Date;
 }
 
-/** The default `ping` dep: sends only to SUPPORT_PING_CHAT_ID, never falling
- * back to TELEGRAM_CHAT_ID (the growth-stats/ops chat) the way `sendTelegram`
- * does when `chatId` is omitted — a handoff ping carries up to 300 chars of
- * member text (disputes, deletion requests included), and that chat's
- * audience must never see it. Unset/empty means "no ping configured": the
- * caller (see `handoff` below) records that rather than silently dropping it. */
+/** The default `ping` dep. A handoff ping carries up to 300 chars of member
+ * text (disputes, deletion requests included), so it goes to the support pair
+ * (SUPPORT_PING_BOT_TOKEN + SUPPORT_PING_CHAT_ID) when both are set, else to
+ * the alert bot Gordon watches — never the growth-stats chat. (Passing only a
+ * chat id used to be ignored by the resolver, which then picked whichever bot
+ * was configured.) No bot at all means "no ping configured": the caller (see
+ * `handoff` below) records that rather than silently dropping it. */
 export function defaultPing(html: string): Promise<{ ok: boolean; detail?: unknown }> {
-  const chatId = process.env.SUPPORT_PING_CHAT_ID;
-  if (!chatId) return Promise.resolve({ ok: false, detail: "SUPPORT_PING_CHAT_ID not configured" });
-  return sendTelegram(html, { chatId });
+  const creds = supportPingCredentials(process.env);
+  if (!creds) return Promise.resolve({ ok: false, detail: "no support ping bot configured" });
+  return sendTelegram(html, { botToken: creds.token, chatId: creds.chatId });
 }
 
 export function defaultDeps(): RunDeps {
@@ -200,6 +205,7 @@ export async function runBurst(
     await store.log({ contact_id: contactId, kind: "skip", skip_reason: reason });
     return { kind: "skip", reason };
   };
+  let ownedDraftKey: string | null = null;
 
   try {
     const settings = await store.getSettings();
@@ -228,7 +234,12 @@ export async function runBurst(
     // thread read must never look like an empty one. A throw from here on
     // is handled by the catch block below: best-effort handoff to Amelia,
     // never a silently dropped chat.
-    const thread = await sp.getMessages(contactId, 15);
+    // Passwords and codes a member types are masked before anything else
+    // sees them — the model, the support_events log and the ping to Amelia
+    // (the in-app chat does the same at intake).
+    const thread = (await sp.getMessages(contactId, 15)).map((m) =>
+      m.direction === "in" ? { ...m, text: maskSecrets(m.text) } : m
+    );
     const lastIn = thread.map((m) => m.direction).lastIndexOf("in");
     if (lastIn === -1) return skip("no member message");
     const latest = thread[lastIn];
@@ -244,7 +255,9 @@ export async function runBurst(
     // an attachment (deposit screenshots — the highest-value message type).
     // Duplicate prevention no longer depends on this check being tight: the
     // dedupe claim below (`dedupeKey`) is what stops a double reply.
-    const triggerText = trigger.text.trim();
+    // Masked the same way as the thread, or a message carrying a password
+    // would never match its own trigger and go unanswered.
+    const triggerText = maskSecrets(trigger.text).trim();
     const stillLatest = triggerText
       ? latest.text.trim() === triggerText
       : Date.parse(latest.at) - Date.parse(trigger.at) <= 5 * 60_000;
@@ -339,6 +352,23 @@ export async function runBurst(
       return handoff(ctx, "out of time");
     }
 
+    // One draft per member message. Two runs for the same message (two
+    // webhooks for "hi" a second apart, a burst of identical texts) each used
+    // to pay for a model call before the outcome claim below picked a winner.
+    // The same rules as that claim: the loser skips, unless its read was stale.
+    const draftKey = `draft:${contactId}:${latest.id}`;
+    const draftClaim = await store.log({ contact_id: contactId, kind: "incoming", dedupe_key: draftKey });
+    // Closed in the finally below however this run ends. One left open past a
+    // few minutes means the run died mid-draft, and the daily summary and
+    // /admin/support count it as undelivered.
+    if (draftClaim.status === "ok") ownedDraftKey = draftKey;
+    if (draftClaim.status === "duplicate") {
+      if (staleRead) {
+        return handoff({ ...ctx, dedupeKey: `${dedupeKey}:stale-dup`, staleRead: false }, "duplicate claim (stale read)");
+      }
+      return { kind: "skip", reason: "already answered" };
+    }
+
     const facts = buildFactSheet(settings, now);
     const started = Date.now();
     const first = await deps.decide({ facts, thread, contact, member });
@@ -358,8 +388,12 @@ export async function runBurst(
     const topicHard = mustHandOff(memberText, d.topic);
     if (topicHard) return handoff(ctx, topicHard, { model: first.model, topic: d.topic });
 
+    // Both guards on every draft: checkDraft (facts, links, handles, English
+    // claims) and the same rules in Chinese, Malay and Indonesian.
     const guardCtx = { facts, memberTexts, member };
-    const fails = checkDraft(d.reply, guardCtx);
+    const depositVerified = member?.submission?.status === "verified" && member?.attested === true;
+    const check = (draft: string) => [...new Set([...checkDraft(draft, guardCtx), ...checkMultilingual(draft, { depositVerified })])];
+    const fails = check(d.reply);
     let redraftedFrom: string[] | undefined;
     if (fails.length) {
       // Don't start a redraft this late — see REDRAFT_MIN_BUDGET_MS.
@@ -369,7 +403,7 @@ export async function runBurst(
       }
       const second = await deps.decide({ facts, thread, contact, member, retryReasons: fails, timeoutMs: REDRAFT_TIMEOUT_MS });
       const s = second.decision;
-      if (!s || s.action !== "reply" || s.confidence < CONFIDENCE_MIN || checkDraft(s.reply, guardCtx).length) {
+      if (!s || s.action !== "reply" || s.confidence < CONFIDENCE_MIN || check(s.reply).length) {
         return handoff(ctx, `guard: ${fails.join("; ")}`, { guardFailures: fails, model: first.model, topic: s?.topic ?? d.topic });
       }
       // The redraft can change topic (e.g. into a money question) — recheck
@@ -449,13 +483,15 @@ export async function runBurst(
       // that failure is correlated with whatever put us in this catch (a
       // database outage breaks the read AND the write). Alerting a human is
       // the whole point of this path, so it must not depend on the write.
-      await deps.ping(`⚠️ <b>Support agent error</b> · contact ${escapeHtml(contactId)}\n<i>${escapeHtml(reason)}</i>`);
+      await deps.ping(`⚠️ <b>Support agent error</b> · contact ${escapeHtml(contactId)}\n<code>${escapeHtml(quoteForAlert(reason, 300))}</code>`);
       await store.saveChat({ contact_id: contactId, state: "needs_amelia", handoff_reason: reason }).catch(() => undefined);
     } catch {
       // Best-effort only — the error event below is logged either way.
     }
     await store.log({ contact_id: contactId, kind: "error", skip_reason: reason }).catch(() => undefined);
     return { kind: "error", reason };
+  } finally {
+    if (ownedDraftKey) await store.markDelivered(ownedDraftKey).catch(() => undefined);
   }
 }
 
@@ -531,9 +567,13 @@ async function handoff(
   // Member text goes through redactForModel before it reaches Telegram —
   // Telegram sits outside the 90-day support_events purge, so an email or
   // phone number pasted by a member must never linger there indefinitely.
+  // Anything a member wrote (their message, their Telegram name) or a model
+  // wrote (the reason) is defused by quoteForAlert and sits in <code>, which
+  // Telegram never turns into a link: a member must not be able to plant a
+  // convincing "sign in here" link above the real admin one.
   const pingResult = await deps.ping(
-    `🙋 <b>Needs Amelia</b> · ${escapeHtml(contact.firstName || "Member")}${contact.username ? ` (@${escapeHtml(contact.username)})` : ""}` +
-    `\n"${escapeHtml(redactForModel(memberText).slice(0, 300))}"\n<i>Reason: ${escapeHtml(reason)}</i>` +
+    `🙋 <b>Needs Amelia</b> · <code>${escapeHtml(quoteForAlert(contact.firstName || "Member", 64))}</code>${contact.username ? ` (@${escapeHtml(contact.username)})` : ""}` +
+    `\n<code>${escapeHtml(quoteForAlert(redactForModel(memberText), 300))}</code>\nReason: <code>${escapeHtml(quoteForAlert(reason, 200))}</code>` +
     memberPingHtml(ctx.member ?? null, deps.now())
   );
   // setTag/setPauseAutomation/openChat/ping/saveChat results used to be

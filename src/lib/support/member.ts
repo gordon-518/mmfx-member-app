@@ -85,7 +85,23 @@ export async function findMember(
   // ref-only match, where there's no handle resolution to prefer.
   const matchedBy: MemberContext["matchedBy"] = byHandle ? "handle" : "ref";
   if (!userId) return null;
+  // Attested only when the platform-attested Telegram username itself
+  // resolved to this member — a self-asserted ref code, even one that
+  // agrees with the handle, never counts on its own (see matchedBy).
+  return memberContextFor(db, userId, matchedBy, byHandle !== null);
+}
 
+/**
+ * The member's tier, trial, deposits and latest submission, for a user id
+ * that has already been resolved (by Telegram identity above, or by the
+ * signed-in session in the in-app chat). Null when there is no profile.
+ */
+export async function memberContextFor(
+  db: SupabaseClient,
+  userId: string,
+  matchedBy: MemberContext["matchedBy"],
+  attested: boolean
+): Promise<MemberContext | null> {
   const { data: p, error: pErr } = await db.from("profiles")
     .select("account_status, trial_ends_at, deposit_amount, grandfathered, lifetime_plan, email, trading_account_number, broker")
     .eq("id", userId).maybeSingle();
@@ -115,9 +131,6 @@ export async function findMember(
           broker: s.broker ?? null,
         }
       : null,
-    // Attested only when the platform-attested Telegram username itself
-    // resolved to this member — a self-asserted ref code, even one that
-    // agrees with the handle, never counts on its own (see matchedBy).
-    attested: byHandle !== null,
+    attested,
   };
 }

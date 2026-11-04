@@ -1,0 +1,36 @@
+// The in-app help chat. The assistant's own replies are written by the model
+// in the member's language; these are the panel's words.
+export const chat = {
+  open: "Ask MMFX",
+  openAria: "Open the help chat",
+  close: "Close the chat",
+  title: "Ask MMFX",
+  subtitle: "Answers about the app and your membership, in seconds. A person takes over when needed.",
+  greeting: "Hi! I can help with the app, your plan, deposits and the tools. What would you like to know?",
+  suggestions: {
+    tiers: "How do the tiers work?",
+    indicators: "How do I get the indicators?",
+    start: "Where should I start?",
+    deposit: "How do I submit a deposit?",
+  },
+  placeholder: "Type your question…",
+  send: "Send",
+  sending: "Sending…",
+  you: "You",
+  assistant: "MMFX Assistant",
+  team: "MMFX team",
+  handoff: "I've passed this to the team. A person will reply here, usually during Singapore office hours.",
+  resolved: "The team has wrapped this up. The assistant is back if you have another question.",
+  waiting: "The team has your messages and will reply here.",
+  thinking: "Thinking…",
+  noAdvice: "The assistant explains the app and your membership. It doesn't give trading advice.",
+  errors: {
+    rate_limited: "You're sending messages quickly. Wait a minute and try again.",
+    invalid: "Messages can be up to 1,000 characters.",
+    server: "Something went wrong. Try again in a moment.",
+    busy: "Still answering your last message. One moment.",
+    unauthorized: "Your session has ended. Sign in again to keep chatting.",
+  },
+  privacy: "Never share passwords or codes here. The team will never ask for them.",
+  unread: "New reply from the team",
+} as const;

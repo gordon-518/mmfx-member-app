@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { MetaPixel } from "@/components/MetaPixel";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale, getT } from "@/i18n/server";
 import { MESSAGES } from "@/i18n/messages";
@@ -47,6 +48,8 @@ export default async function RootLayout({
         <MetaPixel />
         <I18nProvider locale={locale} messages={MESSAGES[locale]}>
           {children}
+          {/* The help chat: shows itself only to a signed-in member. */}
+          <ChatWidget />
         </I18nProvider>
       </body>
     </html>

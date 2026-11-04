@@ -42,7 +42,8 @@ export interface ContactInfo {
 
 export interface MemberContext {
   userId: string;
-  matchedBy: "ref" | "handle";
+  /** "session": the in-app chat, where the signed-in session is the identity. */
+  matchedBy: "ref" | "handle" | "session";
   tier: MemberTier;
   trialEndsAt: string | null;
   /** Account facts for the handoff ping (28 Sep) - see memberPing.ts. */

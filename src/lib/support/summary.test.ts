@@ -43,6 +43,7 @@ function fakeDb(seed: {
       select: (_cols: string, opts?: { head?: boolean }) => { head = Boolean(opts?.head); return q; },
       eq: (col: string, val: string) => { if (col === "kind") kind = val; if (col === "state") kind = `state:${val}`; return q; },
       in: () => { kind = "undelivered"; return q; },
+      like: () => { kind = "stuck-drafts"; return q; },
       is: () => q,
       not: () => q,
       gte: () => q,
@@ -77,6 +78,14 @@ describe("supportStats", () => {
     expect(s).toEqual({ replies: 1200, handoffs: 7, waiting: 3, undelivered: 1, medianSeconds: 8 });
     expect(calls).toContain("reply");
     expect(calls).toContain("waiting");
+  });
+
+  it("counts a draft claim its run never closed as undelivered too", async () => {
+    // The run that claimed the member's message died before any outcome: the
+    // member was never answered and nothing else would say so.
+    const { db, calls } = fakeDb({ counts: { undelivered: 1, "stuck-drafts": 2 }, latencies: [] });
+    await expect(supportStats(db, since)).resolves.toMatchObject({ undelivered: 3 });
+    expect(calls).toContain("stuck-drafts");
   });
 
   it("reports a null median when no reply carried a latency", async () => {

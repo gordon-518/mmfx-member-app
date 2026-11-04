@@ -3,6 +3,7 @@ import { account } from "./account";
 import { archetypes } from "./archetypes";
 import { auth } from "./auth";
 import { calendar } from "./calendar";
+import { chat } from "./chat";
 import { common } from "./common";
 import { course } from "./course";
 import { courseContent } from "./courseContent";
@@ -42,6 +43,7 @@ export const zhHant: Messages = {
   archetypes,
   auth,
   calendar,
+  chat,
   common,
   course,
   courseContent,

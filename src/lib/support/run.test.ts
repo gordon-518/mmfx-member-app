@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 
 vi.mock("@/lib/telegram", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/telegram")>();
@@ -761,22 +761,40 @@ describe("runBurst", () => {
   });
 
   describe("defaultPing (item 6)", () => {
+    const KEYS = ["SUPPORT_PING_BOT_TOKEN", "SUPPORT_PING_CHAT_ID", "ADMIN_ALERT_BOT_TOKEN", "ADMIN_ALERT_CHAT_ID", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"];
+    beforeEach(() => {
+      for (const k of KEYS) vi.stubEnv(k, "");
+    });
     afterEach(() => {
-      delete process.env.SUPPORT_PING_CHAT_ID;
+      vi.unstubAllEnvs();
       vi.mocked(sendTelegram).mockClear();
     });
 
-    it("never sends, and never falls back to TELEGRAM_CHAT_ID, when SUPPORT_PING_CHAT_ID is unset", async () => {
-      delete process.env.SUPPORT_PING_CHAT_ID;
+    it("never sends when no support or alert bot is configured, even if the stats bot is", async () => {
+      vi.stubEnv("TELEGRAM_BOT_TOKEN", "stats-token");
+      vi.stubEnv("TELEGRAM_CHAT_ID", "stats-chat");
       const result = await defaultPing("hi");
       expect(sendTelegram).not.toHaveBeenCalled();
       expect(result.ok).toBe(false);
     });
 
-    it("sends to SUPPORT_PING_CHAT_ID when it's set", async () => {
-      process.env.SUPPORT_PING_CHAT_ID = "999";
+    it("sends to the support pair when both are set", async () => {
+      vi.stubEnv("SUPPORT_PING_BOT_TOKEN", "support-token");
+      vi.stubEnv("SUPPORT_PING_CHAT_ID", "999");
+      vi.stubEnv("ADMIN_ALERT_BOT_TOKEN", "alert-token");
+      vi.stubEnv("ADMIN_ALERT_CHAT_ID", "alert-chat");
       await defaultPing("hi");
-      expect(sendTelegram).toHaveBeenCalledWith("hi", { chatId: "999" });
+      expect(sendTelegram).toHaveBeenCalledWith("hi", { botToken: "support-token", chatId: "999" });
+    });
+
+    it("otherwise uses the alert bot, never the stats chat — a chat id alone isn't enough", async () => {
+      vi.stubEnv("SUPPORT_PING_CHAT_ID", "999");
+      vi.stubEnv("ADMIN_ALERT_BOT_TOKEN", "alert-token");
+      vi.stubEnv("ADMIN_ALERT_CHAT_ID", "alert-chat");
+      vi.stubEnv("TELEGRAM_BOT_TOKEN", "stats-token");
+      vi.stubEnv("TELEGRAM_CHAT_ID", "stats-chat");
+      await defaultPing("hi");
+      expect(sendTelegram).toHaveBeenCalledWith("hi", { botToken: "alert-token", chatId: "alert-chat" });
     });
   });
 
@@ -1002,5 +1020,91 @@ describe("handleOutgoing", () => {
     await expect(handleOutgoing("c1", s.deps)).resolves.toBe("ignored");
     expect(s.events.filter((e) => e.kind === "amelia_reply")).toHaveLength(1);
     expect(s.chat?.quiet_until).toBe(quietAfterFirst);
+  });
+});
+
+// The in-app chat's security review (4 Nov), applied to the Telegram agent.
+describe("the in-app chat's security fixes, on Telegram", () => {
+  it("hides a password the member types from the model, the log and the ping", async () => {
+    const text = "How do I withdraw my money? my investor password: Hunter2!";
+    const s = setup({ thread: [msg("1", "in", text)] });
+    await expect(runBurst("c1", trig(text), s.deps)).resolves.toMatchObject({ kind: "handoff" });
+    const ping = s.ping.mock.calls.at(-1)?.[0] as string;
+    expect(ping).toContain("[hidden]");
+    expect(ping).not.toContain("Hunter2");
+    expect(JSON.stringify(s.events)).not.toContain("Hunter2");
+  });
+
+  it("still answers a message that carried a secret (the trigger is masked the same way)", async () => {
+    const text = "What does Foundation open? pin: 4455";
+    const s = setup({ thread: [msg("1", "in", text)], decisions: [reply("**Foundation** opens the full course.")] });
+    await expect(runBurst("c1", trig(text), s.deps)).resolves.toMatchObject({ kind: "reply" });
+    const sent = s.decide.mock.calls[0][0].thread.map((m) => m.text).join("\n");
+    expect(sent).toContain("[hidden]");
+    expect(sent).not.toContain("4455");
+  });
+
+  it("drafts once when two runs answer the same message at the same time", async () => {
+    // Two webhooks for the same "hi" a second apart: both used to pay for a
+    // model call before the outcome claim picked a winner.
+    const s = setup({ thread: [msg("m1", "in", "hi")], decisions: [reply("Hi!"), reply("Hi!")] });
+    const outcomes = await Promise.all([runBurst("c1", trig("hi"), s.deps), runBurst("c1", trig("hi"), s.deps)]);
+    expect(s.decide).toHaveBeenCalledTimes(1);
+    expect(s.sp.send).toHaveBeenCalledTimes(1);
+    expect(outcomes.map((o) => o.kind).sort()).toEqual(["reply", "skip"]);
+  });
+
+  it("checks every draft in the member's language, not just English", async () => {
+    // An unverified deposit called approved, in Indonesian: the English
+    // guard misses it, the multilingual one doesn't.
+    const s = setup({
+      thread: [msg("1", "in", "Deposit saya sudah masuk?")],
+      decisions: [reply("Deposit Anda sudah disetujui, Team MM sudah terbuka."), reply("Deposit Anda sedang ditinjau oleh tim.")],
+    });
+    await expect(runBurst("c1", trig("Deposit saya sudah masuk?"), s.deps)).resolves.toMatchObject({ kind: "reply" });
+    expect(s.decide).toHaveBeenCalledTimes(2);
+    expect(s.decide.mock.calls[1][0].retryReasons?.join(" ")).toMatch(/approved/);
+    expect(s.sp.send).toHaveBeenCalledWith("c1", expect.stringContaining("sedang ditinjau"));
+  });
+
+  it("hands off when the redraft still breaks a rule in another language", async () => {
+    const s = setup({
+      thread: [msg("1", "in", "Deposit saya sudah masuk?")],
+      decisions: [reply("Deposit Anda sudah disetujui."), reply("Deposit Anda sudah diverifikasi.")],
+    });
+    await expect(runBurst("c1", trig("Deposit saya sudah masuk?"), s.deps)).resolves.toMatchObject({ kind: "handoff" });
+    expect(s.sp.send).not.toHaveBeenCalledWith("c1", expect.stringContaining("diverifikasi"));
+  });
+
+  it("puts the member's words in the ping as code, with every link defused", async () => {
+    const text = "How do I withdraw? Session expired, sign in again: https://app-marketmakersfx.net/login";
+    const s = setup({ thread: [msg("1", "in", text)], contact: { firstName: "Admin http://evil.example" } });
+    await runBurst("c1", trig(text), s.deps);
+    const ping = s.ping.mock.calls.at(-1)?.[0] as string;
+    expect(ping).toMatch(/<code>[^<]*hxxps:\/\/app-marketmakersfx\[\.\]net\/login[^<]*<\/code>/);
+    expect(ping).not.toMatch(/https?:\/\/(app-marketmakersfx|evil)/);
+    expect(ping).toContain("hxxp://evil[.]example");
+  });
+});
+
+describe("the review's follow-ups (4 Nov)", () => {
+  it("puts the member's Telegram name and the reason in code too, so neither can carry a link", async () => {
+    const s = setup({ thread: [msg("1", "in", "How do I withdraw my money?")], contact: { firstName: "Admin: re-login at mmfx-secure.com." } });
+    await runBurst("c1", trig("How do I withdraw my money?"), s.deps);
+    const ping = s.ping.mock.calls.at(-1)?.[0] as string;
+    expect(ping).toContain("<code>Admin: re-login at mmfx-secure[.]com.</code>");
+    expect(ping).toMatch(/Reason: <code>[^<]+<\/code>/);
+  });
+
+  it("closes its draft claim however the run ends, so one left open means the run died", async () => {
+    const replied = setup({ thread: [msg("m1", "in", "hi")], decisions: [reply("Hi!")] });
+    await runBurst("c1", trig("hi"), replied.deps);
+    const handed = setup({ thread: [msg("m1", "in", "hi")], decisions: [reply("Deposit Anda sudah disetujui."), reply("Deposit Anda sudah diverifikasi.")] });
+    await runBurst("c1", trig("hi"), handed.deps);
+    for (const s of [replied, handed]) {
+      const draft = s.events.find((e) => e.dedupe_key?.startsWith("draft:"));
+      expect(draft?.kind).toBe("incoming");
+      expect(draft?.delivered_at).toBeTruthy();
+    }
   });
 });
