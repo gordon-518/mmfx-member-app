@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { adminDb } from "@/lib/channel/db";
 import { supabaseStore } from "@/lib/support/store";
 import { runBurst, handleOutgoing } from "@/lib/support/run";
+import { maskSecrets } from "@/lib/support/secrets";
 
 // SendPulse chatbot webhook for @marketmakers18bot (Bot Settings -> Webhooks,
 // events incoming_message + outgoing_message). SendPulse does not sign its
@@ -110,7 +111,9 @@ export async function POST(req: Request) {
         contact_id: contactId,
         kind: "incoming",
         dedupe_key: dedupeKey,
-        member_text: text,
+        // A password the member typed is never stored (run.ts masks the
+        // thread it reads, too).
+        member_text: maskSecrets(text),
       });
 
       // Only the delivery that wins the dedupe claim schedules a burst — a

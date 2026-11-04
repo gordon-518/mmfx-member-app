@@ -11,7 +11,7 @@ import { buildAppGuide } from "./guide";
 import { chatFacts } from "./run";
 import { buildFactSheet } from "@/lib/support/facts";
 import { checkDraft } from "@/lib/support/guard";
-import { checkChatReply } from "./compliance";
+import { checkMultilingual } from "@/lib/support/multilingual";
 import type { SupportSettings } from "@/lib/support/types";
 import type { ChatMember } from "./types";
 
@@ -76,7 +76,7 @@ describe.skipIf(!LIVE)("in-app assistant, live", () => {
       const failures = d?.action === "reply"
         ? [
             ...checkDraft(d.reply, { facts, memberTexts: [c.text], member: { userId: "eval", matchedBy: "session", tier: member.tier, trialEndsAt: null, submission: member.submission ? { status: member.submission.status, rejectReason: null, createdAt: "", amount: member.submission.amount } : null, attested: true } }),
-            ...checkChatReply(d.reply, { depositVerified: member.submission?.status === "verified" }),
+            ...checkMultilingual(d.reply, { depositVerified: member.submission?.status === "verified" }),
           ]
         : [];
       console.log(`\n── ${c.name} [${res.model}] → ${d?.action ?? "none"} (${d?.topic}, ${d?.confidence})${failures.length ? ` GUARD: ${failures.join("; ")}` : ""}\n${d?.reply || d?.reason || res.error}`);

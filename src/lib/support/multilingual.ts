@@ -1,9 +1,9 @@
 // Compliance checks on an assistant draft, in every language the app speaks.
-// The support guard (src/lib/support/guard.ts) was written for English
-// Telegram replies; the in-app assistant answers in five languages, so these
-// add the same three rules for Chinese, Malay and Indonesian (plus English
-// wordings the support guard doesn't know), and one the support agent never
-// needed: no prices with a buy/sell instruction.
+// guard.ts's checkDraft was written for English Telegram replies; both
+// assistants (the Telegram support agent and the in-app chat) answer in five
+// languages, so these add the same three rules for Chinese, Malay and
+// Indonesian (plus English wordings checkDraft doesn't know), and one more:
+// no prices with a buy/sell instruction. Every draft runs through both.
 //
 // Each rule reads one sentence at a time and lets a sentence through when it
 // is negated or conditional ("once it's approved", "不保证", "tidak dijamin"),
@@ -52,7 +52,7 @@ const PRICE = /\b\d{1,2},?\d{3}(?:\.\d+)?\b|\b\d\.\d{3,5}\b/;
 // 5) App links with a query or fragment (an open redirect waiting to happen).
 const APP_LINK_WITH_QUERY = /https:\/\/app\.marketmakersfx\.net\/[^\s]*[?#]/i;
 
-export function checkChatReply(reply: string, ctx: { depositVerified: boolean }): string[] {
+export function checkMultilingual(reply: string, ctx: { depositVerified: boolean }): string[] {
   const reasons = new Set<string>();
   for (const s of sentences(reply)) {
     const hedged = HEDGE.test(s);

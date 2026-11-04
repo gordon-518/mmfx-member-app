@@ -1,7 +1,7 @@
-// Passwords and codes typed into the chat ("investor password: Abc123!") are
-// masked before the message is stored, shown to the model or forwarded in an
-// alert. The member sees "[hidden]" in their own history, which also tells
-// them it wasn't kept. Masking a harmless word now and then is the price of
+// Passwords and codes a member types ("investor password: Abc123!") — in the
+// in-app chat or on Telegram — are masked before the message is stored, shown
+// to the model or forwarded in an alert. In the app the member sees "[hidden]"
+// in their own history, which also tells them it wasn't kept. Masking a harmless word now and then is the price of
 // never keeping a real password.
 
 export const HIDDEN = "[hidden]";

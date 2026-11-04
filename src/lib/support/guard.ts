@@ -506,11 +506,12 @@ const ALWAYS_HUMAN: [RegExp, string][] = (() => {
   // for plain non-money things ("akses belum masuk", "tarik balik soalan",
   // "bayar balik bulan depan") and must not be misrouted as urgent money
   // issues just because the bare phrase appears.
-  const money = "(?:duit|wang|deposit|bayaran|top ?up)";
+  // "uang" and "dana" are the Indonesian money words.
+  const money = "(?:duit|wang|uang|dana|deposit|bayaran|top ?up)";
   return [
     [
       new RegExp(
-        `\\bwithdraw(al|ing)?\\b|keluarkan duit|pengeluaran|提款|出金|` +
+        `\\bwithdraw(al|ing)?\\b|keluarkan duit|pengeluaran|penarikan|tarik (?:dana|uang)|提款|出金|提现|提現|` +
           `tarik balik[^.!?]{0,20}${money}|${money}[^.!?]{0,20}tarik balik`,
         "i"
       ),
@@ -518,29 +519,35 @@ const ALWAYS_HUMAN: [RegExp, string][] = (() => {
     ],
     [
       new RegExp(
-        `\\b(refund|chargeback|money back)\\b|退款|` +
+        `\\b(refund|chargeback|money back)\\b|退款|退钱|退錢|退费|退費|` +
           `bayar balik[^.!?]{0,20}${money}|${money}[^.!?]{0,20}bayar balik|` +
-          `duit[^.!?]{0,20}balik|balik[^.!?]{0,20}duit`,
+          `duit[^.!?]{0,20}balik|balik[^.!?]{0,20}duit|kembalikan (?:uang|dana|duit)|(?:uang|dana) (?:saya )?kembali`,
         "i"
       ),
       "refund",
     ],
     [
-      /\b(i|we)\s+(have\s+)?(paid|transferred|sent (the )?money|made the payment)\b|\btransfer is done\b|(?:sudah|dah|telah)\s+(?:bayar|transfer)\b|已付款|已经付款|已经转账|已转账|付了钱/i,
+      /\b(i|we)\s+(have\s+)?(paid|transferred|sent (the )?money|made the payment)\b|\btransfer is done\b|(?:sudah|udah|dah|telah)\s+(?:bayar|transfer|tf)\b|已付款|已经付款|已經付款|已经转账|已转账|已經轉賬|已轉賬|已經轉帳|已轉帳|付了钱|付了錢/i,
       "payment already made",
     ],
     [
       new RegExp(
         `\\b(missing|lost|stuck|disappeared)\\b[^.!?]{0,40}\\b(funds?|money|deposit|balance)\\b|` +
           `\\b(funds?|money|deposit)\\b[^.!?]{0,40}\\b(not (arrived|received|showing|reflected)|missing)\\b|` +
-          `duit .{0,20}hilang|wang .{0,20}hilang|钱没到|未到账|没到账|钱被扣|被扣款|` +
+          `(?:duit|wang|uang|dana) .{0,20}hilang|钱没到|錢沒到|钱还没到|錢還沒到|未到账|未到帳|没到账|沒到帳|钱被扣|錢被扣|被扣款|` +
           `(?:belum masuk|tak masuk)[^.!?]{0,20}${money}|${money}[^.!?]{0,20}(?:belum masuk|tak masuk)`,
         "i"
       ),
       "missing or pending funds",
     ],
-    [/\b(scam|fraud|lawyer|police|sue|report you|complain(t)?)\b/i, "dispute or complaint"],
-    [/\bdelete (my )?(account|data)\b|\bremove my (account|data)\b|padam akaun|hapus akaun|删除账户|close my account/i, "account deletion"],
+    [
+      /\b(scam|fraud|lawyer|police|sue|report you|complain(t)?|penipuan|tipu|peguam|pengacara|aduan|keluhan|komplain)\b|\blapor(?:an)?\s+polisi?\b|诈骗|詐騙|骗子|騙子|报警|報警|投诉|投訴|律师|律師/i,
+      "dispute or complaint",
+    ],
+    [
+      /\bdelete (my )?(account|data)\b|\bremove my (account|data)\b|padam akaun|hapus akaun|hapus akun|tutup akun|(?:删除|注销).{0,4}(?:账户|账号)|(?:刪除|註銷|注銷).{0,4}(?:帳戶|賬戶|帳號)|close my account/i,
+      "account deletion",
+    ],
   ];
 })();
 const HUMAN_TOPICS: Partial<Record<Topic, string>> = { money: "money topic", complaint: "dispute or complaint", deletion: "account deletion" };

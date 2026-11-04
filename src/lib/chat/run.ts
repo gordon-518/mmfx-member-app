@@ -11,8 +11,9 @@ import { decideChat } from "./agent";
 import { buildAppGuide, CHAT_APP_PATHS, APP_URL } from "./guide";
 import { supabaseChatStore, type ChatStore } from "./store";
 import { MAX_MESSAGE_CHARS, type ChatMember, type ChatMessage } from "./types";
-import { checkChatReply } from "./compliance";
-import { maskSecrets } from "./secrets";
+import { checkMultilingual } from "@/lib/support/multilingual";
+import { maskSecrets } from "@/lib/support/secrets";
+import { quoteForAlert } from "@/lib/support/quote";
 
 // One member message in, at most one assistant reply out. The assistant
 // answers from the support FACTS and the APP GUIDE; anything it can't answer
@@ -49,19 +50,6 @@ export interface ChatDeps {
 }
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-/**
- * Member (and model) text made safe to put in front of the team: one line,
- * no control characters, and links defused ("hxxps://evil[.]example"), so a
- * message can't plant a convincing link right above the real "Reply" one.
- */
-export function quoteForAlert(text: string, max: number): string {
-  const flat = text.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim();
-  const cut = flat.length > max ? `${flat.slice(0, max)}…` : flat;
-  return cut
-    .replace(/\bhttp(s?):\/\//gi, "hxxp$1://")
-    .replace(/\b([a-z0-9-]+)\.([a-z]{2,})(?=[\/\s:?#]|$)/gi, "$1[.]$2");
-}
 
 /** The handoff ping (supportPingCredentials: never the stats chat) and an
  *  email, both best-effort. Outside production it only logs, so local
@@ -228,7 +216,7 @@ async function answer(member: ChatMember, text: string, deps: ChatDeps): Promise
     // rules in every language the app speaks.
     const failures = [
       ...checkDraft(d.reply, { facts, memberTexts, member: guardMember(member) }),
-      ...checkChatReply(d.reply, { depositVerified }),
+      ...checkMultilingual(d.reply, { depositVerified }),
     ];
     if (failures.length === 0) {
       const reply = await store.addMessage({

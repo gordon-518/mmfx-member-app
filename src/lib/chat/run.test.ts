@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { handleMemberMessage, chatFacts, quoteForAlert, MAX_MEMBER_MESSAGES_PER_HOUR, MAX_PINGS_PER_HOUR, REPING_MINUTES, type ChatDeps, type HandoffNotice } from "./run";
+import { handleMemberMessage, chatFacts, MAX_MEMBER_MESSAGES_PER_HOUR, MAX_PINGS_PER_HOUR, REPING_MINUTES, type ChatDeps, type HandoffNotice } from "./run";
 import type { ChatStore, ChatThread, NewMessage } from "./store";
 import type { ChatMember, ChatMessage } from "./types";
 import type { ChatDecision } from "./agent";
@@ -228,15 +228,3 @@ describe("handleMemberMessage: one at a time, and what reaches the team", () => 
   });
 });
 
-describe("quoteForAlert", () => {
-  it("flattens the member's text and defuses links, so nothing in it is clickable", () => {
-    const out = quoteForAlert("refund pls\n⚠️ Session expired - sign in: https://app-marketmakersfx.net/admin/chat?user=1", 300);
-    expect(out).not.toContain("\n");
-    expect(out).not.toMatch(/https?:\/\//);
-    expect(out).toContain("hxxps://app-marketmakersfx[.]net/admin");
-  });
-
-  it("caps the length", () => {
-    expect(quoteForAlert("a".repeat(500), 120)).toBe(`${"a".repeat(120)}…`);
-  });
-});

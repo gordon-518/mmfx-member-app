@@ -249,7 +249,7 @@ The Telegram support agent's state. `support_settings` is the on/off switch and 
 | `latency_ms` | `integer` | yes | Time taken to produce the reply. |
 | `created_at` | `timestamptz` | no | `now()`. |
 
-**Retention:** `support_events` holds member message text and is purged after 90 days by the pg_cron job `support-events-purge` (`30 0 * * *`).
+**Retention:** `support_events` holds member message text (passwords and codes masked before they're stored) and is purged after 90 days by the pg_cron job `support-events-purge` (`30 0 * * *`). `support_chats.handoff_reason` is cleared after 90 days untouched by `support-chats-reason-purge` (`40 0 * * *`, migration `20261104000004`), except on chats still waiting for Amelia.
 
 ---
 

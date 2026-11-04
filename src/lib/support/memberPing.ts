@@ -12,11 +12,18 @@
 
 import { depositRef } from "@/lib/depositRef";
 import { tierLabel } from "@/lib/tiers";
+import { quoteForAlert } from "./quote";
 import type { MemberContext } from "./types";
 
 /** The three characters Telegram treats as special inside HTML text. */
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** A free-text field someone typed (an account number, a broker, a rejection
+ *  note): escaped, and any link in it defused. */
+function typed(s: string): string {
+  return esc(quoteForAlert(s, 200));
 }
 
 function usd(n: number): string {
@@ -41,9 +48,9 @@ export function memberPingHtml(member: MemberContext | null, now: Date = new Dat
   );
 
   const account = member.tradingAccount
-    ? `account <code>${esc(member.tradingAccount)}</code>`
+    ? `account <code>${typed(member.tradingAccount)}</code>`
     : "<i>no trading account on file</i>";
-  const broker = member.broker ? ` · ${esc(member.broker)}` : "";
+  const broker = member.broker ? ` · ${typed(member.broker)}` : "";
   const total = member.depositTotal ?? 0;
   const deposited = total > 0 ? ` · ${esc(usd(total))} deposited` : "";
   lines.push(`${account}${broker}${deposited}`);
@@ -51,8 +58,8 @@ export function memberPingHtml(member: MemberContext | null, now: Date = new Dat
   if (member.submission) {
     const s = member.submission;
     const amount = s.amount != null ? ` ${esc(usd(s.amount))}` : "";
-    const sBroker = s.broker ? ` · ${esc(s.broker)}` : "";
-    const why = s.status === "rejected" && s.rejectReason ? ` — ${esc(s.rejectReason)}` : "";
+    const sBroker = s.broker ? ` · ${typed(s.broker)}` : "";
+    const why = s.status === "rejected" && s.rejectReason ? ` — ${typed(s.rejectReason)}` : "";
     lines.push(`Submission: <b>${esc(s.status)}</b>${amount}${sBroker} (${esc(day(s.createdAt))})${why}`);
   } else {
     lines.push("Submission: <i>none yet</i>");

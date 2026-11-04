@@ -27,6 +27,13 @@ describe("prompt", () => {
     expect(sys).toContain(facts.text);
   });
 
+  it("keeps MM Desk and the Fundamental Desk as names, never translated", () => {
+    const system = buildChatSystem(facts, "GUIDE");
+    expect(system).toContain("MM Desk");
+    expect(system).toContain("Fundamental Desk");
+    expect(system).toMatch(/never "meja"/);
+  });
+
   it("tells the model who is signed in, in which app language", () => {
     const user = buildChatUserContent({ thread: [msg(1, "member", "Apa tier saya?")], member });
     expect(user).toMatch(/identity confirmed/);

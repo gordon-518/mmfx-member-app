@@ -75,6 +75,13 @@ describe("POST /api/support/webhook", () => {
     });
   });
 
+  it("stores the member's text with any password masked", async () => {
+    const res = await POST(req([{ ...incoming, contact: { ...incoming.contact, last_message: "my password: abc123" } }]));
+    expect(res.status).toBe(200);
+    expect(log).toHaveBeenCalledWith(expect.objectContaining({ member_text: "my password: [hidden]" }));
+    expect(JSON.stringify(log.mock.calls)).not.toContain("abc123");
+  });
+
   it("drops a duplicate delivery without calling runBurst", async () => {
     log.mockResolvedValueOnce({ status: "duplicate" });
     const res = await POST(req([incoming]));
