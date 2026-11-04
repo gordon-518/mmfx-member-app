@@ -14,6 +14,7 @@ import { tierFor, tierLabel, type MemberTier, type TierSnapshot } from "@/lib/ti
 import { sendEmail } from "@/lib/sendpulse";
 import { depositVerifiedEmail, depositRejectedEmail } from "@/lib/depositEmails";
 import { emailLocale } from "@/lib/email/locale";
+import type { Locale } from "@/i18n/config";
 import { adminDb } from "@/lib/channel/db";
 import { parseReviewAmount } from "@/lib/depositReview";
 import { isLifetimePlan, LIFETIME_PLANS, lifetimePrice } from "@/lib/lifetimePlans";
@@ -150,6 +151,21 @@ async function afterVerify(
   return { isFirstDeposit, tierBefore, tierAfter, cumulative };
 }
 
+
+/**
+ * The member's language for a deposit email, read with the service role (the
+ * admin's own session can't see another account's metadata). Never throws:
+ * the deposit is already recorded by the time this runs, and a missing key or
+ * a failed lookup must cost nothing more than an English email.
+ */
+async function memberEmailLocale(userId: string): Promise<Locale> {
+  try {
+    return await emailLocale(adminDb(), userId);
+  } catch (e) {
+    console.error("[deposit-review] language lookup failed, emailing in English:", e);
+    return "en";
+  }
+}
 export async function verifyDeposit(formData: FormData) {
   const targetUserId = String(formData.get("target_user_id") ?? "");
   const targetEmail = String(formData.get("target_email") ?? "");
@@ -491,12 +507,9 @@ export async function reviewSubmission(formData: FormData) {
     backTo({ ...filters, ok: `Closed ${targetEmail}'s $${amount} submission. Nothing added, no email sent`, target: targetEmail });
   }
 
-  // The member's language for the email, read with the service role (the
-  // admin's own session can't see another account's metadata).
-  const locale = targetEmail ? await emailLocale(adminDb(), targetUserId) : "en";
-
   if (decision === "reject") {
     if (targetEmail) {
+      const locale = await memberEmailLocale(targetUserId);
       const mail = depositRejectedEmail({ name: (before?.full_name as string | null) ?? null, amount, reason, locale });
       const sent = await sendEmail({ to: { name: (before?.full_name as string | null) ?? targetEmail, email: targetEmail }, from: FROM_MEMBERS, ...mail });
       if (!sent.ok) console.error("[deposit-review] reject email failed:", sent.detail);
@@ -527,7 +540,7 @@ export async function reviewSubmission(formData: FormData) {
       cumulative,
       tier: tierAfter,
       topUp: before?.account_status === "member_active",
-      locale,
+      locale: await memberEmailLocale(targetUserId),
     });
     const sent = await sendEmail({ to: { name: (before?.full_name as string | null) ?? targetEmail, email: targetEmail }, from: FROM_MEMBERS, ...mail });
     if (!sent.ok) console.error("[deposit-review] verify email failed:", sent.detail);

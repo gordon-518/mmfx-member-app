@@ -20,7 +20,7 @@ export const defaultCopy: LifecycleCopy = en.lifecycle.digest.copy;
  *  "Gold today: " — the full-width "：" and "，" of a Chinese subject too. */
 export function subjectFor(template: string, title: string, bias: string | null): string {
   const out = bias
-    ? template.replace(/\{bias\}/g, bias.toLocaleLowerCase())
+    ? template.replace(/\{bias\}/g, bias.toLowerCase())
     : template.replace(/\s*\(\{bias\}[^)]*\)/g, "").replace(/[\s,:：，·-]*\{bias\}(\s*bias)?/g, "");
   return out.replace(/\{title\}/g, title).replace(/[\s,:：，·-]+$/, "").trim();
 }

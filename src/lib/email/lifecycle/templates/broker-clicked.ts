@@ -1,4 +1,4 @@
-import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_URL } from "@/lib/depositRef";
+import { ADMIN_TELEGRAM_URL } from "@/lib/depositRef";
 import { button } from "@/lib/email/ui";
 import { en } from "@/lib/email/i18n/en";
 import type { LifecycleCopy, LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "../types";

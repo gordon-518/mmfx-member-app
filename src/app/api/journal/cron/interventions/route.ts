@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   for (const userId of userIds) {
     try {
-      const locale = locales.get(userId) ?? "en";
+      const locale = locales?.get(userId) ?? "en";
       const engine = MESSAGES[locale].journalEngine;
       const ctx = await loadReportContext(db, userId, engine);
       if (!ctx || !ctx.health || !ctx.leaks || !ctx.rules) continue;
