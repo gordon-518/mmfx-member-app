@@ -131,4 +131,21 @@ export const fundamental: Messages["fundamental"] = {
     generic: "Ada sesuatu yang tidak kena. Cuba lagi sebentar nanti.",
     network: "Ralat rangkaian — semak sambungan anda dan cuba lagi.",
   },
+  // "In plain words" + tap-to-explain terms on a thesis (4 Nov).
+  plain: {
+    title: "Dalam bahasa mudah",
+    meta: "Tesis ini, diterangkan dengan ringkas",
+    whatHappened: "Apa yang sedang berlaku",
+    deskView: "Pandangan Fundamental Desk",
+    whatChanges: "Apa yang boleh mengubah pandangannya",
+    loading: "Sedang menulis versi mudah tesis ini — kali pertama mungkin mengambil masa sehingga setengah minit.",
+    note: "Ditulis oleh AI berdasarkan tesis Fundamental Desk, untuk pembelajaran — bukan nasihat dagangan.",
+  },
+  glossary: {
+    title: "Istilah penting dalam tesis ini",
+    meta: "Anda juga boleh ketik perkataan bergaris dalam tesis",
+    whatItMeans: "Maksudnya",
+    howItMoves: "Kesannya pada {asset}",
+    close: "Tutup",
+  },
 };

@@ -129,4 +129,21 @@ export const fundamental = {
     generic: "Something went wrong. Try again shortly.",
     network: "Network error — check your connection and try again.",
   },
+  // "In plain words" + tap-to-explain terms on a thesis (4 Nov).
+  plain: {
+    title: "In plain words",
+    meta: "The thesis, explained simply",
+    whatHappened: "What's going on",
+    deskView: "What the desk thinks",
+    whatChanges: "What would change its mind",
+    loading: "Writing a plain-language version of this thesis — the first time can take up to half a minute.",
+    note: "Written by AI from the desk's thesis, for learning — not trading advice.",
+  },
+  glossary: {
+    title: "Key terms in this thesis",
+    meta: "You can also tap any underlined word in the thesis",
+    whatItMeans: "What it means",
+    howItMoves: "How it moves {asset}",
+    close: "Close",
+  },
 } as const;

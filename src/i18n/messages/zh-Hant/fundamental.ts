@@ -131,4 +131,21 @@ export const fundamental: Messages["fundamental"] = {
     generic: "出了點問題。請稍後再試。",
     network: "網路錯誤——請檢查網路後重試。",
   },
+  // "In plain words" + tap-to-explain terms on a thesis (4 Nov).
+  plain: {
+    title: "通俗解讀",
+    meta: "用簡單的話講清這份觀點",
+    whatHappened: "發生了什麼",
+    deskView: "Fundamental Desk 怎麼看",
+    whatChanges: "什麼會讓它改變看法",
+    loading: "正在為這份觀點撰寫通俗版本——首次生成可能需要半分鐘左右。",
+    note: "由 AI 根據 Fundamental Desk 的觀點撰寫，僅供學習，不構成交易建議。",
+  },
+  glossary: {
+    title: "本文關鍵術語",
+    meta: "也可以點擊正文中帶底線的詞",
+    whatItMeans: "這是什麼",
+    howItMoves: "對 {asset} 的影響",
+    close: "關閉",
+  },
 };
