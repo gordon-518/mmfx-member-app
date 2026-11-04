@@ -71,6 +71,7 @@ async function prove() {
     ok(`${role} cannot call fn_adopt_locale`, await denied(role, "select public.fn_adopt_locale($1, 'ms')", [a]));
   }
 
+  const original = (await client.query("select coalesce(raw_user_meta_data, '{}'::jsonb) - 'locale' m from auth.users where id = $1", [a])).rows[0].m;
   await client.query("savepoint proof");
   try {
     // A member with no saved language, for the length of this savepoint only.
@@ -86,9 +87,8 @@ async function prove() {
     const again = (await asService("select public.fn_adopt_locale($1, 'zh-Hans') r", [a]))[0].r;
     const still = await asService("select * from public.fn_user_locales(array[$1::uuid])", [a]);
     ok("a saved language is never overwritten", again === false && still[0]?.locale === "ms", JSON.stringify(still));
-    const others = (await client.query(
-      "select raw_user_meta_data ? 'full_name' kept from auth.users where id = $1", [a])).rows[0];
-    ok("the rest of the metadata is untouched", others !== undefined);
+    const rest = (await client.query("select raw_user_meta_data - 'locale' m from auth.users where id = $1", [a])).rows[0].m;
+    ok("the rest of the metadata is untouched", JSON.stringify(rest) === JSON.stringify(original));
   } finally {
     await client.query("rollback to savepoint proof");
   }

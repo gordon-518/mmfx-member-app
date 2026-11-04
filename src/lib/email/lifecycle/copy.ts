@@ -102,7 +102,12 @@ export function signoff(ctx: Pick<LifecycleCtx, "locale"> = {}): EmailPart {
  */
 export function deskWritesEnglish(ctx: Pick<LifecycleCtx, "locale">): EmailPart[] {
   const line = wordsOf(ctx).common.deskWritesEnglish;
-  return line ? [note(line)] : [];
+  if (!line) return [];
+  // A paragraph's spacing, a note's voice: a module often follows it.
+  return [{
+    html: `<p style="margin:0 0 14px;font:400 13px/1.6 Inter,Arial,sans-serif;color:#6b665e">${esc(line)}</p>`,
+    text: line,
+  }];
 }
 
 /** A quiet closing note above the signature — what Free keeps, and the like. */

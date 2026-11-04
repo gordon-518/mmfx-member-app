@@ -264,6 +264,20 @@ describe("proxy — adopting the language the app shows", () => {
     expect(adoptCalls()).toHaveLength(0);
   });
 
+  it("keeps an English pick made before signing in, so a Chinese browser can't override it later", async () => {
+    withUser(WEI);
+    await proxy(page({ "accept-language": "zh-CN", cookie: "mmfx_locale=en" }));
+    expect(bodyOf(adoptCalls()[0])).toEqual({ p_user: WEI.id, p_locale: "en" });
+  });
+
+  it("does nothing when the account already holds a value, even one it can't use", async () => {
+    // The database won't overwrite it either, so calling would only repeat
+    // on every request.
+    withUser({ ...WEI, user_metadata: { locale: "xx" } });
+    await proxy(page({ "accept-language": "zh-CN" }));
+    expect(adoptCalls()).toHaveLength(0);
+  });
+
   it("leaves the shared showcase account alone", async () => {
     withUser({ ...WEI, email: "demo@mmfx.test" });
     await proxy(page({ "accept-language": "ms-MY" }));

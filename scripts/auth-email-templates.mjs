@@ -8,7 +8,7 @@
 // The words live in supabase/templates/auth-emails.json.
 //
 //   node scripts/auth-email-templates.mjs            # show what would change (nothing is sent)
-//   node scripts/auth-email-templates.mjs --apply    # save the live templates, push these, read them back
+//   node scripts/auth-email-templates.mjs --apply    # save the live templates (once), push these, read them back
 //   node scripts/auth-email-templates.mjs --restore  # put back what --apply saved
 //
 // Talks to the Management API with SUPABASE_ACCESS_TOKEN from .env.local
@@ -109,8 +109,14 @@ async function main() {
     return;
   }
 
-  writeFileSync(BACKUP, JSON.stringify(live, null, 2) + "\n");
-  console.log(`\nsaved the live templates to ${fileURLToPath(BACKUP)}`);
+  // The first --apply keeps what was live before this script ever ran; a
+  // second one must not replace that with the chain it pushed itself.
+  if (existsSync(BACKUP)) {
+    console.log(`\nkeeping the earlier backup at ${fileURLToPath(BACKUP)}`);
+  } else {
+    writeFileSync(BACKUP, JSON.stringify(live, null, 2) + "\n");
+    console.log(`\nsaved the live templates to ${fileURLToPath(BACKUP)}`);
+  }
   const after = await api("PATCH", built);
   const same = FIELDS.every((f) => after[f] === built[f]);
   console.log(same ? "pushed, and read back identical" : "FAIL: what the project returned differs from what was sent");

@@ -95,13 +95,16 @@ export async function proxy(request: NextRequest, event?: NextFetchEvent) {
 
   // A member who never picked a language reads the app in the one their
   // browser asked for, or one they picked before signing in. Save that once,
-  // so their emails come in the language the app shows them. Never over a
-  // saved choice (fn_adopt_locale won't overwrite one either), never English
-  // (the default needs no saving), never for the shared showcase account.
-  if (user && !isDemoUser(user.email) && !isLocale(user.user_metadata?.locale)) {
+  // so their emails come in the language the app shows them. Never when the
+  // account already holds a value (fn_adopt_locale won't overwrite one, so a
+  // call would only repeat on every request), never for the shared showcase
+  // account. A browser's English needs no saving — it's the default — but an
+  // English the member picked does, or a Chinese browser could adopt over it.
+  const hasSavedLocale = Object.prototype.hasOwnProperty.call(user?.user_metadata ?? {}, "locale");
+  if (user && !isDemoUser(user.email) && !hasSavedLocale) {
     const picked = request.cookies.get(LOCALE_COOKIE)?.value;
     const shown = isLocale(picked) ? picked : negotiateLocale(request.headers.get("accept-language"));
-    if (shown !== DEFAULT_LOCALE) {
+    if (isLocale(picked) || shown !== DEFAULT_LOCALE) {
       const write = rpc("fn_adopt_locale", { p_user: user.id, p_locale: shown });
       if (write) event?.waitUntil?.(write);
     }

@@ -23,7 +23,7 @@ export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
 
   // The bias is nullable (most reads carry one, not all): without one the
   // sentence names the read alone rather than printing "bias null".
-  const bias = today?.bias ? (w.common.bias[today.bias] ?? today.bias).toLocaleLowerCase() : null;
+  const bias = today?.bias ? (w.common.bias[today.bias] ?? today.bias).toLowerCase() : null;
   const lead = bias ? t.todayUp : w.lifecycle.welcome.todayReadNoBias;
   const todayHtml = today
     ? fmt(esc(lead), { title: `<b>${esc(today.title)}</b>`, bias: esc(bias ?? "") })

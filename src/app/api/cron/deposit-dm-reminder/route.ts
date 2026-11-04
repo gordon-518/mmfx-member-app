@@ -48,7 +48,7 @@ async function run(req: NextRequest) {
       name: r.full_name,
       amount: Number(r.amount),
       ref: depositRef(r.member_id),
-      locale: locales.get(r.member_id) ?? "en",
+      locale: locales?.get(r.member_id) ?? "en",
     });
     const res = await sendEmail({ to: { name: r.full_name ?? r.email, email: r.email }, from: FROM, ...mail });
     if (res.ok) sent += 1;

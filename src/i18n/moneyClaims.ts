@@ -10,10 +10,10 @@ import type { Locale } from "./config";
  */
 export const MONEY_CLAIM: Record<Locale, RegExp> = {
   en: /\b(profits?|profitable|profitably|returns?|earns?|earnings|guaranteed?|income|rich)\b/i,
-  "zh-Hans": /(盈利|利润|收益|回报|稳赚|保证|致富|暴富|胜率|赚|获利|收入)/,
-  "zh-Hant": /(盈利|利潤|收益|回報|穩賺|保證|致富|暴富|勝率|賺|獲利|收入)/,
-  ms: /\b(untung|keuntungan|pulangan|pendapatan|dijamin|jaminan|kaya)\b/i,
-  id: /\b(untung|keuntungan|profit|imbal hasil|penghasilan|dijamin|jaminan|kaya)\b/i,
+  "zh-Hans": /(盈利|利润|收益|回报|稳赚|保证|致富|暴富|胜率|赚|获利|收入|赢)/,
+  "zh-Hant": /(盈利|利潤|收益|回報|穩賺|保證|致富|暴富|勝率|賺|獲利|收入|贏)/,
+  ms: /\b(untung|keuntungan|pulangan|pendapatan|dijamin|jaminan|kaya|menang)\b/i,
+  id: /\b(untung|keuntungan|profit|imbal hasil|penghasilan|pendapatan|cuan|laba|dijamin|jaminan|kaya)\b/i,
 };
 
 /** Every string leaf in a (nested) message object, with its dotted path. */
