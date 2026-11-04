@@ -4,19 +4,19 @@ export const onboarding: Messages["onboarding"] = {
   steps: {
     telegram: {
       title: "Sertai saluran Telegram awam",
-      blurb: "Tempat meja menyiarkan isyarat, nota pasaran dan kemas kini sesi secara langsung.",
-      goal: "Anda nampak apa yang meja perhatikan semasa ia masih penting, bukan membacanya selepas itu.",
+      blurb: "Tempat MM Desk menyiarkan isyarat, nota pasaran dan kemas kini sesi secara langsung.",
+      goal: "Anda nampak apa yang MM Desk perhatikan semasa ia masih penting, bukan membacanya selepas itu.",
       target: "Saluran dibuka di telefon anda sebelum sesi seterusnya.",
     },
     tv: {
       title: "Sambungkan TradingView",
       blurb: "Simpan nama pengguna TradingView anda dan dapatkan indikator di carta anda.",
-      goal: "Alat meja melukis paras-parasnya di carta anda sendiri, dalam platform anda sendiri.",
+      goal: "Alat MM Desk melukis paras-parasnya di carta anda sendiri, dalam platform anda sendiri.",
       target: "Tetapkan sekali — ia ada pada setiap sesi selepas itu.",
     },
     analysis: {
       title: "Tonton Analisis Harian hari ini",
-      blurb: "Analisis emas oleh meja, mengikut sesi: arah, paras dan tesis.",
+      blurb: "Analisis emas oleh MM Desk, mengikut sesi: arah, paras dan tesis.",
       goal: "Anda memulakan sesi dengan mengetahui arah, paras yang penting, dan apa yang akan membuktikan ia salah.",
       target: "Lima sesi ditonton sebelum anda bertindak pada satu.",
     },
@@ -34,13 +34,13 @@ export const onboarding: Messages["onboarding"] = {
     },
     desk: {
       title: "Lihat apa yang Desk tambah",
-      blurb: "Indikator dan skrip strategi TradingView, kelas langsung, dan analisis makro Meja Fundamental.",
+      blurb: "Indikator dan skrip strategi TradingView, kelas langsung, dan analisis makro Fundamental Desk.",
       goal: "Anda tahu dengan tepat apa yang ada di sebalik tahap seterusnya sebelum membuat sebarang keputusan.",
       target: "Ya atau tidak yang jelas — bukan mungkin.",
     },
   },
   stages: {
-    theDesk: "Meja",
+    theDesk: "MM Desk",
     execution: "Pelaksanaan",
     analysis: "Analisis",
     tradeManagement: "Pengurusan Dagangan",
@@ -48,14 +48,14 @@ export const onboarding: Messages["onboarding"] = {
     nextTier: "Tahap seterusnya",
   },
   deskFor: {
-    analysis_paralyser: "Anda terlalu banyak berfikir tentang entry. Kelas langsung Desk menunjukkan cara meja membaca persediaan dan berpegang pada pelan.",
+    analysis_paralyser: "Anda terlalu banyak berfikir tentang entry. Kelas langsung Desk menunjukkan cara MM Desk membaca persediaan dan berpegang pada pelan.",
     emotional_revenge_trader: "Desk meletakkan kelas langsung dan analisis makro berasaskan peraturan antara anda dan dagangan balas dendam yang seterusnya.",
     reckless_gambler: "Kelas langsung Desk mengutamakan struktur: di mana stop diletakkan, kemudian saiznya.",
     signal_dependent: "Kelas langsung Desk mengajar sebab setiap dagangan diambil, supaya anda bukan sekadar menyalin isyarat.",
     indicator_stacker: "Desk menggantikan carta yang penuh indikator dengan satu analisis langsung, berserta penaakulan di sebaliknya.",
     system_hopper: "Desk ialah satu sistem, didagangkan secara langsung di kelas: peraturan yang sama setiap hari.",
     brand_new_beginner: "Desk membolehkan anda melihat sistem didagangkan secara langsung di kelas sambil anda mempelajarinya.",
-    news_trader: "Meja Fundamental membaca faktor makro di sebalik setiap pergerakan, dengan penerangan yang jelas.",
+    news_trader: "Fundamental Desk membaca faktor makro di sebalik setiap pergerakan, dengan penerangan yang jelas.",
   },
   card: {
     gettingStarted: "Bermula · {done}/{total}",

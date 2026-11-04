@@ -93,9 +93,9 @@ describe("deskPitchFor", () => {
     expect(deskPitchFor(en, "analysis_paralyser")).toMatch(/over-think/);
     expect(deskPitchFor(en, "news_trader")).toMatch(/Fundamental Desk/);
   });
-  it("is in the reader's language", () => {
-    expect(deskPitchFor(MESSAGES["zh-Hans"], "news_trader")).toMatch(/基本面分析台/);
-    expect(deskPitchFor(MESSAGES.ms, "news_trader")).toMatch(/Meja Fundamental/);
+  it("is in the reader's language, with the Fundamental Desk named as it is everywhere", () => {
+    expect(deskPitchFor(MESSAGES["zh-Hans"], "news_trader")).toMatch(/^Fundamental Desk 会解读/);
+    expect(deskPitchFor(MESSAGES.ms, "news_trader")).toMatch(/^Fundamental Desk membaca faktor makro/);
   });
   it("no longer matches on a display name, and falls back to the general line", () => {
     expect(deskPitchFor(en, "The News Trader")).toBe(en.onboarding.steps.desk.blurb);

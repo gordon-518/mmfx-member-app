@@ -15,5 +15,5 @@ export const account: Messages["account"] = {
   gateBody: "Sekarang Anda member terdeposit, hubungkan nomor akun MT4/MT5 live Anda. Ini memastikan akses Anda terikat pada akun yang benar-benar Anda tradingkan — jadi akun lama atau tidak aktif tidak akan membuat Anda terhapus secara keliru.",
   gateHint: "Nanti ganti akun trading? Kembali dan perbarui ke akun yang paling aktif Anda pakai.",
   gateField: "Nomor akun trading",
-  gateSubmit: "Simpan & buka meja saya",
+  gateSubmit: "Simpan & buka MM Desk saya",
 };

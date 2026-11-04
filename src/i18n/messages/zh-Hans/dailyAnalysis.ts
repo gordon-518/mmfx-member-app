@@ -3,7 +3,7 @@ import type { Messages } from "../types";
 // The Daily Analysis archive. The analyses themselves (titles, descriptions,
 // video, PDF) are written in English by the desk and are not translated.
 export const dailyAnalysis: Messages["dailyAnalysis"] = {
-  eyebrow: "交易台 · XAU/USD",
+  eyebrow: "MM Desk · XAU/USD",
   subtitle: "逐个交易时段解读黄金——方向偏好、关键价位，以及背后的逻辑。",
   empty: "还没有发布分析。请稍后再来看看。",
   downloadReport: "下载报告（PDF）↓",

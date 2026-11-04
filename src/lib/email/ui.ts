@@ -17,6 +17,13 @@
 // This module deliberately does NOT import from ./shell: shell.ts imports
 // EMAIL_ASSET_BASE from here, and a one-way edge is worth four duplicated
 // lines of escaping.
+//
+// The words come from the email dictionary (./i18n). Every module takes the
+// reader's EmailMessages and defaults to English, so a caller that doesn't
+// pass one — the partner report, an old test — renders exactly as before.
+
+import { en } from "./i18n/en";
+import type { EmailMessages } from "./i18n/types";
 
 /** Where the icon set lives. Versioned, so a redesign never breaks an email
  *  already sitting in someone's inbox (design §3, "Icon set"). */
@@ -86,19 +93,13 @@ export function monoLabel(text: string, color = MUTED): string {
 
 // --- biasBadge -------------------------------------------------------------
 
-const BIAS_WORD: Record<Bias, string> = {
-  bullish: "Bullish",
-  bearish: "Bearish",
-  neutral: "Neutral",
-};
-
 /**
  * The bias pill. Orange for bullish, gray for bearish, outlined ink for
  * neutral — the same rule the daily cover's candles follow, and the reason
  * there is never a green or a red anywhere in a Market Makers email.
  */
-export function biasBadge(bias: Bias): EmailPart {
-  const word = BIAS_WORD[bias];
+export function biasBadge(bias: Bias, words: EmailMessages = en): EmailPart {
+  const word = words.common.bias[bias];
   const skin =
     bias === "bullish"
       ? `color:${PAPER};background:${ORANGE}`
@@ -107,7 +108,7 @@ export function biasBadge(bias: Bias): EmailPart {
         : `color:${BODY_INK};border:1px solid ${RING}`;
   return {
     html: `<span style="display:inline-block;font:700 11px/1 ${DISPLAY};letter-spacing:.1em;border-radius:999px;padding:6px 10px;${skin}">${word.toUpperCase()}</span>`,
-    text: `Bias: ${word}`,
+    text: words.common.biasLine.replace("{bias}", word),
   };
 }
 
@@ -148,12 +149,12 @@ export interface TrackerState {
 }
 
 /** The five steps, in the order the trial asks for them (design 2026-09-21 §3A). */
-const STEPS: { key: TrackerKey; label: string; day: number }[] = [
-  { key: "analysis", label: "Read today's Daily Analysis", day: 1 },
-  { key: "kys", label: "Know Your Style — 3 minutes", day: 2 },
-  { key: "tv", label: "Connect TradingView", day: 4 },
-  { key: "lesson1", label: "Lesson 1 — Golden Mindset", day: 6 },
-  { key: "desk", label: "See what each tier opens", day: 9 },
+const STEPS: { key: TrackerKey; day: number }[] = [
+  { key: "analysis", day: 1 },
+  { key: "kys", day: 2 },
+  { key: "tv", day: 4 },
+  { key: "lesson1", day: 6 },
+  { key: "desk", day: 9 },
 ];
 
 /**
@@ -162,37 +163,38 @@ const STEPS: { key: TrackerKey; label: string; day: number }[] = [
  * with one thing ticked is a list people finish, and it lets every trial email
  * show progress instead of nagging about the step it was sent for.
  */
-export function tracker(state: TrackerState, current: TrackerKey | null): EmailPart {
+export function tracker(state: TrackerState, current: TrackerKey | null, words: EmailMessages = en): EmailPart {
+  const t = words.tracker;
   const rows = STEPS.map((s) => {
     const done = state[s.key];
     const isCurrent = !done && s.key === current;
     const icon = done
-      ? img(`${EMAIL_ASSET_BASE}/check@2x.png`, "Done", 20, 20)
-      : img(`${EMAIL_ASSET_BASE}/ring@2x.png`, "Not done yet", 20, 20);
+      ? img(`${EMAIL_ASSET_BASE}/check@2x.png`, t.done, 20, 20)
+      : img(`${EMAIL_ASSET_BASE}/ring@2x.png`, t.notDone, 20, 20);
     const labelStyle = isCurrent
       ? `font:500 14px/1.4 ${BODY};color:${INK}`
       : done
         ? `font:400 14px/1.4 ${BODY};color:${MUTED}`
         : `font:400 14px/1.4 ${BODY};color:${MUTED}`;
     const right = isCurrent
-      ? `<span style="font:400 11px/1 ${MONO};color:${ORANGE}">TODAY</span>`
-      : `<span style="font:400 11px/1 ${MONO};color:${DIM}">DAY ${s.day}</span>`;
+      ? `<span style="font:400 11px/1 ${MONO};color:${ORANGE}">${esc(t.today)}</span>`
+      : `<span style="font:400 11px/1 ${MONO};color:${DIM}">${esc(t.day.replace("{day}", String(s.day)))}</span>`;
     return (
       `<tr><td width="28" style="padding:7px 0">${icon}</td>` +
-      `<td style="padding:7px 0;${labelStyle}">${esc(s.label)}</td>` +
+      `<td style="padding:7px 0;${labelStyle}">${esc(t.steps[s.key])}</td>` +
       `<td align="right" style="padding:7px 0">${right}</td></tr>`
     );
   }).join("");
 
   const text = [
-    "Your first 14 days:",
-    ...STEPS.map((s) => `[${state[s.key] ? "x" : " "}] ${s.label} (day ${s.day})`),
+    t.textTitle,
+    ...STEPS.map((s) => `[${state[s.key] ? "x" : " "}] ${t.steps[s.key]} ${t.textDay.replace("{day}", String(s.day))}`),
   ].join("\n");
 
   return {
     html:
       `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-radius:12px">` +
-      `<tr><td style="padding:16px 18px 6px;font:700 11px/1 ${DISPLAY};letter-spacing:.12em;color:${MUTED}">YOUR FIRST 14 DAYS</td></tr>` +
+      `<tr><td style="padding:16px 18px 6px;font:700 11px/1 ${DISPLAY};letter-spacing:.12em;color:${MUTED}">${esc(t.title)}</td></tr>` +
       `<tr><td style="padding:4px 18px 14px">` +
       `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>` +
       `</td></tr></table>`,
@@ -233,23 +235,17 @@ export function featureCard(icon: IconSlug, name: string, line: string): EmailPa
 
 // --- ladder ----------------------------------------------------------------
 
-/** The four rungs. Copy lock: "deposit into your own account", never "fee". */
-const RUNGS: { name: string; amount: string; line: string }[] = [
-  { name: "Free", amount: "no deposit", line: "Daily Analysis, Know Your Style, calendar, news, Module 1" },
-  { name: "Foundation", amount: "$50", line: "the full course and the MM Library" },
-  { name: "Desk", amount: "$200", line: "indicators, strategies, live classes, Fundamental Desk" },
-  { name: "Team MM", amount: "$500", line: "the Team MM channel and the AI Trading Assistant" },
-];
-
-const LADDER_NOTE =
-  "Each figure is a deposit into your own account at a partner broker, in your name and yours to withdraw.";
+/** The four rungs, lowest first. Copy lock: "deposit into your own account", never "fee". */
+const RUNGS = ["free", "foundation", "desk", "team"] as const;
 
 /**
  * The four-rung strip. Stated as a map, never as an offer: no pressure words,
  * and the note below it is the sentence the whole ladder rests on.
  */
-export function ladder(): EmailPart {
-  const cells = RUNGS.map(
+export function ladder(words: EmailMessages = en): EmailPart {
+  const rungs = RUNGS.map((key) => words.ladder.rungs[key]);
+  const note = words.ladder.note;
+  const cells = rungs.map(
     (r) =>
       `<td width="25%" valign="top" style="padding:16px 12px;border-left:1px solid ${BORDER}">` +
       `<div style="font:700 13px/1.2 ${DISPLAY};color:${INK}">${esc(r.name)}</div>` +
@@ -262,10 +258,10 @@ export function ladder(): EmailPart {
     html:
       `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-right:0;border-radius:12px">` +
       `<tr>${cells}</tr></table>` +
-      `<p style="margin:10px 0 0;font:400 12px/1.6 ${BODY};color:${MUTED}">${esc(LADDER_NOTE)}</p>`,
+      `<p style="margin:10px 0 0;font:400 12px/1.6 ${BODY};color:${MUTED}">${esc(note)}</p>`,
     text: [
-      ...RUNGS.map((r) => `- ${r.name} (${r.amount}): ${r.line}`),
-      LADDER_NOTE,
+      ...rungs.map((r) => `- ${r.name} (${r.amount}): ${r.line}`),
+      note,
     ].join("\n"),
   };
 }
@@ -289,8 +285,8 @@ export interface AnalysisCardParams {
  * mailed to them, not an advert for it — so the cover, the bias and the desk's
  * own line do the work and the card carries the email's single button.
  */
-export function analysisCard(p: AnalysisCardParams): EmailPart {
-  const badge = p.bias ? biasBadge(p.bias) : null;
+export function analysisCard(p: AnalysisCardParams, words: EmailMessages = en): EmailPart {
+  const badge = p.bias ? biasBadge(p.bias, words) : null;
   const cta = button(p.href, p.ctaLabel);
 
   const kicker =

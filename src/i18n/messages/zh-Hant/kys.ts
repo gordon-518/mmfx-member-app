@@ -66,7 +66,7 @@ export const kys: Messages["kys"] = {
     },
     liveClass: {
       label: "參加直播課",
-      why: "即時觀看交易台如何冷靜地管理倉位。",
+      why: "即時觀看 MM Desk 如何冷靜地管理倉位。",
     },
     startCourse: {
       label: "開始學習 MM 體系課程",
@@ -98,7 +98,7 @@ export const kys: Messages["kys"] = {
     },
     dailyPlan: {
       label: "從每日計畫開始",
-      why: "每個交易時段開始前，就清楚交易台的預期及原因。",
+      why: "每個交易時段開始前，就清楚 MM Desk 的預期及原因。",
     },
   },
 };

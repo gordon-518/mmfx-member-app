@@ -3,7 +3,7 @@ import type { Messages } from "../types";
 // The Daily Analysis archive. The analyses themselves (titles, descriptions,
 // video, PDF) are written in English by the desk and are not translated.
 export const dailyAnalysis: Messages["dailyAnalysis"] = {
-  eyebrow: "Meja · XAU/USD",
+  eyebrow: "MM Desk · XAU/USD",
   subtitle: "Analisis Emas, sesi demi sesi — bias, level, dan tesis di baliknya.",
   empty: "Belum ada analisis yang diterbitkan. Cek lagi nanti.",
   downloadReport: "Unduh laporan (PDF) ↓",

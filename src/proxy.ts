@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { isDemoUser } from "@/lib/showcase";
 import { ATTR_CID, CID_MAX } from "@/lib/attribution/touch";
-import { isLocale, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from "@/i18n/config";
+import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from "@/i18n/config";
+import { negotiateLocale } from "@/i18n/negotiate";
 
 // Post-click attribution. Every link we tag carries ?cid=…; this is the one
 // place that sees it, because the reader lands on an ordinary page and the cid
@@ -90,6 +91,20 @@ export async function proxy(request: NextRequest, event?: NextFetchEvent) {
       maxAge: LOCALE_COOKIE_MAX_AGE,
       sameSite: "lax",
     });
+  }
+
+  // A member who never picked a language reads the app in the one their
+  // browser asked for, or one they picked before signing in. Save that once,
+  // so their emails come in the language the app shows them. Never over a
+  // saved choice (fn_adopt_locale won't overwrite one either), never English
+  // (the default needs no saving), never for the shared showcase account.
+  if (user && !isDemoUser(user.email) && !isLocale(user.user_metadata?.locale)) {
+    const picked = request.cookies.get(LOCALE_COOKIE)?.value;
+    const shown = isLocale(picked) ? picked : negotiateLocale(request.headers.get("accept-language"));
+    if (shown !== DEFAULT_LOCALE) {
+      const write = rpc("fn_adopt_locale", { p_user: user.id, p_locale: shown });
+      if (write) event?.waitUntil?.(write);
+    }
   }
 
   // First-run roadmap gate: brand-new users (signed up on/after the ship date,

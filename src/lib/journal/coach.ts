@@ -6,6 +6,8 @@ import { computeAnalytics, type JournalAnalytics } from "./analytics";
 import { detectLeaks, type LeakResult } from "./leaks";
 import { accountHealth, type Health } from "./health";
 import { evaluateRules, type RulesResult } from "./rules";
+import type { JournalEngineMessages } from "./labels";
+import { en } from "@/i18n/messages/en";
 import type {
   CoachReport,
   CoachStatus,
@@ -351,7 +353,9 @@ export const DAILY_REPORT_CAP = 5;
 /** Gather everything the coach needs for one user. Null if nothing to report. */
 export async function loadReportContext(
   db: SupabaseClient,
-  userId: string
+  userId: string,
+  /** The engines' words: the member's language for an email, English for the coach's prompt. */
+  m: JournalEngineMessages = en.journalEngine
 ): Promise<ReportContext | null> {
   // Scope to CONNECTED accounts only — otherwise the coach analyses a
   // disconnected account's trades (the "265% drawdown on the old account" bug).
@@ -394,8 +398,8 @@ export async function loadReportContext(
   const trades90 = allTrades.filter(
     (t) => t.status === "closed" && t.close_time && t.close_time >= ninetyAgo
   );
-  const leaks = detectLeaks(trades90, g, computeAnalytics(trades90, cf, { currentBalance: accountBalance }));
-  const health = accountHealth(allTrades, analytics, g, leaks.leaks.length);
+  const leaks = detectLeaks(trades90, g, computeAnalytics(trades90, cf, { currentBalance: accountBalance }), m);
+  const health = accountHealth(allTrades, analytics, g, leaks.leaks.length, m);
 
   const thirtyAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const rules = evaluateRules(
@@ -404,7 +408,8 @@ export async function loadReportContext(
     ),
     (rulesRow?.config ?? {}) as JournalRulesConfig,
     g,
-    analytics.startingBalance
+    analytics.startingBalance,
+    m
   );
 
   return {

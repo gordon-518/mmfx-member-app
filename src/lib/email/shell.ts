@@ -21,6 +21,7 @@
 // escapeHtml()'d fragments. Everything the shell itself interpolates is
 // escaped here.
 
+import type { Locale } from "@/i18n/config";
 import { EMAIL_ASSET_BASE } from "./ui";
 
 /** HTML-escape a string for interpolation into an email body. */
@@ -63,8 +64,13 @@ export interface EmailShellParams {
   contextLabel?: string;
   /** The optional band between the header and the body. */
   hero?: EmailHero;
-  /** The risk line, when this email is marketing. Footer, above the consent line. */
+  /** The risk line, when this email is marketing. Footer, above the consent line.
+   *  A `\n` breaks it, for the English wording with a translation under it. */
   riskLine?: string;
+  /** The reader's language: the document's lang, which also picks a CJK font. */
+  locale?: Locale;
+  /** The unsubscribe link's text in the reader's language. */
+  unsubscribeLabel?: string;
 }
 
 const DISPLAY = "Montserrat,Arial,sans-serif";
@@ -104,8 +110,11 @@ export function emailShell(p: EmailShellParams): string {
     ? `<td align="right" style="font:400 11px/1 ${MONO};letter-spacing:.06em;color:#8a8f98">${escapeHtml(p.contextLabel)}</td>`
     : "";
 
+  const lang = p.locale ? ` lang="${escapeHtml(p.locale)}"` : "";
+  const risk = p.riskLine ? `${escapeHtml(p.riskLine).replace(/\n/g, "<br>")}<br>` : "";
+
   return `<!doctype html>
-<html><head>
+<html${lang}><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark">
@@ -128,8 +137,8 @@ ${p.hero ? heroRow(p.hero) : ""}
 ${p.bodyHtml}
         </td></tr>
         <tr><td style="background:#f6f4f0;padding:18px 32px;font:400 12px/1.6 ${BODY};color:#8a8f98">
-          ${p.riskLine ? `${escapeHtml(p.riskLine)}<br>` : ""}${p.footerNote ?? DEFAULT_FOOTER_NOTE}
-          <a href="${escapeHtml(p.unsubUrl)}" style="color:#8a8f98">Unsubscribe</a> &middot; ${POSTAL_LINE}
+          ${risk}${escapeHtml(p.footerNote ?? DEFAULT_FOOTER_NOTE)}
+          <a href="${escapeHtml(p.unsubUrl)}" style="color:#8a8f98">${escapeHtml(p.unsubscribeLabel ?? "Unsubscribe")}</a> &middot; ${POSTAL_LINE}
         </td></tr>
       </table>
     </td></tr>

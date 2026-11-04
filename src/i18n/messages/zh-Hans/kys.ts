@@ -66,7 +66,7 @@ export const kys: Messages["kys"] = {
     },
     liveClass: {
       label: "参加直播课",
-      why: "实时观看交易台如何冷静地管理仓位。",
+      why: "实时观看 MM Desk 如何冷静地管理仓位。",
     },
     startCourse: {
       label: "开始学习 MM 体系课程",
@@ -98,7 +98,7 @@ export const kys: Messages["kys"] = {
     },
     dailyPlan: {
       label: "从每日计划开始",
-      why: "每个交易时段开始前，就清楚交易台的预期及原因。",
+      why: "每个交易时段开始前，就清楚 MM Desk 的预期及原因。",
     },
   },
 };

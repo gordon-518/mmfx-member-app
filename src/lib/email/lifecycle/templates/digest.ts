@@ -1,6 +1,7 @@
 import { analysisCard } from "@/lib/email/ui";
+import { en } from "@/lib/email/i18n/en";
 import type { LifecycleCopy, LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "../types";
-import { copyOf, greeting, note, preheaderOf, signoff, textOf, url } from "../copy";
+import { copyOf, deskWritesEnglish, greeting, note, preheaderOf, signoff, textOf, url, wordsOf } from "../copy";
 
 // Flow B, the Free tier's own feature mailed to them on the DIGEST_DAYS
 // cadence. 3,763 people are on Free with Daily Analysis already unlocked and
@@ -12,27 +13,16 @@ import { copyOf, greeting, note, preheaderOf, signoff, textOf, url } from "../co
 // `defaultCopy.paragraphs` is [] and `subject` is a token template rather than
 // a sentence (plan §0.2).
 
-const BIAS: Record<string, string> = { bullish: "Bullish", bearish: "Bearish", neutral: "Neutral" };
-
-export const defaultCopy: LifecycleCopy = {
-  subject: "Gold today: {bias}",
-  preheader: "The overnight range, the levels the desk is watching, and where it stands now.",
-  paragraphs: [],
-  ctaLabel: "Read today's analysis",
-};
-
-/** What Free keeps. Structure, not copy: it is the same promise every time. */
-const KEEPS =
-  "Daily Analysis stays open on your free account, along with Know Your Style, the economic calendar, live news and Module 1 of the MM System course. Nothing to do and nothing to pay — it's there every trading day.";
+export const defaultCopy: LifecycleCopy = en.lifecycle.digest.copy;
 
 /** `{bias}` and `{title}` substituted. A missing bias takes its separator
  *  with it, so "Gold today: {bias}" renders as "Gold today" rather than
- *  "Gold today: ". */
+ *  "Gold today: " — the full-width "：" and "，" of a Chinese subject too. */
 export function subjectFor(template: string, title: string, bias: string | null): string {
   const out = bias
-    ? template.replace(/\{bias\}/g, bias.toLowerCase())
-    : template.replace(/\s*\(\{bias\}[^)]*\)/g, "").replace(/[\s,:·-]*\{bias\}(\s*bias)?/g, "");
-  return out.replace(/\{title\}/g, title).replace(/[\s,:·-]+$/, "").trim();
+    ? template.replace(/\{bias\}/g, bias.toLocaleLowerCase())
+    : template.replace(/\s*\(\{bias\}[^)]*\)/g, "").replace(/[\s,:：，·-]*\{bias\}(\s*bias)?/g, "");
+  return out.replace(/\{title\}/g, title).replace(/[\s,:：，·-]+$/, "").trim();
 }
 
 /** The desk's description opens with a real headline ("The flip delivered and
@@ -55,32 +45,40 @@ function clip(s: string, max: number): string {
 }
 
 export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
+  const w = wordsOf(ctx);
+  const t = w.lifecycle.digest;
   const link = url(ctx, "/daily-analysis", "nurture-digest");
   const da = ctx.todayAnalysis;
-  const title = da?.title ?? "Today's XAU/USD read";
-  const bias = da?.bias ? (BIAS[da.bias] ?? da.bias) : null;
+  const title = da?.title ?? t.fallbackTitle;
+  const bias = da?.bias ? (w.common.bias[da.bias] ?? da.bias) : null;
 
   const { headline, teaser } = headlineOf(da?.description ?? null);
-  const card = analysisCard({
-    title: headline ?? "The desk's read on gold today",
-    bias: da?.bias ?? null,
-    description: teaser,
-    href: link,
-    ctaLabel: copy.ctaLabel,
-  });
+  const card = analysisCard(
+    {
+      title: headline ?? t.fallbackHeadline,
+      bias: da?.bias ?? null,
+      description: teaser,
+      href: link,
+      ctaLabel: copy.ctaLabel,
+    },
+    w
+  );
+  // The card's headline and teaser are the desk's own words, in English.
+  const english = headline || teaser ? deskWritesEnglish(ctx) : [];
   const hello = greeting(ctx);
-  const keeps = note(KEEPS);
-  const sign = signoff();
+  // What Free keeps. Structure, not copy: it is the same promise every time.
+  const keeps = note(t.keeps);
+  const sign = signoff(ctx);
 
   return {
     subject: subjectFor(copy.subject, title, bias),
     preheader: preheaderOf(copy),
     ...(da?.coverUrl ? { hero: { kind: "image" as const, src: da.coverUrl, alt: title } } : {}),
-    html: [hello.html, card.html, keeps.html, sign.html].join(""),
-    text: textOf([hello.text, card.text, keeps.text, sign.text]),
+    html: [hello.html, card.html, ...english.map((e) => e.html), keeps.html, sign.html].join(""),
+    text: textOf([hello.text, card.text, ...english.map((e) => e.text), keeps.text, sign.text]),
   };
 }
 
-const template: LifecycleTemplate = (ctx) => build(ctx, copyOf(ctx, defaultCopy));
+const template: LifecycleTemplate = (ctx) => build(ctx, copyOf(ctx, wordsOf(ctx).lifecycle.digest.copy));
 
 export default template;

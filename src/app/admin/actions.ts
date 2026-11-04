@@ -13,6 +13,8 @@ import { logEventAfter } from "@/lib/events";
 import { tierFor, tierLabel, type MemberTier, type TierSnapshot } from "@/lib/tiers";
 import { sendEmail } from "@/lib/sendpulse";
 import { depositVerifiedEmail, depositRejectedEmail } from "@/lib/depositEmails";
+import { emailLocale } from "@/lib/email/locale";
+import { adminDb } from "@/lib/channel/db";
 import { parseReviewAmount } from "@/lib/depositReview";
 import { isLifetimePlan, LIFETIME_PLANS, lifetimePrice } from "@/lib/lifetimePlans";
 
@@ -489,9 +491,13 @@ export async function reviewSubmission(formData: FormData) {
     backTo({ ...filters, ok: `Closed ${targetEmail}'s $${amount} submission. Nothing added, no email sent`, target: targetEmail });
   }
 
+  // The member's language for the email, read with the service role (the
+  // admin's own session can't see another account's metadata).
+  const locale = targetEmail ? await emailLocale(adminDb(), targetUserId) : "en";
+
   if (decision === "reject") {
     if (targetEmail) {
-      const mail = depositRejectedEmail({ name: (before?.full_name as string | null) ?? null, amount, reason });
+      const mail = depositRejectedEmail({ name: (before?.full_name as string | null) ?? null, amount, reason, locale });
       const sent = await sendEmail({ to: { name: (before?.full_name as string | null) ?? targetEmail, email: targetEmail }, from: FROM_MEMBERS, ...mail });
       if (!sent.ok) console.error("[deposit-review] reject email failed:", sent.detail);
     }
@@ -521,6 +527,7 @@ export async function reviewSubmission(formData: FormData) {
       cumulative,
       tier: tierAfter,
       topUp: before?.account_status === "member_active",
+      locale,
     });
     const sent = await sendEmail({ to: { name: (before?.full_name as string | null) ?? targetEmail, email: targetEmail }, from: FROM_MEMBERS, ...mail });
     if (!sent.ok) console.error("[deposit-review] verify email failed:", sent.detail);

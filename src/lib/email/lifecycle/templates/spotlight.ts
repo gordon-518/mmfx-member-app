@@ -1,6 +1,7 @@
 import { button } from "@/lib/email/ui";
+import { en } from "@/lib/email/i18n/en";
 import type { LifecycleCopy, LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "../types";
-import { copyOf, greeting, note, paragraphs, preheaderOf, signoff, textOf, url } from "../copy";
+import { copyOf, greeting, note, paragraphs, preheaderOf, signoff, textOf, url, wordsOf } from "../copy";
 
 // Flow B, weekly, to the Free tier. This is the one template with no body copy
 // of its own: the body is composed by the Marketing Brain, put through its
@@ -45,30 +46,20 @@ export function coverUrlFor(guideUrl: string): string | null {
   }
 }
 
-const LADDER =
-  "Everything in this one is on the free side of your account. The paid rungs start at a $50 deposit into your own trading account, and the tier page says what each opens.";
-
-export const defaultCopy: LifecycleCopy = {
-  subject: "This week's guide from the desk",
-  preheader: "One read on gold, start to finish. Open on the free tier, no deposit needed.",
-  paragraphs: [
-    "This week's guide isn't out yet, so here's what's always there: the desk's read on gold, posted every trading morning.",
-    "Where price sat overnight, the levels the desk is watching, and the bias it's working from. It's on your account whether you deposit or not.",
-  ],
-  ctaLabel: "Read this week's guide",
-};
+export const defaultCopy: LifecycleCopy = en.lifecycle.spotlight.copy;
 
 export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
   const s = (ctx as SpotlightCtx).spotlight;
+  const t = wordsOf(ctx).lifecycle.spotlight;
   const hello = greeting(ctx);
-  const sign = signoff();
+  const sign = signoff(ctx);
 
   // Fallback: the rail should never claim a spotlight send without an approved
   // row, but a template must not throw inside a cron loop either.
   if (!s) {
     const link = url(ctx, "/daily-analysis", "nurture-spotlight");
     const words = paragraphs(copy);
-    const cta = button(link, "Open today's analysis");
+    const cta = button(link, t.fallbackCta);
     return {
       subject: copy.subject,
       preheader: preheaderOf(copy),
@@ -79,19 +70,25 @@ export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
 
   const guide = withCid(s.guideUrl);
   const cta = button(guide, copy.ctaLabel);
-  const ladderLine = note(LADDER);
+  const ladderLine = note(t.ladder);
 
   const cover = coverUrlFor(s.guideUrl);
 
+  // The brain writes the guide in English. A reader in another language gets
+  // the envelope in theirs, the translated default subject in place of the
+  // brain's English one, and a line saying the guide below is in English.
+  const english = t.guideInEnglish ? [note(t.guideInEnglish)] : [];
+  const subject = english.length ? copy.subject : s.subject;
+
   return {
-    subject: s.subject,
+    subject,
     preheader: preheaderOf(copy),
     ...(cover ? { hero: { kind: "image" as const, src: cover, alt: s.subject } } : {}),
-    html: [hello.html, s.html, cta.html, ladderLine.html, sign.html].join(""),
-    text: textOf([hello.text, s.text, cta.text, ladderLine.text, sign.text]),
+    html: [hello.html, ...english.map((e) => e.html), s.html, cta.html, ladderLine.html, sign.html].join(""),
+    text: textOf([hello.text, ...english.map((e) => e.text), s.text, cta.text, ladderLine.text, sign.text]),
   };
 }
 
-const template: LifecycleTemplate = (ctx) => build(ctx, copyOf(ctx, defaultCopy));
+const template: LifecycleTemplate = (ctx) => build(ctx, copyOf(ctx, wordsOf(ctx).lifecycle.spotlight.copy));
 
 export default template;

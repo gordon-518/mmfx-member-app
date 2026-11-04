@@ -3,7 +3,7 @@ import type { Messages } from "../types";
 // The signals page. Operational facts, never return promises.
 export const signals: Messages["signals"] = {
   eyebrow: "实时 · XAU/USD",
-  title: "信号交易台",
+  title: "MM Desk 信号",
   subtitle: "每天几条把握度较高的黄金交易信号——入场、止损和目标，在下单之前就写清楚。没有凑数。没有值得做的机会时，我们会直说。",
   statCalls: "每日信号",
   statRr: "盈亏比",
@@ -15,7 +15,7 @@ export const signals: Messages["signals"] = {
   channelTitle: "MMFX 信号频道",
   channelBody: "信号在下单时就会发布在这里。开启通知，以免错过入场时机。",
   openChannel: "打开频道",
-  more: "交易台的更多内容",
+  more: "MM Desk 的更多内容",
   openTelegram: "在 Telegram 打开",
   performanceTitle: "每周表现",
   performanceBody: "每周的结果完整公布——交易记录，公开透明。",

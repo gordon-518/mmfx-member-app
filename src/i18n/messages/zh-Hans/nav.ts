@@ -8,7 +8,7 @@ export const nav: Messages["nav"] = {
   sectionManage: "管理仓位",
   sectionFoundations: "基础",
   dailyAnalysis: "每日分析",
-  fundamentalDesk: "基本面分析台",
+  fundamentalDesk: "Fundamental Desk",
   news: "新闻与文章",
   calendar: "经济日历",
   signals: "交易信号",

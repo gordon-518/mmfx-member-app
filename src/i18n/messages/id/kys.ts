@@ -66,7 +66,7 @@ export const kys: Messages["kys"] = {
     },
     liveClass: {
       label: "Ikuti Kelas Live",
-      why: "Lihat meja mengelola posisi dengan tenang, secara real time.",
+      why: "Lihat MM Desk mengelola posisi dengan tenang, secara real time.",
     },
     startCourse: {
       label: "Mulai Kursus MM System",
@@ -98,7 +98,7 @@ export const kys: Messages["kys"] = {
     },
     dailyPlan: {
       label: "Mulai dengan rencana harian",
-      why: "Mulai setiap sesi dengan mengetahui ekspektasi meja dan alasannya.",
+      why: "Mulai setiap sesi dengan mengetahui ekspektasi MM Desk dan alasannya.",
     },
   },
 };

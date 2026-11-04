@@ -1,3 +1,4 @@
+import type { Locale } from "@/i18n/config";
 import type { MemberTier } from "@/lib/tiers";
 import type { EmailHero } from "@/lib/email/shell";
 
@@ -46,6 +47,9 @@ export interface LifecycleCtx {
   unsubUrl: string;
   /** An approved challenger arm's copy; absent means the template's default. */
   copy?: LifecycleCopy;
+  /** The reader's language; English when absent. Challenger arms are English
+   *  only, so the rail sends a translated default rather than a variant. */
+  locale?: Locale;
 }
 
 export interface LifecycleEmail {

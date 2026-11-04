@@ -21,7 +21,7 @@ export const rails: Messages["rails"] = {
       blurb: "Analisis emas per sesi",
     },
     "fundamental-desk": {
-      title: "Meja Fundamental",
+      title: "Fundamental Desk",
       blurb: "Analisis makro XAU/USD secara live",
     },
     signals: {
@@ -38,7 +38,7 @@ export const rails: Messages["rails"] = {
     },
     "live-classes": {
       title: "Kelas Live",
-      blurb: "Live di chart, bersama meja",
+      blurb: "Live di chart, bersama MM Desk",
     },
     "know-your-style": {
       title: "Kenali Gaya Anda",
