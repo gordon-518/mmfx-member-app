@@ -1,4 +1,7 @@
 import type { AccountStatus } from "@/lib/trial/status";
+import { en } from "@/i18n/messages/en";
+import { plural } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages/types";
 
 // Pure variant mapper for the dashboard StatusHeader. The persuasion ladder
 // is deliberate: trials get informed with a soft nudge, expiry gets the push,
@@ -21,10 +24,10 @@ export interface HeaderContent {
 
 export function headerContent(
   status: AccountStatus,
-  daysLeft: number
+  daysLeft: number,
+  /** The reader's copy; English when called without one (tests, emails). */
+  s: Messages["status"] = en.status
 ): HeaderContent {
-  const dayWord = daysLeft === 1 ? "day" : "days";
-
   // A stored active-trial status with no days left means the lazy-expiry
   // write hasn't landed yet (the tier guard already shows Limited). Never
   // render "0 days left in your trial" next to locked cards — fall through
@@ -38,55 +41,42 @@ export function headerContent(
   switch (status) {
     case "trial_active":
       return {
-        eyebrow: "Trial · Full access",
-        title: `${daysLeft} ${dayWord} left in your trial`,
-        body: "Everything on the desk is open while the clock runs.",
-        cta: {
-          href: "/upgrade",
-          label: "Lock in your access anytime",
-          kind: "soft",
-        },
+        eyebrow: s.trialEyebrow,
+        title: plural(daysLeft, s.trialTitleOne, s.trialTitleOther),
+        body: s.trialBody,
+        cta: { href: "/upgrade", label: s.trialCta, kind: "soft" },
       };
     case "re_trial_active":
       return {
-        eyebrow: "Re-trial · Full access",
-        title: `${daysLeft} ${dayWord} left in your re-trial`,
-        body: "This is your last trial — there isn't another after this one.",
-        cta: {
-          href: "/upgrade",
-          label: "Lock in your access before it ends",
-          kind: "soft",
-        },
+        eyebrow: s.retrialEyebrow,
+        title: plural(daysLeft, s.retrialTitleOne, s.retrialTitleOther),
+        body: s.retrialBody,
+        cta: { href: "/upgrade", label: s.retrialCta, kind: "soft" },
       };
     case "member_active":
-      return {
-        eyebrow: "Member",
-        title: "You're a funded member",
-        body: "Your desk stays open. Trade the session.",
-        cta: null,
-      };
+      return { eyebrow: s.memberEyebrow, title: s.memberTitle, body: s.memberBody, cta: null };
     // conversion-fix 2.5 — an expired trial is on Free (the reverse trial), not
     // locked out: say what's still open, then what funding unlocks.
     case "trial_expired":
       return {
-        eyebrow: "Free plan",
-        title: "You're on Free",
-        body: "Daily Analysis, the signals channel, the calendar, news, Know Your Style and Module 1 stay open. Fund your account to unlock the rest.",
-        cta: { href: "/upgrade", label: "See what unlocks", kind: "push" },
+        eyebrow: s.freeEyebrow,
+        title: s.freeTitle,
+        body: s.freeBody,
+        cta: { href: "/upgrade", label: s.seeWhatUnlocks, kind: "push" },
       };
     case "re_trial_expired":
       return {
-        eyebrow: "Free plan",
-        title: "You're on Free — deposit to unlock the rest",
-        body: "No further trials are available on this account. The free tools stay open.",
-        cta: { href: "/upgrade", label: "See what unlocks", kind: "push" },
+        eyebrow: s.freeEyebrow,
+        title: s.refreeTitle,
+        body: s.refreeBody,
+        cta: { href: "/upgrade", label: s.seeWhatUnlocks, kind: "push" },
       };
     case "member_expired":
       return {
-        eyebrow: "Membership ended",
-        title: "Your membership has been removed",
-        body: "Contact us if you think this is a mistake.",
-        cta: { href: "/upgrade", label: "Restore your access", kind: "push" },
+        eyebrow: s.endedEyebrow,
+        title: s.endedTitle,
+        body: s.endedBody,
+        cta: { href: "/upgrade", label: s.endedCta, kind: "push" },
       };
   }
 }

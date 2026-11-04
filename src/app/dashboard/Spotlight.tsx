@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowIcon } from "@/components/icons";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 export interface SpotlightSlide {
   key: string;
@@ -34,6 +36,7 @@ const AUTO_MS = 7000;
 export function Spotlight({ slides }: { slides: SpotlightSlide[] }) {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
+  const t = useT();
 
   const count = slides.length;
   const active = slides[Math.min(i, count - 1)];
@@ -53,7 +56,7 @@ export function Spotlight({ slides }: { slides: SpotlightSlide[] }) {
   return (
     <section
       aria-roledescription="carousel"
-      aria-label="Featured"
+      aria-label={t.dashboard.featured}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
@@ -105,7 +108,7 @@ export function Spotlight({ slides }: { slides: SpotlightSlide[] }) {
             </Link>
 
             {count > 1 && (
-              <div className="flex items-center gap-1.5" role="tablist" aria-label="Choose featured slide">
+              <div className="flex items-center gap-1.5" role="tablist" aria-label={t.dashboard.chooseSlide}>
                 {slides.map((s, idx) => {
                   const on = idx === i;
                   return (
@@ -114,7 +117,7 @@ export function Spotlight({ slides }: { slides: SpotlightSlide[] }) {
                       type="button"
                       role="tab"
                       aria-selected={on}
-                      aria-label={`Show ${s.title}`}
+                      aria-label={fmt(t.dashboard.showSlide, { title: s.title })}
                       onClick={() => setI(idx)}
                       className={`h-1.5 cursor-pointer rounded-full transition-all ${
                         on ? "w-5 bg-orange" : "w-1.5 bg-line-strong hover:bg-faint"

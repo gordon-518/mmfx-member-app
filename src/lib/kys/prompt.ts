@@ -1,7 +1,10 @@
 import type { ArchetypeProfile, DimensionScores, UserAnswers, VoiceSample } from './types';
-import { QUESTIONS } from './questions';
+import { questionsIn } from './questions';
 import { DIMENSIONS, weakestDimensions, strongestDimensions, dimensionName } from './dimensions';
+import { REPORT_LANGUAGE } from './reportLanguage';
 import voiceSamples from './voice-samples.json';
+import type { Locale } from '@/i18n/config';
+import { MESSAGES } from '@/i18n/messages';
 
 export const STATIC_SYSTEM_PROMPT = `You are the Know Your Style assessment for MarketMakersFX (MMFX), a Gold (XAU/USD) trading academy. You are NOT a chatbot, NOT a coach, and NOT a salesperson. You are a written assessment that produces one report.
 
@@ -56,14 +59,72 @@ HARD CONSTRAINTS
 - The compliance footer at the end is mandatory and must appear verbatim as shown.
 - Total length: 550–850 words.`;
 
+// The report in another language: the same prompt, with the six headings,
+// the footer, the plain-language rule and the length rule swapped for that
+// language's, and a LANGUAGE block saying so. English is left exactly as it
+// was, so its behaviour (and its prompt cache) is unchanged.
+
+const HEADING_KEYS = ['read', 'wellDone', 'leak', 'onGold', 'fix', 'finalNote'] as const;
+type HeadingKey = (typeof HEADING_KEYS)[number];
+
+/** The six report headings in a language, in order. */
+export function reportHeadings(locale: Locale): string[] {
+  const r = MESSAGES[locale].kysReport;
+  return HEADING_KEYS.map(k => r[k]);
+}
+
+function heading(locale: Locale, key: HeadingKey): string {
+  return MESSAGES[locale].kysReport[key];
+}
+
+/** Replace a substring that must occur exactly once, or fail loudly. */
+function swapOnce(text: string, from: string, to: string): string {
+  const at = text.indexOf(from);
+  if (at === -1 || text.indexOf(from, at + from.length) !== -1) {
+    throw new Error(`kys prompt: expected exactly one "${from.slice(0, 40)}"`);
+  }
+  return text.slice(0, at) + to + text.slice(at + from.length);
+}
+
+export function staticSystemPrompt(locale: Locale = 'en'): string {
+  if (locale === 'en') return STATIC_SYSTEM_PROMPT;
+  const en = MESSAGES.en.kysReport;
+  const local = MESSAGES[locale].kysReport;
+  const lang = REPORT_LANGUAGE[locale];
+
+  let p = STATIC_SYSTEM_PROMPT;
+  for (const k of HEADING_KEYS) p = swapOnce(p, `## ${en[k]}\n`, `## ${local[k]}\n`);
+  p = swapOnce(p, `*${en.footer}*`, `*${local.footer}*`);
+  p = swapOnce(
+    p,
+    '- Plain English. No jargon unless the user used it first in their answers.',
+    `- Plain, natural ${lang.name}. No jargon unless the user used it first in their answers.`
+  );
+  p = swapOnce(p, `- ${REPORT_LANGUAGE.en.lengthRule}`, `- ${lang.lengthRule}`);
+  p = swapOnce(
+    p,
+    'STRUCTURE (use these exact headings, in this order, no others)',
+    `LANGUAGE
+The trader reads the app in ${lang.name}. Write the entire report in ${lang.name}: every heading, sentence and quote. Use the headings exactly as written below. Where this prompt gives a section length in words, write the natural equivalent length in ${lang.name}. Quote the trader's answers in the wording they saw, given under "User's answers". Keep XAU/USD, and any trading terms the trader used, as written. The voice samples above are in English: match their tone, not their language.
+
+STRUCTURE (use these exact headings, in this order, no others)`
+  );
+  return p;
+}
+
 export function buildDynamicContext(
   archetype: ArchetypeProfile,
   answers: UserAnswers,
-  dimScores: DimensionScores
+  dimScores: DimensionScores,
+  locale: Locale = 'en'
 ): string {
+  const t = MESSAGES[locale];
+  // The answers as the trader saw them, so the report can quote them back in
+  // their language.
+  const questions = questionsIn(t.kysQuestions);
   const userAnswersText = Object.entries(answers)
     .map(([qid, aid]) => {
-      const q = QUESTIONS.find(qx => qx.id === qid);
+      const q = questions.find(qx => qx.id === qid);
       const o = q?.options.find(ox => ox.id === aid);
       return q && o ? `- ${q.text} → ${o.text}` : '';
     })
@@ -77,9 +138,19 @@ export function buildDynamicContext(
     .map(d => `- ${d.name} (${d.lowPole} ↔ ${d.highPole}): ${dimScores[d.id]}/100`)
     .join('\n');
 
+  // In another language, the report names the archetype and the dimensions the
+  // way the app does in that language.
+  const localName =
+    locale === 'en' ? '' : ` — in ${REPORT_LANGUAGE[locale].name} the app calls it "${t.archetypes[archetype.id].name}"; use that name`;
+  const localDimensions =
+    locale === 'en'
+      ? ''
+      : `\nIn ${REPORT_LANGUAGE[locale].name}, the app names the dimensions: ${DIMENSIONS.map(d => `${d.name} = ${t.dimensions[d.id].name}`).join('; ')}. Use those names.`;
+  const writeIn = locale === 'en' ? '' : ` Write it in ${REPORT_LANGUAGE[locale].name}.`;
+
   return `INPUTS FOR THIS REPORT
 
-Assigned archetype: ${archetype.name}
+Assigned archetype: ${archetype.name}${localName}
 
 Archetype profile:
 - Summary: ${archetype.summary}
@@ -90,11 +161,11 @@ Archetype profile:
 
 Dimensional profile (0–100, higher = healthier; for YOUR reasoning only — do not print the numbers):
 ${profileText}
-Two weakest dimensions (the leaks — build "The leak costing you money" around these): ${weak.join(', ')}
-Two strongest dimensions (anchor "What you do well" in these): ${strong.join(', ')}
+Two weakest dimensions (the leaks — build "${heading(locale, 'leak')}" around these): ${weak.join(', ')}
+Two strongest dimensions (anchor "${heading(locale, 'wellDone')}" in these): ${strong.join(', ')}${localDimensions}
 
 User's answers:
 ${userAnswersText}
 
-Name the assigned archetype in the first sentence of "The read". Generate the report now, following the structure and rules above exactly.`;
+Name the assigned archetype in the first sentence of "${heading(locale, 'read')}". Generate the report now, following the structure and rules above exactly.${writeIn}`;
 }

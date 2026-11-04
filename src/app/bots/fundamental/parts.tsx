@@ -3,9 +3,13 @@ import { ExternalIcon } from "@/components/icons";
 import { confidencePct, convictionSegments } from "@/lib/fa/format";
 import { DESK_ORIGIN } from "@/lib/fa/desk";
 import type { Bias, DeskState } from "@/lib/fa/types";
+import { getT } from "@/i18n/server";
+import { biasWord } from "@/i18n/bias";
+import { fmt } from "@/i18n/format";
 
-// Shared presentational pieces for the native Fundamental Desk. No hooks, so
-// the server views render them directly.
+// Shared presentational pieces for the native Fundamental Desk. Server
+// components (they read the reader's dictionary with getT), so only the server
+// views render them.
 
 /** Bias colour follows /daily-analysis: bullish peach, bearish ink, neutral paper. */
 const BIAS_CLASS: Record<Bias, string> = {
@@ -39,13 +43,14 @@ function BiasArrow({ bias }: { bias: Bias }) {
   );
 }
 
-export function BiasPill({
+export async function BiasPill({
   bias,
   size = "sm",
 }: {
   bias: Bias | null;
   size?: "sm" | "lg";
 }) {
+  const t = await getT();
   const b = bias ?? "neutral";
   const pad = size === "lg" ? "px-3 py-1 text-[12px]" : "px-2.5 py-0.5 text-[10px]";
   return (
@@ -53,7 +58,7 @@ export function BiasPill({
       className={`inline-flex items-center gap-1.5 rounded-full font-semibold uppercase tracking-wide ${pad} ${BIAS_CLASS[b]}`}
     >
       <BiasArrow bias={b} />
-      {bias ?? "no bias"}
+      {bias ? biasWord(t, bias) : t.fundamental.noBias}
     </span>
   );
 }
@@ -65,33 +70,29 @@ const STATE_DOT: Record<DeskState, string> = {
   STALE: "bg-faint ring-faint/20",
 };
 
-const STATE_HINT: Record<DeskState, string> = {
-  FRESH: "Recent, and price is in line with the thesis",
-  WATCH: "Aging, or price is near its invalidation line",
-  STALE: "Past its freshness window, or the line has broken",
-};
-
-export function StateBadge({ state }: { state: DeskState | null }) {
+export async function StateBadge({ state }: { state: DeskState | null }) {
   if (!state) return null;
+  const words = (await getT()).fundamental.states[state];
   return (
     <span
-      title={STATE_HINT[state]}
+      title={words.hint}
       className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-subtle"
     >
       <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ring-2 ${STATE_DOT[state]}`} />
-      {state}
+      {words.label}
     </span>
   );
 }
 
 /** Conviction = the desk's own confidence, as a 10-segment bar. */
-export function ConvictionBar({
+export async function ConvictionBar({
   confidence,
   showValue = true,
 }: {
   confidence: number | null;
   showValue?: boolean;
 }) {
+  const desk = (await getT()).fundamental;
   const lit = convictionSegments(confidence);
   const pct = confidencePct(confidence);
   return (
@@ -99,7 +100,7 @@ export function ConvictionBar({
       {showValue && (
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-            Conviction
+            {desk.conviction}
           </span>
           <span className="text-[12px] font-bold text-ink">{pct}%</span>
         </div>
@@ -107,7 +108,7 @@ export function ConvictionBar({
       <div
         className="flex gap-1"
         role="img"
-        aria-label={`Conviction ${pct} percent`}
+        aria-label={fmt(desk.convictionAria, { pct })}
       >
         {Array.from({ length: 10 }, (_, i) => (
           <span
@@ -156,7 +157,7 @@ export function Panel({
  * outage there is a real possibility — say so, and keep the door to the desk's
  * own dashboard open rather than showing an empty panel.
  */
-export function DeskUnreachable({
+export async function DeskUnreachable({
   title,
   detail,
   backHref,
@@ -165,6 +166,7 @@ export function DeskUnreachable({
   detail: string;
   backHref?: string;
 }) {
+  const desk = (await getT()).fundamental;
   return (
     <div className="rise rounded-2xl border border-line bg-card p-8 text-center shadow-soft">
       <p className="font-display text-lg font-bold tracking-tight text-ink">{title}</p>
@@ -176,14 +178,14 @@ export function DeskUnreachable({
           rel="noopener noreferrer"
           className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-2.5 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
         >
-          Open the desk <ExternalIcon width={15} height={15} />
+          {desk.openDesk} <ExternalIcon width={15} height={15} />
         </a>
         {backHref && (
           <Link
             href={backHref}
             className="inline-flex items-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink"
           >
-            Back to the desk grid
+            {desk.backToGrid}
           </Link>
         )}
       </div>

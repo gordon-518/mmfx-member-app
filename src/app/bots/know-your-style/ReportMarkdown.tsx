@@ -48,6 +48,13 @@ export function ReportMarkdown({ markdown }: { markdown: string }) {
             </ul>
           );
         }
+        if (b.kind === "note") {
+          return (
+            <p key={i} className="text-[12px] italic leading-relaxed text-faint">
+              <Spans spans={b.spans} />
+            </p>
+          );
+        }
         return (
           <p key={i} className="text-[14.5px] leading-relaxed text-subtle">
             <Spans spans={b.spans} />

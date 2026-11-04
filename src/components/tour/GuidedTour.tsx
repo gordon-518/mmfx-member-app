@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { CloseIcon } from "@/components/icons";
 import { TOUR_STEPS } from "./steps";
 import { TOUR_EVENT } from "./startTour";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 // The "how to use" tour: a spotlight over the real interface, so a new member
 // learns where things are by looking at the actual menu rather than at a
@@ -52,6 +54,8 @@ export function GuidedTour({
   const [spot, setSpot] = useState<{ key: string; box: Box } | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const step = TOUR_STEPS[i];
+  const t = useT();
+  const words = t.tour.steps[step.key];
 
   // No mounted guard: `open` only turns true from a window event, so the
   // portal is never reached while rendering on the server.
@@ -173,7 +177,7 @@ export function GuidedTour({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="How to use the app">
+    <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label={t.tour.dialogLabel}>
       {/* The dimmer, with the target cut out of it. */}
       <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
         <defs>
@@ -203,7 +207,7 @@ export function GuidedTour({
       {/* Clicking the dimmer leaves the tour. */}
       <button
         type="button"
-        aria-label="Close the tour"
+        aria-label={t.tour.close}
         onClick={() => finish(false)}
         className="absolute inset-0 h-full w-full cursor-default"
       />
@@ -229,12 +233,12 @@ export function GuidedTour({
       >
         <div className="flex items-start justify-between gap-3">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-orange">
-            Step {i + 1} of {TOUR_STEPS.length}
+            {fmt(t.tour.stepOf, { n: i + 1, total: TOUR_STEPS.length })}
           </p>
           <button
             type="button"
             onClick={() => finish(false)}
-            aria-label="Close the tour"
+            aria-label={t.tour.close}
             className="-mr-1 -mt-1 cursor-pointer rounded-lg p-1 text-faint transition-colors hover:bg-paper hover:text-ink"
           >
             <CloseIcon width={16} height={16} />
@@ -242,9 +246,9 @@ export function GuidedTour({
         </div>
 
         <h2 className="mt-1 font-display text-[18px] font-bold tracking-tight text-ink">
-          {step.title}
+          {words.title}
         </h2>
-        <p className="mt-1.5 text-[13.5px] leading-relaxed text-subtle">{step.body}</p>
+        <p className="mt-1.5 text-[13.5px] leading-relaxed text-subtle">{words.body}</p>
 
         <div className="mt-3 flex gap-1" aria-hidden>
           {TOUR_STEPS.map((s, n) => (
@@ -262,7 +266,7 @@ export function GuidedTour({
               onClick={() => setI(i - 1)}
               className="cursor-pointer rounded-xl border border-line-strong bg-card px-3.5 py-2 text-[13px] font-semibold text-subtle transition-colors hover:border-orange/40 hover:text-ink"
             >
-              Back
+              {t.common.back}
             </button>
           )}
           <button
@@ -270,7 +274,7 @@ export function GuidedTour({
             onClick={() => (last ? finish(true) : setI(i + 1))}
             className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
           >
-            {last ? "Finish" : "Next"}
+            {last ? t.common.finish : t.common.next}
           </button>
           {!last && (
             <button
@@ -278,7 +282,7 @@ export function GuidedTour({
               onClick={() => finish(false)}
               className="ml-auto cursor-pointer text-[12.5px] font-semibold text-faint transition-colors hover:text-subtle"
             >
-              Skip
+              {t.common.skip}
             </button>
           )}
         </div>

@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { onboardingProgress, deskPitchFor, type OnboardingState } from "@/lib/onboarding";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 // The dashboard's onboarding card (conversion-fix 4.2): the next open step,
 // shown until every step is done. Presentational only — progress comes from
@@ -22,18 +26,20 @@ export function OnboardingChecklist({
   state: OnboardingState;
   archetype?: string | null;
 }) {
+  const t = useT();
   const p = onboardingProgress(state);
   if (p.complete || !p.next) return null;
   const next = p.next;
+  const copy = t.onboarding.steps[next.key];
 
   return (
     <section className="rounded-2xl border border-orange/25 bg-card p-5 shadow-soft">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-          Getting started · {p.doneCount}/{p.total}
+          {fmt(t.onboarding.card.gettingStarted, { done: p.doneCount, total: p.total })}
         </p>
         <Link href="/welcome" className="text-[12.5px] font-semibold text-subtle transition-colors hover:text-ink">
-          All {p.total} steps →
+          {fmt(t.onboarding.card.allSteps, { n: p.total })}
         </Link>
       </div>
       <div className="mt-2.5">
@@ -42,11 +48,11 @@ export function OnboardingChecklist({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">
-            Day {next.day} · {next.stage}
+            {fmt(t.onboarding.card.dayStage, { day: next.day, stage: t.onboarding.stages[next.stageKey] })}
           </p>
-          <p className="mt-0.5 font-display text-[17px] font-bold tracking-tight text-ink">{next.title}</p>
+          <p className="mt-0.5 font-display text-[17px] font-bold tracking-tight text-ink">{copy.title}</p>
           <p className="mt-0.5 text-[13px] text-subtle">
-            {next.key === "desk" ? deskPitchFor(archetype) : next.blurb}
+            {next.key === "desk" ? deskPitchFor(t, archetype) : copy.blurb}
           </p>
         </div>
         {/* Straight to the step — except the channel, whose click has to be
@@ -55,7 +61,7 @@ export function OnboardingChecklist({
           href={next.external ? "/welcome" : next.href}
           className="shrink-0 rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-colors hover:bg-[#f24e12]"
         >
-          Start
+          {t.onboarding.card.start}
         </Link>
       </div>
     </section>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { DIMENSIONS } from "@/lib/kys/dimensions";
 import type { DimensionScores } from "@/lib/kys/types";
+import { getT } from "@/i18n/server";
+import { fmt } from "@/i18n/format";
 
 // The six trader dimensions as a shape. Know Your Style already scores them
 // 0–100 (all oriented "higher = healthier"), so this draws the member's own
@@ -8,14 +10,6 @@ import type { DimensionScores } from "@/lib/kys/types";
 // drawn empty: the six labels still say what the desk measures, and the
 // missing shape is the reason to go and take it.
 
-const SHORT: Record<string, string> = {
-  risk_discipline: "Risk",
-  emotional_control: "Emotion",
-  independent_conviction: "Conviction",
-  decisiveness: "Decisiveness",
-  consistency: "Consistency",
-  process_routine: "Process",
-};
 
 const CX = 150;
 const CY = 132;
@@ -30,7 +24,11 @@ function polygon(radii: number[]) {
   return radii.map((r, i) => point(i, r).join(",")).join(" ");
 }
 
-export function SkillsRadar({ scores }: { scores: DimensionScores | null }) {
+export async function SkillsRadar({ scores }: { scores: DimensionScores | null }) {
+  const t = await getT();
+  const w = t.welcome;
+  const dim = (id: string) =>
+    (t.dimensions as Record<string, { name: string; lowPole: string; highPole: string; short: string }>)[id];
   const values = DIMENSIONS.map((d) => (scores ? Number(scores[d.id] ?? 0) : 0));
   const taken = scores != null;
 
@@ -40,15 +38,13 @@ export function SkillsRadar({ scores }: { scores: DimensionScores | null }) {
   return (
     <section className="rounded-2xl border border-line bg-card p-5 shadow-soft sm:p-6">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-orange">
-        The skills you&apos;re building
+        {w.radarEyebrow}
       </p>
       <h3 className="mt-1.5 font-display text-[19px] font-bold tracking-tight text-ink">
-        Six dimensions of how you trade
+        {w.radarTitle}
       </h3>
       <p className="mt-1.5 text-[13px] leading-relaxed text-subtle">
-        {taken
-          ? "Your own shape, scored from your answers. The short edge is the one to work on."
-          : "The desk scores every trader on these six. Take the assessment and this fills in with your shape."}
+        {taken ? w.radarBodyTaken : w.radarBodyEmpty}
       </p>
 
       <div className="mt-4 flex flex-col items-center gap-4">
@@ -58,8 +54,8 @@ export function SkillsRadar({ scores }: { scores: DimensionScores | null }) {
           role="img"
           aria-label={
             taken
-              ? `Your six dimensions: ${DIMENSIONS.map((d, i) => `${d.name} ${values[i]}`).join(", ")}`
-              : "The six dimensions, not yet scored"
+              ? fmt(w.radarAriaTaken, { list: DIMENSIONS.map((d, i) => `${dim(d.id).name} ${values[i]}`).join(", ") })
+              : w.radarAriaEmpty
           }
         >
           {/* rings */}
@@ -86,7 +82,7 @@ export function SkillsRadar({ scores }: { scores: DimensionScores | null }) {
                   textAnchor={anchor}
                   className="fill-[var(--color-faint)] text-[11px] font-semibold"
                 >
-                  {SHORT[d.id] ?? d.name}
+                  {dim(d.id).short}
                 </text>
                 {taken && (
                   <text
@@ -125,38 +121,37 @@ export function SkillsRadar({ scores }: { scores: DimensionScores | null }) {
             <div className="grid gap-2.5 sm:grid-cols-2">
               <div className="rounded-xl border border-line bg-paper p-3">
                 <p className="text-[10.5px] font-semibold uppercase tracking-wider text-faint">
-                  Your strongest
+                  {w.strongest}
                 </p>
-                <p className="mt-0.5 text-[13.5px] font-bold text-ink">{best?.name}</p>
-                <p className="text-[12px] text-subtle">{best?.highPole}</p>
+                <p className="mt-0.5 text-[13.5px] font-bold text-ink">{best ? dim(best.id).name : ""}</p>
+                <p className="text-[12px] text-subtle">{best ? dim(best.id).highPole : ""}</p>
               </div>
               <div className="rounded-xl border border-orange/25 bg-accent-soft/50 p-3">
                 <p className="text-[10.5px] font-semibold uppercase tracking-wider text-accent-ink">
-                  The one costing you
+                  {w.costing}
                 </p>
-                <p className="mt-0.5 text-[13.5px] font-bold text-ink">{leak?.name}</p>
+                <p className="mt-0.5 text-[13.5px] font-bold text-ink">{leak ? dim(leak.id).name : ""}</p>
                 <p className="text-[12px] text-subtle">
-                  Closer to &ldquo;{leak?.lowPole}&rdquo; than you want
+                  {leak ? fmt(w.closerTo, { pole: dim(leak.id).lowPole }) : ""}
                 </p>
               </div>
               <Link
                 href="/bots/know-your-style"
                 className="text-[13px] font-semibold text-accent-ink underline underline-offset-4 transition-colors hover:text-orange sm:col-span-2"
               >
-                Read your full profile →
+                {w.readProfile}
               </Link>
             </div>
           ) : (
             <div className="rounded-xl border border-line bg-paper p-4">
               <p className="text-[13px] leading-relaxed text-subtle">
-                Fourteen questions, about six minutes. You get your archetype, these six scores and
-                the habit costing you the most — in writing.
+                {w.radarPitch}
               </p>
               <Link
                 href="/bots/know-your-style"
                 className="mt-3 inline-flex rounded-xl bg-orange px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
               >
-                Fill in your shape
+                {w.fillShape}
               </Link>
             </div>
           )}

@@ -3,6 +3,22 @@ import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon } from "@/components/icons";
 import { EBOOKS, type Ebook, type EbookTone } from "./ebooks";
+import { getLocale, getT } from "@/i18n/server";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages/types";
+
+type Lib = Messages["library"];
+type BookText = { blurb: string; inside?: Record<string, string> };
+
+/** A book's shelf words in the reader's language; the title is the PDF's own. */
+function bookText(lib: Lib, book: Ebook): { category: string; blurb: string; whatsInside?: string[] } {
+  const text = (lib.books as Record<string, BookText | undefined>)[book.slug];
+  return {
+    category: lib.categories[book.categoryKey],
+    blurb: text?.blurb ?? book.blurb,
+    whatsInside: text?.inside ? Object.values(text.inside) : book.whatsInside,
+  };
+}
 
 const TONE: Record<EbookTone, { wrap: string; title: string; cat: string }> = {
   ink: { wrap: "bg-ink", title: "text-white", cat: "text-faint" },
@@ -28,7 +44,7 @@ function Wordmark({ className }: { className: string }) {
 }
 
 /** The designed cover — keeps titles crisp and on-brand (no AI text). */
-function Cover({ book, variant }: { book: Ebook; variant: "flagship" | "grid" }) {
+function Cover({ book, variant, category }: { book: Ebook; variant: "flagship" | "grid"; category: string }) {
   const t = TONE[book.tone];
   if (variant === "flagship") {
     return (
@@ -37,7 +53,7 @@ function Cover({ book, variant }: { book: Ebook; variant: "flagship" | "grid" })
         <div>
           <span className="mb-2 block h-0.5 w-7 bg-orange" />
           <span className={`block font-display text-[17px] font-bold leading-tight tracking-tight ${t.title}`}>{book.title}</span>
-          <span className={`mt-2 block text-[8px] font-semibold uppercase tracking-wider ${t.cat}`}>{book.category}</span>
+          <span className={`mt-2 block text-[8px] font-semibold uppercase tracking-wider ${t.cat}`}>{category}</span>
         </div>
       </div>
     );
@@ -50,16 +66,16 @@ function Cover({ book, variant }: { book: Ebook; variant: "flagship" | "grid" })
   );
 }
 
-function ReadDownload({ slug, compact }: { slug: string; compact?: boolean }) {
+function ReadDownload({ slug, lib, compact }: { slug: string; lib: Lib; compact?: boolean }) {
   if (compact) {
     return (
       <div className="mt-3 flex items-center gap-3 text-[13px]">
         <a href={`/api/ebooks/${slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer items-center gap-1 font-semibold text-orange transition-colors hover:text-accent-ink">
-          Read <ExternalIcon width={13} height={13} />
+          {lib.read} <ExternalIcon width={13} height={13} />
         </a>
         <span className="text-line-strong">·</span>
         <a href={`/api/ebooks/${slug}`} download={`${slug}.pdf`} className="cursor-pointer font-medium text-subtle transition-colors hover:text-ink">
-          Download
+          {lib.download}
         </a>
       </div>
     );
@@ -67,10 +83,10 @@ function ReadDownload({ slug, compact }: { slug: string; compact?: boolean }) {
   return (
     <div className="mt-5 flex flex-wrap gap-2.5">
       <a href={`/api/ebooks/${slug}`} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg">
-        Read in browser <ExternalIcon width={15} height={15} />
+        {lib.readInBrowser} <ExternalIcon width={15} height={15} />
       </a>
       <a href={`/api/ebooks/${slug}`} download={`${slug}.pdf`} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-accent-soft px-5 py-3 text-[14px] font-semibold text-accent-ink transition-colors hover:bg-orange hover:text-white">
-        Download PDF
+        {lib.downloadPdf}
       </a>
     </div>
   );
@@ -84,6 +100,9 @@ export default async function LibraryPage() {
 
   const featured = EBOOKS.find((b) => b.featured);
   const rest = EBOOKS.filter((b) => !b.featured);
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  const lib = t.library;
+  const featuredText = featured ? bookText(lib, featured) : null;
 
   return (
     <AppShell email={profile.email} accountStatus={profile.account_status} memberTier={gate.viewer.tier} isAdmin={profile.is_admin}>
@@ -91,60 +110,59 @@ export default async function LibraryPage() {
         {/* Header */}
         <div className="rise">
           <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-            Library · {EBOOKS.length} eBooks
+            {fmt(lib.eyebrow, { n: EBOOKS.length })}
           </p>
-          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">
-            The MM Library
-          </h1>
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">
-            The written system and reference set — read in your browser or download.
-            Pairs with the course; keep the cheat sheets open while you trade.
-          </p>
+          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{lib.title}</h1>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{lib.subtitle}</p>
+          {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{lib.contentNote}</p>}
         </div>
 
         {/* Featured flagship */}
-        {featured && (
+        {featured && featuredText && (
           <article className="rise mt-8 flex flex-col gap-5 rounded-2xl border border-line bg-card p-5 shadow-soft sm:flex-row sm:gap-6 sm:p-6">
-            <Cover book={featured} variant="flagship" />
+            <Cover book={featured} variant="flagship" category={featuredText.category} />
             <div className="flex flex-1 flex-col">
               <span className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-                Flagship · {featured.category}
+                {fmt(lib.flagship, { category: featuredText.category })}
               </span>
               <h2 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink">
                 {featured.title}
               </h2>
-              <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-subtle">{featured.blurb}</p>
-              {featured.whatsInside && (
+              <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-subtle">{featuredText.blurb}</p>
+              {featuredText.whatsInside && (
                 <ul className="mt-3 space-y-1.5">
-                  {featured.whatsInside.map((line) => (
+                  {featuredText.whatsInside.map((line) => (
                     <li key={line} className="flex items-start gap-2 text-[13px] leading-relaxed text-ink">
                       <CheckIcon /> {line}
                     </li>
                   ))}
                 </ul>
               )}
-              <ReadDownload slug={featured.slug} />
+              <ReadDownload slug={featured.slug} lib={lib} />
             </div>
           </article>
         )}
 
         {/* The rest of the shelf */}
         <p className="rise mb-4 mt-10 text-[12px] font-semibold uppercase tracking-wider text-faint">
-          The rest of the shelf
+          {lib.rest}
         </p>
         <div className="rise grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {rest.map((book) => (
-            <article key={book.slug} className="flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-soft-lg">
-              <Cover book={book} variant="grid" />
-              <div className="flex flex-1 flex-col p-4">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-faint">
-                  {book.category} · PDF
-                </span>
-                <p className="mt-1.5 flex-1 text-[13px] leading-relaxed text-subtle">{book.blurb}</p>
-                <ReadDownload slug={book.slug} compact />
-              </div>
-            </article>
-          ))}
+          {rest.map((book) => {
+            const text = bookText(lib, book);
+            return (
+              <article key={book.slug} className="flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-soft-lg">
+                <Cover book={book} variant="grid" category={text.category} />
+                <div className="flex flex-1 flex-col p-4">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-faint">
+                    {text.category} · PDF
+                  </span>
+                  <p className="mt-1.5 flex-1 text-[13px] leading-relaxed text-subtle">{text.blurb}</p>
+                  <ReadDownload slug={book.slug} lib={lib} compact />
+                </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </AppShell>

@@ -253,6 +253,18 @@ The Telegram support agent's state. `support_settings` is the on/off switch and 
 
 ---
 
+## The member's language (`user_metadata.locale`)
+
+The app and every member email follow one value: `auth.users.raw_user_meta_data->>'locale'` (`en`, `zh-Hans`, `zh-Hant`, `ms`, `id`). The language switcher writes it (`setLocale`), sign-up writes the language the form was in, and the proxy saves the language the app is showing a member who never picked one. Defined in `20261104000003_member_locale.sql`:
+
+- `fn_user_locales(p_ids uuid[])` (`service_role` only): `user_id, locale` for a batch, so the email crons read every recipient's language in one call. A member with no saved language has no row and gets English.
+- `fn_adopt_locale(p_user uuid, p_locale text)` (`service_role` only): saves a language only when none is saved yet; returns whether it did. The proxy calls it, fire-and-forget, never for English or the showcase account.
+- `email_sends.locale`: the language a lifecycle email went out in (null before 4 Nov 2026). Challenger arms are English copy, so a reader in another language gets the translated default and the row records `variant = 'A'`.
+
+The two Supabase code emails (sign-up, password reset) pick their language from the same value (`.Data.locale` in the Go templates), built from `supabase/templates/auth-emails.json` by `scripts/auth-email-templates.mjs`.
+
+---
+
 ## State Machine
 
 ```

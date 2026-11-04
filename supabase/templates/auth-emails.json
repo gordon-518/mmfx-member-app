@@ -1,0 +1,67 @@
+{
+  "_note": "The two code emails Supabase Auth sends (sign-up and password reset), in the five app languages. scripts/auth-email-templates.mjs builds the Go templates from this file and pushes them to the project. English must stay word-for-word what the project sends today. {{ .Token }} is the 6-digit code.",
+  "confirmation": {
+    "en": {
+      "subject": "Your Market Makers FX code: {{ .Token }}",
+      "heading": "Confirm your email address",
+      "body": "Enter this 6-digit code to finish creating your Market Makers FX account:",
+      "expiry": "This code expires in 1 hour. If you didn't request it, you can ignore this email."
+    },
+    "zh-Hans": {
+      "subject": "你的 Market Makers FX 验证码：{{ .Token }}",
+      "heading": "确认你的电子邮箱",
+      "body": "输入这个 6 位验证码，完成创建你的 Market Makers FX 账户：",
+      "expiry": "验证码 1 小时内有效。如果这不是你本人的操作，请忽略这封邮件。"
+    },
+    "zh-Hant": {
+      "subject": "你的 Market Makers FX 驗證碼：{{ .Token }}",
+      "heading": "確認你的電子郵件",
+      "body": "輸入這個 6 位數驗證碼，完成建立你的 Market Makers FX 帳戶：",
+      "expiry": "驗證碼 1 小時內有效。如果這不是你本人的操作，請忽略這封郵件。"
+    },
+    "ms": {
+      "subject": "Kod Market Makers FX anda: {{ .Token }}",
+      "heading": "Sahkan alamat e-mel anda",
+      "body": "Masukkan kod 6 digit ini untuk melengkapkan akaun Market Makers FX anda:",
+      "expiry": "Kod ini tamat tempoh dalam 1 jam. Jika anda tidak memintanya, abaikan sahaja e-mel ini."
+    },
+    "id": {
+      "subject": "Kode Market Makers FX Anda: {{ .Token }}",
+      "heading": "Konfirmasi alamat email Anda",
+      "body": "Masukkan kode 6 digit ini untuk menyelesaikan pembuatan akun Market Makers FX Anda:",
+      "expiry": "Kode ini berlaku selama 1 jam. Jika Anda tidak memintanya, abaikan saja email ini."
+    }
+  },
+  "recovery": {
+    "en": {
+      "subject": "Your password reset code: {{ .Token }}",
+      "heading": "Reset your password",
+      "body": "Enter this 6-digit code to set a new password:",
+      "expiry": "This code expires in 1 hour. If you didn't request it, you can ignore this email."
+    },
+    "zh-Hans": {
+      "subject": "你的密码重置验证码：{{ .Token }}",
+      "heading": "重置你的密码",
+      "body": "输入这个 6 位验证码来设置新密码：",
+      "expiry": "验证码 1 小时内有效。如果这不是你本人的操作，请忽略这封邮件。"
+    },
+    "zh-Hant": {
+      "subject": "你的密碼重設驗證碼：{{ .Token }}",
+      "heading": "重設你的密碼",
+      "body": "輸入這個 6 位數驗證碼來設定新密碼：",
+      "expiry": "驗證碼 1 小時內有效。如果這不是你本人的操作，請忽略這封郵件。"
+    },
+    "ms": {
+      "subject": "Kod tetapan semula kata laluan anda: {{ .Token }}",
+      "heading": "Tetapkan semula kata laluan anda",
+      "body": "Masukkan kod 6 digit ini untuk menetapkan kata laluan baharu:",
+      "expiry": "Kod ini tamat tempoh dalam 1 jam. Jika anda tidak memintanya, abaikan sahaja e-mel ini."
+    },
+    "id": {
+      "subject": "Kode atur ulang kata sandi Anda: {{ .Token }}",
+      "heading": "Atur ulang kata sandi Anda",
+      "body": "Masukkan kode 6 digit ini untuk membuat kata sandi baru:",
+      "expiry": "Kode ini berlaku selama 1 jam. Jika Anda tidak memintanya, abaikan saja email ini."
+    }
+  }
+}

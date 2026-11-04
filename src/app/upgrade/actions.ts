@@ -7,6 +7,8 @@ import { sendAdminAlert } from "@/lib/notify";
 import { buildDepositAlert } from "@/lib/depositAlert";
 import { isClientEvent, sanitizeClientProps } from "@/lib/eventNames";
 import { depositRef } from "@/lib/depositRef";
+import { depositErrorKey } from "@/lib/depositErrors";
+import { getT } from "@/i18n/server";
 
 // Funnel clicks on /upgrade (conversion-fix 1.3): broker links and the
 // WhatsApp / Telegram contact buttons. Called fire-and-forget from the browser
@@ -54,10 +56,11 @@ export async function submitDeposit(
   formData: FormData
 ): Promise<DepositFormState> {
   const supabase = await createClient();
+  const e = (await getT()).upgrade.errors;
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Your session has ended. Sign in again and resubmit." };
+  if (!user) return { error: e.session };
 
   const broker = String(formData.get("broker") ?? "");
   const account = String(formData.get("account") ?? "").trim();
@@ -68,17 +71,17 @@ export async function submitDeposit(
 
   // Required (15 Sep), checked before the upload so a typo doesn't cost an upload.
   if (!/^[A-Za-z0-9_]{5,32}$/.test(telegram)) {
-    return { error: "Enter your Telegram username (the @handle, 5 to 32 letters, numbers or underscores)." };
+    return { error: e.telegram };
   }
 
   if (!(proof instanceof File) || proof.size === 0) {
-    return { error: "Upload a screenshot of your deposit." };
+    return { error: e.screenshot };
   }
   if (proof.size > MAX_PROOF_BYTES) {
-    return { error: "The screenshot must be under 10 MB." };
+    return { error: e.size };
   }
   const ext = PROOF_TYPES[proof.type];
-  if (!ext) return { error: "Upload the screenshot as a PNG, JPG or WebP image." };
+  if (!ext) return { error: e.format };
 
   const path = `${user.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
   const { error: uploadError } = await supabase.storage
@@ -86,7 +89,7 @@ export async function submitDeposit(
     .upload(path, proof, { contentType: proof.type, upsert: false });
   if (uploadError) {
     console.error("[deposit-submit] upload failed:", uploadError.message);
-    return { error: "The screenshot couldn't be uploaded. Try again." };
+    return { error: e.upload };
   }
 
   const { error } = await supabase.rpc("fn_submit_deposit", {
@@ -98,10 +101,11 @@ export async function submitDeposit(
     p_telegram_username: telegram,
   });
   if (error) {
-    // fn_submit_deposit raises member-facing messages; anything else is generic.
-    const known = /broker|account number|minimum deposit|TradingView|Telegram|screenshot|waiting for review/i.test(error.message);
-    if (!known) console.error("[deposit-submit] rpc failed:", error.message);
-    return { error: known ? error.message : "Something went wrong. Try again, or message us." };
+    // fn_submit_deposit raises member-facing messages, shown in the member's
+    // language; anything else is unexpected, so it's logged and kept generic.
+    const key = depositErrorKey(error.message);
+    if (!key) console.error("[deposit-submit] rpc failed:", error.message);
+    return { error: e[key ?? "generic"] };
   }
 
   // conversion-fix 5.3 — tell the admin a submission is waiting. Both channels

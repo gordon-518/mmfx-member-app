@@ -8,6 +8,7 @@ import {
   type AccountStatus,
 } from "@/lib/trial/status";
 import { accessTierFor, tierFor, type MemberTier } from "@/lib/tiers";
+import { toArchetypeId } from "@/lib/kys/archetypes";
 
 // The single server-side access resolver. Every gated surface derives its
 // view of the user from this — never from ad-hoc per-page checks.
@@ -26,6 +27,7 @@ export interface AccessProfile {
   tradingview_username: string | null;
   /** Set when the user completes Know Your Style ("Send me a copy"). */
   kys_completed_at: string | null;
+  /** The archetype ID (normalised on read: older rows hold the display name). */
   kys_archetype: string | null;
   /** MT4/MT5 login the trader saved (own-row via fn_set_trading_account). */
   trading_account_number: string | null;
@@ -79,7 +81,11 @@ export async function getAccess(): Promise<Access> {
   }
 
   // One instant for both derivations — tier and countdown can never disagree.
-  const row = profile as AccessProfile;
+  // kys_archetype is read back as the archetype ID: rows written before the
+  // in-app assessment (and by the old "send me a copy") hold the English
+  // display name, which nothing keyed by ID would match.
+  const raw = profile as AccessProfile;
+  const row: AccessProfile = { ...raw, kys_archetype: toArchetypeId(raw.kys_archetype) };
   const now = new Date();
   return {
     signedIn: true,

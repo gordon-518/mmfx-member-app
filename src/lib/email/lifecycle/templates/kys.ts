@@ -1,29 +1,21 @@
 import { button, tracker } from "@/lib/email/ui";
+import { en } from "@/lib/email/i18n/en";
 import type { LifecycleCopy, LifecycleCtx, LifecycleEmail, LifecycleTemplate } from "../types";
-import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url } from "../copy";
+import { copyOf, greeting, paragraphs, preheaderOf, signoff, textOf, url, wordsOf } from "../copy";
 
 // Flow A, day 2, only if Know Your Style is still unanswered. The cheapest step
 // in the whole app and the one that makes everything after it personal. One
 // action: answer the questions.
 
-export const defaultCopy: LifecycleCopy = {
-  subject: "Eight archetypes. One is yours.",
-  preheader: "Three minutes of questions, then the habit you are least likely to see in yourself.",
-  paragraphs: [
-    "Know Your Style asks a short set of questions and names your archetype. There are eight. It takes about three minutes.",
-    "What comes back is the set of habits that travels with that archetype, including the one most traders cannot see in themselves.",
-    "It is yours to keep. From then on your dashboard and the tier page read it, and point you at the work that suits how you actually trade.",
-  ],
-  ctaLabel: "Take Know Your Style",
-};
+export const defaultCopy: LifecycleCopy = en.lifecycle.kys.copy;
 
 export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
   const link = url(ctx, "/bots/know-your-style", "trial-kys");
   const words = paragraphs(copy);
-  const list = tracker(ctx.onboarding, "kys");
+  const list = tracker(ctx.onboarding, "kys", wordsOf(ctx));
   const cta = button(link, copy.ctaLabel);
   const hello = greeting(ctx);
-  const sign = signoff();
+  const sign = signoff(ctx);
 
   return {
     subject: copy.subject,
@@ -33,6 +25,6 @@ export function build(ctx: LifecycleCtx, copy: LifecycleCopy): LifecycleEmail {
   };
 }
 
-const template: LifecycleTemplate = (ctx) => build(ctx, copyOf(ctx, defaultCopy));
+const template: LifecycleTemplate = (ctx) => build(ctx, copyOf(ctx, wordsOf(ctx).lifecycle.kys.copy));
 
 export default template;

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { getT } from "@/i18n/server";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { LoginForm } from "@/components/auth/LoginForm";
 
-export const metadata: Metadata = {
-  title: "Sign in — Market Makers FX",
-  description: "Sign in to your Market Makers FX member desk with your email and password.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t.auth.loginMetaTitle, description: t.auth.loginMetaDescription };
+}
 
 export default function LoginPage() {
   return (

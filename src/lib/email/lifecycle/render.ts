@@ -12,18 +12,22 @@
 // a paragraph, and the reader should not have to walk past it to reach the
 // signature.
 
+import { fmt } from "@/i18n/format";
 import { emailShell } from "@/lib/email/shell";
+import { riskLines } from "@/lib/email/i18n";
+import { en } from "@/lib/email/i18n/en";
+import { wordsOf } from "./copy";
 import type { LifecycleCtx, LifecycleEmail } from "./types";
 
 /**
  * The risk line at the foot of every marketing email. Deliberately worded
- * without any outcome vocabulary: it warns, it does not reassure.
+ * without any outcome vocabulary: it warns, it does not reassure. A reader in
+ * another language gets this English line with their own under it.
  */
-export const COMPLIANCE_LINE =
-  "Trading involves risk, including the possible loss of capital. Nothing here is financial advice.";
+export const COMPLIANCE_LINE = en.shell.riskLine;
 
 /** Why-am-I-getting-this, for the global marketing scope. */
-export const FOOTER_NOTE = "You're getting this because you have a Market Makers FX account.";
+export const FOOTER_NOTE = en.shell.footerNote;
 
 /**
  * The mono label in the top-right of the black header. It is orientation, not
@@ -31,12 +35,13 @@ export const FOOTER_NOTE = "You're getting this because you have a Market Makers
  * reader sees which desk is writing, a member sees their standing.
  */
 export function contextLabelFor(ctx: LifecycleCtx): string {
+  const shell = wordsOf(ctx).shell;
   if (ctx.audience === "trial") {
     const day = Math.min(Math.max(ctx.daysSinceSignup + 1, 1), 14);
-    return `DAY ${String(day).padStart(2, "0")} / 14`;
+    return fmt(shell.contextDay, { day: String(day).padStart(2, "0") });
   }
-  if (ctx.audience === "member") return "MEMBER";
-  return "DESK · XAU/USD";
+  if (ctx.audience === "member") return shell.contextMember;
+  return shell.contextDesk;
 }
 
 /** Wrap a template's body fragment in the shell. */
@@ -45,17 +50,22 @@ export function wrapLifecycle(
   ctx: LifecycleCtx,
   preheader?: string
 ): LifecycleEmail {
+  const locale = ctx.locale ?? "en";
+  const shell = wordsOf(ctx).shell;
+  const risk = riskLines(locale, (m) => m.shell.riskLine).join("\n");
   return {
     subject: body.subject,
     html: emailShell({
       bodyHtml: `          ${body.html}`,
       unsubUrl: ctx.unsubUrl,
       preheader: preheader ?? body.preheader,
-      footerNote: FOOTER_NOTE,
+      footerNote: shell.footerNote,
       contextLabel: contextLabelFor(ctx),
       ...(body.hero ? { hero: body.hero } : {}),
-      riskLine: COMPLIANCE_LINE,
+      riskLine: risk,
+      locale,
+      unsubscribeLabel: shell.unsubscribe,
     }),
-    text: `${body.text}\n\n${COMPLIANCE_LINE}`,
+    text: `${body.text}\n\n${risk}`,
   };
 }

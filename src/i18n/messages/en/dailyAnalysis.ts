@@ -1,0 +1,27 @@
+// The Daily Analysis archive. The analyses themselves (titles, descriptions,
+// video, PDF) are written in English by the desk and are not translated.
+export const dailyAnalysis = {
+  eyebrow: "Desk · XAU/USD",
+  subtitle: "The read on Gold, session by session — bias, levels, and the thesis behind them.",
+  empty: "No analysis posted yet. Check back soon.",
+  downloadReport: "Download report (PDF) ↓",
+  downloadReportTitle: "Download report (PDF)",
+  downloadAria: "Download report",
+  all: "All",
+  groupBy: "Group by",
+  month: "Month",
+  session: "Session",
+  readsOne: "{n} read",
+  readsOther: "{n} reads",
+  noMatch: "No reads match that filter.",
+  otherSessions: "Other sessions",
+  undated: "Undated",
+  watch: "Watch {title}",
+  contentNote: "The analysis itself is written and recorded in English.",
+  sessions: {
+    asian: "Asian session",
+    london: "London session",
+    preNewYork: "Pre-New York session",
+    newYork: "New York session",
+  },
+} as const;

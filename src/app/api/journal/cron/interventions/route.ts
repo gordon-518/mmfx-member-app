@@ -9,6 +9,8 @@ import {
 } from "@/lib/journal/interventions";
 import { interventionEmailHtml } from "@/lib/journal/interventionEmail";
 import { sendEmail } from "@/lib/sendpulse";
+import { emailLocales } from "@/lib/email/locale";
+import { MESSAGES } from "@/i18n/messages";
 
 // Daily proactive-intervention worker. Scheduled by Supabase pg_cron + pg_net
 // (same convention/secret as journal-sync). Per connected user: reuse the coach
@@ -36,13 +38,17 @@ export async function POST(req: NextRequest) {
     .select("user_id")
     .neq("state", "disconnected");
   const userIds = [...new Set((accts ?? []).map((a) => a.user_id as string))];
+  // Each member's language: the engines write the coaching lines in it.
+  const locales = await emailLocales(db, userIds);
 
   let evaluated = 0;
   let sent = 0;
 
   for (const userId of userIds) {
     try {
-      const ctx = await loadReportContext(db, userId);
+      const locale = locales?.get(userId) ?? "en";
+      const engine = MESSAGES[locale].journalEngine;
+      const ctx = await loadReportContext(db, userId, engine);
       if (!ctx || !ctx.health || !ctx.leaks || !ctx.rules) continue;
       evaluated += 1;
 
@@ -65,7 +71,7 @@ export async function POST(req: NextRequest) {
         .select("kind, episode_key, sent_at")
         .eq("user_id", userId);
       const toSend = filterUnsent(
-        decideInterventions(signals, now),
+        decideInterventions(signals, now, engine),
         (logRows ?? []) as SentRecord[],
         now
       );
@@ -97,6 +103,7 @@ export async function POST(req: NextRequest) {
           action: iv.action,
           ctaUrl,
           unsubUrl,
+          locale,
         });
         const res = await sendEmail({
           to: { name: profile.full_name || profile.email, email: profile.email },

@@ -1,9 +1,14 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { getLocale, getT } from "@/i18n/server";
+import { fmt } from "@/i18n/format";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 // Plain, readable shell for the public legal pages (privacy / terms). Server
-// component — no auth, warm-premium styling to match the app.
-export function LegalShell({
+// component — no auth, warm-premium styling to match the app. The policies are
+// in English, which is the version that applies; readers in another language
+// are told so, and the frame around the text is in their language.
+export async function LegalShell({
   title,
   updated,
   children,
@@ -12,9 +17,11 @@ export function LegalShell({
   updated: string;
   children: ReactNode;
 }) {
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  const l = t.legal;
   return (
     <main className="min-h-screen bg-paper text-ink">
-      <header className="border-b border-line bg-card/60 px-5 py-4 sm:px-8">
+      <header className="flex items-center justify-between gap-3 border-b border-line bg-card/60 px-5 py-4 sm:px-8">
         <Link href="/" className="inline-flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange shadow-soft">
             <svg width="16" height="16" viewBox="0 0 18 18" fill="none" aria-hidden>
@@ -32,28 +39,34 @@ export function LegalShell({
             Market Makers <span className="text-orange">FX</span>
           </span>
         </Link>
+        <LanguageSwitcher short />
       </header>
 
       <article className="mx-auto max-w-3xl px-5 py-10 sm:px-8 lg:py-14">
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink">
+        {locale !== "en" && (
+          <p className="mb-6 rounded-xl border border-line bg-card px-4 py-3 text-[13.5px] text-subtle">
+            {t.common.englishGoverns}
+          </p>
+        )}
+        <h1 lang="en" className="font-display text-3xl font-bold tracking-tight text-ink">
           {title}
         </h1>
-        <p className="mt-2 text-[13px] text-faint">Last updated: {updated}</p>
+        <p className="mt-2 text-[13px] text-faint">{fmt(l.lastUpdated, { date: updated })}</p>
 
-        <div className="legal mt-8 space-y-6 text-[15px] leading-relaxed text-subtle">
+        <div lang="en" className="legal mt-8 space-y-6 text-[15px] leading-relaxed text-subtle">
           {children}
         </div>
 
         <footer className="mt-14 border-t border-line pt-6 text-[13px] text-faint">
           <nav className="flex flex-wrap gap-x-5 gap-y-2">
-            <Link href="/privacy" className="hover:text-accent-ink">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-accent-ink">Terms of Service</Link>
-            <Link href="/login" className="hover:text-accent-ink">Sign in</Link>
+            <Link href="/privacy" className="hover:text-accent-ink">{l.privacy}</Link>
+            <Link href="/terms" className="hover:text-accent-ink">{l.terms}</Link>
+            <Link href="/login" className="hover:text-accent-ink">{l.signIn}</Link>
             <a href="mailto:hello@marketmakersfx.net" className="hover:text-accent-ink">
               hello@marketmakersfx.net
             </a>
           </nav>
-          <p className="mt-4">© {updated.slice(-4)} Market Makers FX. All rights reserved.</p>
+          <p className="mt-4">{fmt(l.rights, { year: updated.slice(-4) })}</p>
         </footer>
       </article>
     </main>

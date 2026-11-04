@@ -1,22 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CheckIcon } from "@/components/icons";
-import { QUESTIONS } from "@/lib/kys/questions";
-import { DIMENSIONS } from "@/lib/kys/dimensions";
-import { ARCHETYPES } from "@/lib/kys/archetypes";
+import { questionsIn } from "@/lib/kys/questions";
+import { dimensionsIn } from "@/lib/kys/dimensions";
+import { ARCHETYPES, archetypeName, toArchetypeId } from "@/lib/kys/archetypes";
 import { selectMoves } from "@/lib/kys/moves";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 import { Analysing } from "./Analysing";
 import { Progress, QuestionStep } from "./QuestionStep";
 import { ReportView } from "./ReportView";
-import type {
-  ArchetypeId,
-  DimensionScores,
-  GenerateReportResponse,
-  Move,
-  UserAnswers,
-} from "@/lib/kys/types";
+import type { DimensionScores, GenerateReportResponse, UserAnswers } from "@/lib/kys/types";
 
 // Know Your Style, native (21 Oct). Previously an iframed app on its own
 // Vercel project; the member app only learned the archetype if the member
@@ -24,18 +21,12 @@ import type {
 // written by /api/kys/generate-report, and the profile is saved to the
 // member's row — so a returning member reads their profile back instead of
 // starting from scratch.
+//
+// Every word is in the reader's language, the report included: the route
+// writes it in the language the member takes the assessment in. The answers
+// still go up as option ids, so scoring never depends on the language.
 
 type Phase = "welcome" | "questioning" | "analysing" | "report" | "error";
-
-const WHAT_YOU_GET = [
-  { label: "Your archetype —", detail: "which of eight trader types you actually are." },
-  { label: "Your six dimensions —", detail: "where you sit on each spectrum, scored from your answers." },
-  { label: "Your leak —", detail: "the weakest one, and what it is costing you." },
-] as const;
-
-function archetypeName(id: ArchetypeId | string): string {
-  return ARCHETYPES.find((a) => a.id === id)?.name ?? "Your trader profile";
-}
 
 export interface SavedProfile {
   archetype: string;
@@ -46,6 +37,9 @@ export interface SavedProfile {
 
 export function KysFlow({ saved }: { saved: SavedProfile | null }) {
   const reduce = useReducedMotion();
+  const t = useT();
+  const k = t.kys;
+  const questions = useMemo(() => questionsIn(t.kysQuestions), [t]);
   // A saved profile opens straight on the report; "Take it again" restarts.
   const [phase, setPhase] = useState<Phase>(saved ? "report" : "welcome");
   const [answers, setAnswers] = useState<UserAnswers>({});
@@ -53,11 +47,21 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
   const [report, setReport] = useState(saved?.report ?? "");
   const [archetype, setArchetype] = useState<string | null>(saved?.archetype ?? null);
   const [dimensions, setDimensions] = useState<DimensionScores | null>(saved?.dimensions ?? null);
-  const [moves, setMoves] = useState<Move[]>(
-    saved ? selectMoves(saved.archetype as ArchetypeId, saved.dimensions) : []
-  );
   const [takenAt, setTakenAt] = useState<string | null>(saved?.takenAt ?? null);
   const [error, setError] = useState("");
+
+  // The "next move" buttons follow the reader's language, so they're derived
+  // here rather than kept from the response.
+  const archetypeId = toArchetypeId(archetype);
+  const moves = useMemo(
+    () => (archetypeId && dimensions ? selectMoves(archetypeId, dimensions, t) : []),
+    [archetypeId, dimensions, t]
+  );
+  const whatYouGet = [
+    { label: k.getArchetype, detail: fmt(k.getArchetypeDetail, { n: ARCHETYPES.length }) },
+    { label: k.getDimensions, detail: k.getDimensionsDetail },
+    { label: k.getLeak, detail: k.getLeakDetail },
+  ];
 
   function restart() {
     setAnswers({});
@@ -65,18 +69,17 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
     setReport("");
     setArchetype(null);
     setDimensions(null);
-    setMoves([]);
     setTakenAt(null);
     setError("");
     setPhase("questioning");
   }
 
   async function answer(optionId: string) {
-    const q = QUESTIONS[current];
+    const q = questions[current];
     const next = { ...answers, [q.id]: optionId };
     setAnswers(next);
 
-    if (current + 1 < QUESTIONS.length) {
+    if (current + 1 < questions.length) {
       setCurrent(current + 1);
       return;
     }
@@ -91,8 +94,8 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
         body: JSON.stringify({ answers: next }),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `The report service returned ${res.status}.`);
+        // The route's own error text is for the logs; the member gets one of ours.
+        setError(res.status === 401 ? k.errorSession : fmt(k.errorService, { status: res.status }));
         setPhase("error");
         return;
       }
@@ -100,11 +103,10 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
       setReport(data.report_text);
       setArchetype(data.archetype);
       setDimensions(data.dimensions);
-      setMoves(data.moves ?? []);
       setTakenAt(null);
       setPhase("report");
     } catch {
-      setError("We couldn't reach the report service. Check your connection and try again.");
+      setError(k.errorNetwork);
       setPhase("error");
     }
   }
@@ -117,7 +119,7 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
     <div className="w-full max-w-3xl">
       {phase === "questioning" && (
         <div className="mb-6">
-          <Progress current={current + 1} total={QUESTIONS.length} />
+          <Progress current={current + 1} total={questions.length} />
         </div>
       )}
 
@@ -128,16 +130,15 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
               <div className="grid sm:grid-cols-[1.45fr_1fr]">
                 <div className="p-6 sm:p-7">
                   <h2 className="font-display text-[26px] font-bold leading-tight tracking-tight text-ink sm:text-[30px]">
-                    Every trader has a <span className="text-orange">tell.</span>{" "}
-                    <span className="whitespace-nowrap">Let&apos;s find yours.</span>
+                    {rich(k.headline, {
+                      tell: <span className="text-orange">{k.headlineTell}</span>,
+                      find: <span className="whitespace-nowrap">{k.headlineFind}</span>,
+                    })}
                   </h2>
-                  <p className="mt-3 text-[14.5px] leading-relaxed text-subtle">
-                    Fourteen questions, about six minutes. Answer them honestly — the report is
-                    only as good as what you tell it.
-                  </p>
+                  <p className="mt-3 text-[14.5px] leading-relaxed text-subtle">{k.intro}</p>
 
                   <ul className="mt-5 flex flex-col gap-3">
-                    {WHAT_YOU_GET.map((w) => (
+                    {whatYouGet.map((w) => (
                       <li key={w.label} className="flex gap-3">
                         <span
                           aria-hidden
@@ -158,21 +159,19 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
                     onClick={() => setPhase("questioning")}
                     className="mt-6 cursor-pointer rounded-xl bg-orange px-5 py-2.5 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
                   >
-                    Start the assessment →
+                    {k.start}
                   </button>
-                  <p className="mt-3 text-[12px] text-faint">
-                    Saved to your profile — you can come back to it any time.
-                  </p>
+                  <p className="mt-3 text-[12px] text-faint">{k.savedNote}</p>
                 </div>
 
                 {/* The six spectra, named up front: it says what the questions
                     are actually measuring before anyone answers one. */}
                 <aside className="border-t border-line bg-paper p-6 sm:border-l sm:border-t-0">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-                    What gets measured
+                    {k.measured}
                   </p>
                   <ul className="mt-3.5 flex flex-col gap-3">
-                    {DIMENSIONS.map((d) => (
+                    {dimensionsIn(t.dimensions).map((d) => (
                       <li key={d.id}>
                         <span className="block text-[13px] font-semibold leading-snug text-ink">
                           {d.name}
@@ -191,7 +190,7 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
 
         {phase === "questioning" && (
           <motion.div key={`q-${current}`} {...fade}>
-            <QuestionStep question={QUESTIONS[current]} onSelect={answer} />
+            <QuestionStep question={questions[current]} onSelect={answer} />
           </motion.div>
         )}
 
@@ -204,7 +203,8 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
         {phase === "report" && archetype && dimensions && (
           <motion.div key="report" {...fade}>
             <ReportView
-              archetypeName={archetypeName(archetype)}
+              archetypeId={archetypeId}
+              archetypeName={archetypeName(archetype, t.archetypes) ?? k.fallbackName}
               dimensions={dimensions}
               markdown={report}
               moves={moves}
@@ -220,15 +220,15 @@ export function KysFlow({ saved }: { saved: SavedProfile | null }) {
             {...fade}
             className="rounded-2xl border border-line bg-card p-6 shadow-soft"
           >
-            <p className="font-display text-lg font-bold text-ink">That didn&apos;t finish.</p>
+            <p className="font-display text-lg font-bold text-ink">{k.errorTitle}</p>
             <p className="mt-2 text-[14px] text-subtle">{error}</p>
-            <p className="mt-1 text-[13px] text-faint">Your answers are still here — try again.</p>
+            <p className="mt-1 text-[13px] text-faint">{k.errorKept}</p>
             <button
               type="button"
-              onClick={() => answer(answers[QUESTIONS[QUESTIONS.length - 1].id])}
+              onClick={() => answer(answers[questions[questions.length - 1].id])}
               className="mt-5 cursor-pointer rounded-xl bg-orange px-5 py-2.5 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
             >
-              Try again
+              {t.common.retry}
             </button>
           </motion.div>
         )}

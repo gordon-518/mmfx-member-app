@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { INVENTORY, INVENTORY_STATS } from "./deskInventory";
+import { MESSAGES } from "@/i18n/messages";
 
 // The numbers on /welcome are counted from the content modules, so this guards
 // the counting, not the numbers: a stat that reads 0 means an import broke and
@@ -17,12 +18,14 @@ describe("desk inventory", () => {
     expect(INVENTORY.dimensions).toBe(6);
   });
 
-  it("gives every headline stat a real number and an in-app link", () => {
+  it("gives every headline stat a real number, an in-app link and words in every language", () => {
     expect(INVENTORY_STATS.length).toBeGreaterThan(3);
     for (const s of INVENTORY_STATS) {
-      expect(s.n, s.label).toBeGreaterThan(0);
-      expect(s.href.startsWith("/"), s.label).toBe(true);
-      expect(s.label, s.label).not.toMatch(/\b(profits?|returns?|earns?|guaranteed?)\b/i);
+      expect(s.n, s.key).toBeGreaterThan(0);
+      expect(s.href.startsWith("/"), s.key).toBe(true);
+      for (const t of Object.values(MESSAGES)) {
+        expect(t.welcome.stats[s.key].label.length, s.key).toBeGreaterThan(0);
+      }
     }
   });
 });

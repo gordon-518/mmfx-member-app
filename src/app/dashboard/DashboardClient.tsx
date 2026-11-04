@@ -15,14 +15,16 @@ import { KnowYourStyleOnboarding } from "./KnowYourStyleOnboarding";
 import { TradingAccountBar } from "./TradingAccountBar";
 import { STAGES, FOUNDATIONS, type RailCard } from "./rails";
 import type { DashboardBrief } from "./page";
-import type { NewsItem } from "@/lib/forexNews";
+import type { NewsCard } from "@/lib/forexNews";
 import { NewsCover } from "@/components/NewsCover";
 import { SkillTrack, type TrackModule } from "./SkillTrack";
+import { useLocale, useT } from "@/i18n/client";
+import { biasWord } from "@/i18n/bias";
+import { fmt } from "@/i18n/format";
+import { railCardText, railStageText } from "@/i18n/rails";
+import type { Messages } from "@/i18n/messages/types";
+import { INDICATORS } from "@/app/indicators/data";
 import type { DimensionScores } from "@/lib/kys/types";
-
-function titleCase(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
 
 function biasChip(bias: string | null): string {
   if (bias === "bullish") return "bg-accent-soft text-accent-ink";
@@ -30,11 +32,11 @@ function biasChip(bias: string | null): string {
   return "bg-paper text-subtle";
 }
 
-function nextClassLabel(d: number | null): string {
-  if (d == null) return "None scheduled";
-  if (d === 0) return "Today";
-  if (d === 1) return "Tomorrow";
-  return `in ${d} days`;
+function nextClassLabel(t: Messages, d: number | null): string {
+  if (d == null) return t.dashboard.noneScheduled;
+  if (d === 0) return t.dashboard.today;
+  if (d === 1) return t.dashboard.tomorrow;
+  return fmt(t.dashboard.inDays, { n: d });
 }
 
 function BriefCard({
@@ -73,37 +75,40 @@ function BriefCard({
 }
 
 function TodaysBrief({ brief }: { brief: DashboardBrief }) {
+  const t = useT();
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <BriefCard
         icon={AnalysisIcon}
-        label="Gold bias today"
-        value={brief.bias ? titleCase(brief.bias) : "See the read"}
+        label={t.dashboard.goldBiasToday}
+        value={brief.bias ? biasWord(t, brief.bias) : t.dashboard.seeTheRead}
         chip={brief.bias ? biasChip(brief.bias) : undefined}
         href="/daily-analysis"
       />
       <BriefCard
         icon={LiveIcon}
-        label="Next live class"
-        value={nextClassLabel(brief.nextClassInDays)}
+        label={t.dashboard.nextLiveClass}
+        value={nextClassLabel(t, brief.nextClassInDays)}
         href="/live-classes"
       />
       <BriefCard
         icon={SignalsIcon}
-        label="Latest read"
-        value={brief.latestDate ? `${brief.latestDate}${brief.session ? ` · ${brief.session}` : ""}` : "Daily Analysis"}
+        label={t.dashboard.latestRead}
+        value={brief.latestDate ? `${brief.latestDate}${brief.session ? ` · ${brief.session}` : ""}` : t.nav.dailyAnalysis}
         href="/daily-analysis"
       />
     </div>
   );
 }
 
-function FeatureCard({ card, locked }: { card: RailCard; locked: boolean }) {
+function FeatureCard({ card, locked, lessons }: { card: RailCard; locked: boolean; lessons: number }) {
+  const t = useT();
   const href = locked ? "/upgrade" : card.href;
+  const text = railCardText(t, card.key, { indicators: INDICATORS.length, lessons });
   return (
     <Link
       href={href}
-      aria-label={locked ? `${card.title} — upgrade to unlock` : card.title}
+      aria-label={locked ? fmt(t.dashboard.upgradeToUnlock, { title: text.title }) : text.title}
       className={`group flex items-start gap-3 rounded-xl border border-line bg-card p-3.5 shadow-soft transition-all hover:-translate-y-0.5 hover:border-orange/30 hover:shadow-soft-lg ${
         locked ? "opacity-75 hover:opacity-100" : ""
       }`}
@@ -113,17 +118,23 @@ function FeatureCard({ card, locked }: { card: RailCard; locked: boolean }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center justify-between gap-2">
-          <span className="font-display text-[14px] font-bold tracking-tight text-ink">{card.title}</span>
+          <span className="font-display text-[14px] font-bold tracking-tight text-ink">{text.title}</span>
           {locked ? (
             <LockIcon width={14} height={14} className="shrink-0 text-faint" />
           ) : (
             <ArrowIcon width={15} height={15} className="shrink-0 text-faint transition-all group-hover:translate-x-0.5 group-hover:text-orange" />
           )}
         </span>
-        <span className="mt-0.5 block text-[12px] leading-snug text-subtle">{card.blurb}</span>
+        <span className="mt-0.5 block text-[12px] leading-snug text-subtle">{text.blurb}</span>
       </span>
     </Link>
   );
+}
+
+function sentimentWord(t: Messages, s: string): string {
+  if (s === "Positive") return t.news.positive;
+  if (s === "Negative") return t.news.negative;
+  return t.news.neutral;
 }
 
 const SENT_STYLE: Record<string, string> = {
@@ -132,22 +143,16 @@ const SENT_STYLE: Record<string, string> = {
   Neutral: "bg-paper text-subtle",
 };
 
-function fmtNewsDate(d: string): string {
-  const t = new Date(d);
-  return Number.isNaN(t.getTime())
-    ? ""
-    : t.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-}
-
-function NewsTeaser({ items }: { items: NewsItem[] }) {
+function NewsTeaser({ items }: { items: NewsCard[] }) {
+  const t = useT();
   return (
     <div className="rise mt-10" style={{ animationDelay: "0.3s" }}>
       <div className="mb-4 flex items-baseline justify-between gap-3">
         <h3 className="flex items-center gap-2 font-display text-lg font-bold tracking-tight text-ink">
-          <NewsIcon width={18} height={18} className="text-accent-ink" /> Forex &amp; macro news
+          <NewsIcon width={18} height={18} className="text-accent-ink" /> {t.dashboard.newsTitle}
         </h3>
         <Link href="/news" className="text-[13px] font-semibold text-orange transition-colors hover:text-accent-ink">
-          View all →
+          {t.common.viewAll}
         </Link>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -163,12 +168,12 @@ function NewsTeaser({ items }: { items: NewsItem[] }) {
             <div className="relative aspect-video w-full overflow-hidden">
               <NewsCover item={n} />
               <span className={`absolute left-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${SENT_STYLE[n.sentiment] ?? "bg-paper text-subtle"}`}>
-                {n.sentiment}
+                {sentimentWord(t, n.sentiment)}
               </span>
             </div>
             <div className="flex flex-1 flex-col p-4">
               <span className="text-[11px] text-faint">
-                {n.source}{fmtNewsDate(n.date) ? ` · ${fmtNewsDate(n.date)}` : ""}
+                {n.source}{n.dateLabel ? ` · ${n.dateLabel}` : ""}
               </span>
               <h4 className="mt-1 line-clamp-2 font-display text-[15px] font-bold leading-snug tracking-tight text-ink group-hover:text-accent-ink">
                 {n.title}
@@ -213,7 +218,7 @@ export function DashboardClient({
   memberTier: MemberTier;
   slides: SpotlightSlide[];
   brief: DashboardBrief | null;
-  news: NewsItem[];
+  news: NewsCard[];
   showKysOnboarding?: boolean;
   isAdmin?: boolean;
   tradingAccount?: string | null;
@@ -226,7 +231,10 @@ export function DashboardClient({
   courseWatched?: string[];
   kysDimensions?: DimensionScores | null;
 }) {
-  const head = headerContent(accountStatus, daysLeft);
+  const t = useT();
+  const locale = useLocale();
+  const head = headerContent(accountStatus, daysLeft, t.status);
+  const lessonCount = courseTrack.reduce((n, m) => n + m.lessons.length, 0);
   const locked = tier !== "Full";
   // Greet by real first name when we have it; fall back to the email handle.
   const firstName = fullName?.trim() ? fullName.trim().split(/\s+/)[0] : email.split("@")[0];
@@ -242,12 +250,12 @@ export function DashboardClient({
 
         {/* Live market bar */}
         <div className="rise mb-6" style={{ animationDelay: "0s" }}>
-          <MarketBar />
+          <MarketBar key={locale} />
         </div>
 
         {/* Greeting */}
         <div className="rise" style={{ animationDelay: "0.04s" }}>
-          <p className="text-[15px] text-subtle">Welcome back,</p>
+          <p className="text-[15px] text-subtle">{t.dashboard.welcomeBack}</p>
           <h1 className="font-display text-3xl font-bold tracking-tight text-ink first-letter:uppercase">
             {firstName}
           </h1>
@@ -281,7 +289,7 @@ export function DashboardClient({
               )
             ) : (
               <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent-soft px-4 py-2 text-[13px] font-semibold text-accent-ink">
-                <span className="h-1.5 w-1.5 rounded-full bg-orange" /> Funded member
+                <span className="h-1.5 w-1.5 rounded-full bg-orange" /> {t.dashboard.fundedMember}
               </span>
             )}
           </div>
@@ -319,9 +327,9 @@ export function DashboardClient({
         <div className="rise mt-10" style={{ animationDelay: "0.18s" }}>
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="font-display text-lg font-bold tracking-tight text-ink">
-              Everything you need to trade the system
+              {t.dashboard.pipelineTitle}
             </h3>
-            {locked && <span className="hidden text-[13px] text-subtle sm:block">Unlock it all with full access</span>}
+            {locked && <span className="hidden text-[13px] text-subtle sm:block">{t.dashboard.unlockAll}</span>}
           </div>
 
           <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-stretch">
@@ -333,13 +341,13 @@ export function DashboardClient({
                       {stage.n}
                     </span>
                     <div className="min-w-0">
-                      <div className="font-display text-[15px] font-bold tracking-tight text-ink">{stage.label}</div>
-                      <div className="text-[11px] text-faint">{stage.tagline}</div>
+                      <div className="font-display text-[15px] font-bold tracking-tight text-ink">{railStageText(t, stage.n).label}</div>
+                      <div className="text-[11px] text-faint">{railStageText(t, stage.n).tagline}</div>
                     </div>
                   </div>
                   <div className="mt-3 space-y-2.5">
                     {stage.cards.map((c) => (
-                      <FeatureCard key={c.key} card={c} locked={locked} />
+                      <FeatureCard key={c.key} card={c} locked={locked} lessons={lessonCount} />
                     ))}
                   </div>
                 </div>
@@ -361,13 +369,13 @@ export function DashboardClient({
               <LibraryIcon width={18} height={18} />
             </span>
             <div>
-              <h3 className="font-display text-[15px] font-bold tracking-tight text-ink">Foundations</h3>
-              <p className="text-[12px] text-faint">The skill under all three</p>
+              <h3 className="font-display text-[15px] font-bold tracking-tight text-ink">{t.dashboard.foundationsTitle}</h3>
+              <p className="text-[12px] text-faint">{t.dashboard.foundationsTagline}</p>
             </div>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {FOUNDATIONS.map((c) => (
-              <FeatureCard key={c.key} card={c} locked={locked} />
+              <FeatureCard key={c.key} card={c} locked={locked} lessons={lessonCount} />
             ))}
           </div>
         </div>

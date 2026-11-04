@@ -11,6 +11,8 @@ import {
   type OnboardingState,
 } from "@/lib/onboarding";
 import { markChannelOpened } from "./actions";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 import { TourButton, TourAutoStart } from "@/components/tour/TourButton";
 import { EnterDeskButton } from "./EnterDeskButton";
 
@@ -68,6 +70,9 @@ export function StartHere({
   const live: OnboardingState = channelOpened ? { ...state, telegram: true } : state;
   const p = onboardingProgress(live);
   const [open, setOpen] = useState<OnboardingKey | null>(p.next?.key ?? null);
+  const t = useT();
+  const sh = t.onboarding.startHere;
+  const nextCopy = p.next ? t.onboarding.steps[p.next.key] : null;
 
   async function openChannel() {
     setChannelOpened(true);
@@ -79,9 +84,9 @@ export function StartHere({
       {!tourSeen && <TourAutoStart />}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold uppercase tracking-wider text-orange">Start here</p>
+          <p className="text-[13px] font-semibold uppercase tracking-wider text-orange">{t.nav.startHere}</p>
           <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-            Your first six steps
+            {sh.title}
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -92,8 +97,7 @@ export function StartHere({
         </div>
       </div>
       <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-subtle">
-        One a day. Each one opens the next, and each says what you should be able to do once
-        it&apos;s behind you.
+        {sh.intro}
       </p>
 
       <div className="mt-6 flex items-center gap-5 rounded-2xl border border-line bg-card p-5 shadow-soft">
@@ -102,21 +106,21 @@ export function StartHere({
           {p.complete ? (
             <>
               <p className="font-display text-[17px] font-bold tracking-tight text-ink">
-                All six done.
+                {sh.allDoneTitle}
               </p>
               <p className="mt-0.5 text-[13.5px] leading-relaxed text-subtle">
-                The roadmap below is the order to use everything else in.
+                {sh.allDoneBody}
               </p>
             </>
           ) : (
             <>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">
-                Next · day {p.next?.day}
+                {fmt(sh.nextDay, { day: p.next?.day ?? 0 })}
               </p>
               <p className="mt-0.5 font-display text-[17px] font-bold tracking-tight text-ink">
-                {p.next?.title}
+                {nextCopy?.title}
               </p>
-              <p className="mt-0.5 text-[13.5px] leading-relaxed text-subtle">{p.next?.target}</p>
+              <p className="mt-0.5 text-[13.5px] leading-relaxed text-subtle">{nextCopy?.target}</p>
             </>
           )}
         </div>
@@ -164,16 +168,16 @@ export function StartHere({
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-faint">
-                          Day {s.day} · {s.stage}
+                          {fmt(t.onboarding.card.dayStage, { day: s.day, stage: t.onboarding.stages[s.stageKey] })}
                         </span>
                         {s.done ? (
                           <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-ink">
-                            {isChannel ? "Opened" : "Done"}
+                            {isChannel ? sh.opened : sh.done}
                           </span>
                         ) : (
                           isNext && (
                             <span className="rounded-full bg-orange px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                              You&apos;re here
+                              {sh.youreHere}
                             </span>
                           )
                         )}
@@ -183,7 +187,7 @@ export function StartHere({
                           s.done ? "text-subtle" : "text-ink"
                         }`}
                       >
-                        {s.title}
+                        {t.onboarding.steps[s.key].title}
                       </span>
                     </span>
                     <svg
@@ -210,21 +214,21 @@ export function StartHere({
                       >
                         <div className="border-t border-line px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
                           <p className="text-[13.5px] leading-relaxed text-subtle">
-                            {s.key === "desk" ? deskPitchFor(archetype) : s.blurb}
+                            {s.key === "desk" ? deskPitchFor(t, archetype) : t.onboarding.steps[s.key].blurb}
                           </p>
 
                           <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
                             <div className="rounded-xl border border-line bg-paper p-3.5">
                               <p className="text-[10.5px] font-semibold uppercase tracking-wider text-faint">
-                                What this gets you
+                                {sh.whatYouGet}
                               </p>
-                              <p className="mt-1 text-[13px] leading-relaxed text-ink">{s.goal}</p>
+                              <p className="mt-1 text-[13px] leading-relaxed text-ink">{t.onboarding.steps[s.key].goal}</p>
                             </div>
                             <div className="rounded-xl border border-orange/25 bg-accent-soft/50 p-3.5">
                               <p className="text-[10.5px] font-semibold uppercase tracking-wider text-accent-ink">
-                                Your target
+                                {sh.yourTarget}
                               </p>
-                              <p className="mt-1 text-[13px] leading-relaxed text-ink">{s.target}</p>
+                              <p className="mt-1 text-[13px] leading-relaxed text-ink">{t.onboarding.steps[s.key].target}</p>
                             </div>
                           </div>
 
@@ -238,7 +242,7 @@ export function StartHere({
                                 className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
                               >
                                 <TelegramIcon width={16} height={16} />
-                                {s.done ? "Open the channel again" : "Open the channel"}
+                                {s.done ? sh.openChannelAgain : sh.openChannel}
                               </a>
                             ) : (
                               <Link
@@ -249,13 +253,13 @@ export function StartHere({
                                     : "inline-flex items-center gap-2 rounded-xl bg-orange px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
                                 }
                               >
-                                {s.done ? "Open again" : isNext ? "Start this step" : "Open"}
+                                {s.done ? sh.openAgain : isNext ? sh.startStep : sh.open}
                               </Link>
                             )}
                             {isChannel && (
                               <span className="inline-flex items-center gap-1.5 text-[12px] text-faint">
                                 <ExternalIcon width={13} height={13} />
-                                Opens Telegram — tap Join there to finish it
+                                {sh.opensTelegram}
                               </span>
                             )}
                           </div>

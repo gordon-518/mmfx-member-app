@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { grantTVAccess } from "@/lib/tv/client";
 import { tvEntitlement, type TvProfileRow } from "@/lib/tv/resolveTvAccounts";
-import { validateTradingViewUsername } from "@/lib/tvUsername";
+import { tvErrorCodeFromDb, validateTradingViewUsername } from "@/lib/tvUsername";
 
 
 // Relays to fn_set_tradingview_username, which writes the caller's OWN row
@@ -19,7 +19,7 @@ export async function setTradingViewUsername(formData: FormData) {
   // before we grant to a handle that doesn't exist.
   const check = validateTradingViewUsername(username);
   if (!check.ok) {
-    redirect(`/indicators?tv_error=${encodeURIComponent(check.message)}`);
+    redirect(`/indicators?tv_error=${check.code}`);
   }
 
   const supabase = await createClient();
@@ -35,7 +35,7 @@ export async function setTradingViewUsername(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/indicators?tv_error=${encodeURIComponent(error.message)}`);
+    redirect(`/indicators?tv_error=${tvErrorCodeFromDb(error.message)}`);
   }
 
   // Grant TV access immediately — non-blocking, cron is the safety net

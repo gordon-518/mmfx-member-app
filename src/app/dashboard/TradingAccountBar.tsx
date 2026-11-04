@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { validateTradingAccount } from "@/lib/tradingAccount";
 import { setTradingAccount } from "./actions";
+import { useT } from "@/i18n/client";
 
 // Compact top-of-dashboard bar. Empty → red dot + input + Save. Saved → green dot
 // + number + Update (reveals input). Non-blocking; shown to trials and to members
@@ -13,10 +14,11 @@ export function TradingAccountBar({ current }: { current: string | null }) {
   const [value, setValue] = useState(current ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const t = useT();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const check = validateTradingAccount(value);
+    const check = validateTradingAccount(value, t.account);
     if (!check.ok) { setError(check.message); return; }
     setBusy(true);
     setError("");
@@ -42,16 +44,14 @@ export function TradingAccountBar({ current }: { current: string | null }) {
         <div className="min-w-0 flex-1">
           {hasNumber && !editing ? (
             <p className="text-[14px] text-ink">
-              <span className="text-subtle">Trading account</span>{" "}
+              <span className="text-subtle">{t.account.label}</span>{" "}
               <span className="font-mono font-bold tracking-wide">{saved}</span>
             </p>
           ) : (
-            <p className="text-[14px] font-bold text-ink">Add your trading account number</p>
+            <p className="text-[14px] font-bold text-ink">{t.account.addTitle}</p>
           )}
           <p className="mt-0.5 text-[12px] leading-snug text-faint">
-            {hasNumber && !editing
-              ? "Switched trading accounts? Update this to the one you're most active in."
-              : "Enter your live MT4/MT5 login. Keep it set to the account you trade most — if the one on file goes inactive you could be removed by mistake."}
+            {hasNumber && !editing ? t.account.savedHint : t.account.emptyHint}
           </p>
         </div>
 
@@ -62,7 +62,7 @@ export function TradingAccountBar({ current }: { current: string | null }) {
               autoComplete="off"
               value={value}
               onChange={(e) => { setValue(e.target.value.replace(/\D/g, "").slice(0, 15)); if (error) setError(""); }}
-              placeholder="e.g. 51234567"
+              placeholder={t.account.placeholder}
               autoFocus
               className="w-36 rounded-lg border border-line bg-paper/60 px-3 py-2 text-[14px] text-ink placeholder:text-faint focus:border-orange focus:outline-none"
             />
@@ -71,11 +71,11 @@ export function TradingAccountBar({ current }: { current: string | null }) {
               disabled={busy}
               className="rounded-lg bg-orange px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#f24e12] disabled:opacity-60"
             >
-              {busy ? "…" : "Save"}
+              {busy ? "…" : t.common.save}
             </button>
             {hasNumber && (
               <button type="button" onClick={() => { setEditing(false); setValue(saved ?? ""); setError(""); }} className="text-[13px] font-medium text-subtle hover:text-ink">
-                Cancel
+                {t.common.cancel}
               </button>
             )}
           </form>
@@ -85,7 +85,7 @@ export function TradingAccountBar({ current }: { current: string | null }) {
             onClick={() => setEditing(true)}
             className="rounded-lg border border-line bg-card px-4 py-2 text-[13px] font-semibold text-ink transition-colors hover:bg-paper"
           >
-            Update
+            {t.account.update}
           </button>
         )}
       </div>

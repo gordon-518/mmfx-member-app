@@ -4,10 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { JournalGoalsRow } from "@/lib/journal/types";
+import { journalApiError } from "@/lib/journal/apiErrors";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
 
 // Two-step connect wizard.
 // Step 1 (credentials): posts to /api/journal/accounts. The investor password
-// lives only in this form's state and the TLS request — never stored.
+// lives only in this form's state and the TLS request — never stored. The
+// server name is checked here first, with the same rules the API applies, so
+// a wrong or demo server is explained in the reader's language.
 // Step 2 (goals): optional, PUT /api/journal/goals; skippable.
 
 type Step = "credentials" | "goals";
@@ -17,7 +23,7 @@ const inputCls =
 const labelCls = "block text-[13px] font-semibold text-ink";
 const primaryBtn =
   "cursor-pointer rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-50";
-import { knownServersFor } from "@/lib/journal/brokerServers";
+import { knownServersFor, validateBrokerServer } from "@/lib/journal/brokerServers";
 
 const secondaryBtn =
   "cursor-pointer rounded-xl border border-line-strong bg-card px-4 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink";
@@ -42,18 +48,20 @@ function CredentialsStep({
   const showServerInput = typingServer || servers.length === 0;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const T = useT();
+  const c = T.journalConnect;
 
   if (!tradingAccountNumber) {
-    return (
-      <p className="text-[14px] text-ink">
-        Add your MT5 trading account number to your profile first, then come back
-        to connect the journal.
-      </p>
-    );
+    return <p className="text-[14px] text-ink">{c.noAccountNumber}</p>;
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const checked = validateBrokerServer(server, brokerId, c.serverErrors);
+    if (!checked.ok) {
+      setError(checked.error);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -62,14 +70,14 @@ function CredentialsStep({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ broker_id: brokerId, password, server, label }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(body.error ?? "Connection failed — please try again");
+        setError(journalApiError(res.status, body, T.journal.errors, c.connectFailed));
         return;
       }
       onDone();
     } catch {
-      setError("Network error — please try again");
+      setError(T.journal.networkError);
     } finally {
       setBusy(false);
     }
@@ -78,22 +86,18 @@ function CredentialsStep({
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label className={labelCls}>MT5 account number</label>
+        <label className={labelCls}>{c.accountNumber}</label>
         <input
           className={`${inputCls} mt-1.5 bg-canvas/60`}
           value={tradingAccountNumber}
           readOnly
           aria-readonly
         />
-        <p className="mt-1.5 text-[12px] text-subtle">
-          Your registered active MT5 account. To change it, update your trading
-          account number in your profile. Only MT5 trading accounts can be
-          connected.
-        </p>
+        <p className="mt-1.5 text-[12px] text-subtle">{c.accountNumberHelp}</p>
       </div>
       <div>
         <label className={labelCls} htmlFor="mt5-broker">
-          Broker
+          {c.broker}
         </label>
         <select
           id="mt5-broker"
@@ -107,7 +111,7 @@ function CredentialsStep({
           required
         >
           <option value="" disabled>
-            Choose your broker
+            {c.chooseBroker}
           </option>
           {brokers.map((b) => (
             <option key={b.id} value={b.id}>
@@ -118,7 +122,7 @@ function CredentialsStep({
       </div>
       <div>
         <label className={labelCls} htmlFor="mt5-password">
-          Investor password (read-only)
+          {c.password}
         </label>
         <input
           id="mt5-password"
@@ -126,19 +130,16 @@ function CredentialsStep({
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Your investor password — not the master password"
+          placeholder={c.passwordPlaceholder}
           required
         />
         <p className="mt-1.5 text-[12px] leading-relaxed text-subtle">
-          The investor password only allows viewing — no trading, no
-          withdrawals. It is passed securely to our sync provider and{" "}
-          <span className="font-semibold">never stored</span>. Find it in MT5
-          under Settings → Change password, or ask your broker.
+          {rich(c.passwordHelp, { neverStored: <span className="font-semibold">{c.neverStored}</span> })}
         </p>
       </div>
       <div>
         <label className={labelCls} htmlFor="mt5-server">
-          Broker server
+          {c.server}
         </label>
         {/* The servers this broker runs (brokerServers.ts), with "Other" for
             anyone on one we haven't listed. The API checks the same rules and
@@ -160,14 +161,14 @@ function CredentialsStep({
             required={!showServerInput}
           >
             <option value="" disabled>
-              Choose your server
+              {c.chooseServer}
             </option>
             {servers.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
             ))}
-            <option value="__other">Other — type it</option>
+            <option value="__other">{c.otherServer}</option>
           </select>
         )}
         {showServerInput && (
@@ -177,41 +178,39 @@ function CredentialsStep({
             value={server}
             onChange={(e) => setServer(e.target.value)}
             placeholder={
-              servers.length > 0
-                ? `e.g. ${servers[0]}`
-                : "Shown on your MT5 login screen"
+              servers.length > 0 ? fmt(c.serverExample, { example: servers[0] }) : c.serverPlaceholder
             }
             autoFocus={servers.length > 0}
             required
           />
         )}
         <p className="mt-1.5 text-[12px] leading-relaxed text-subtle">
-          Not listed? Choose <span className="font-semibold">Other</span> and
-          copy it exactly from your MT5 login screen.{" "}
-          <span className="font-semibold">Live accounts only</span>
-          {" — "}the assistant can&apos;t review a demo account.
+          {rich(c.serverHelp, {
+            other: <span className="font-semibold">{c.other}</span>,
+            liveOnly: <span className="font-semibold">{c.liveOnly}</span>,
+          })}
         </p>
       </div>
       <div>
         <label className={labelCls} htmlFor="mt5-label">
-          Nickname <span className="font-normal text-subtle">(optional)</span>
+          {c.nickname} <span className="font-normal text-subtle">{c.optional}</span>
         </label>
         <input
           id="mt5-label"
           className={`${inputCls} mt-1.5`}
           value={label}
           onChange={(e) => setLabel(e.target.value)}
-          placeholder="e.g. Main account"
+          placeholder={c.nicknamePlaceholder}
           maxLength={60}
         />
       </div>
       {error && <p className="text-[13px] text-red-600">{error}</p>}
       <div className="flex items-center gap-3 pt-1">
         <button type="submit" disabled={busy} className={primaryBtn}>
-          {busy ? "Connecting…" : "Connect account"}
+          {busy ? c.connecting : c.connect}
         </button>
         <Link href="/journal" className="text-[13px] text-subtle hover:underline">
-          Cancel
+          {T.common.cancel}
         </Link>
       </div>
     </form>
@@ -239,6 +238,8 @@ function GoalsStep({ initial }: { initial: JournalGoalsRow | null }) {
   const [focus, setFocus] = useState(initial?.focus_text ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const T = useT();
+  const g = T.journalConnect.goals;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -262,14 +263,14 @@ function GoalsStep({ initial }: { initial: JournalGoalsRow | null }) {
           focus_text: focus || null,
         }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(body.error ?? "Could not save goals");
+        setError(journalApiError(res.status, body, T.journal.errors, g.saveFailed));
         return;
       }
       router.push("/journal");
     } catch {
-      setError("Network error — please try again");
+      setError(T.journal.networkError);
     } finally {
       setBusy(false);
     }
@@ -279,7 +280,7 @@ function GoalsStep({ initial }: { initial: JournalGoalsRow | null }) {
     <form onSubmit={submit} className="space-y-4">
       <div>
         <label className={labelCls} htmlFor="goal-style">
-          Trading style
+          {g.style}
         </label>
         <select
           id="goal-style"
@@ -287,102 +288,100 @@ function GoalsStep({ initial }: { initial: JournalGoalsRow | null }) {
           value={style}
           onChange={(e) => setStyle(e.target.value)}
         >
-          <option value="">Select…</option>
-          <option value="scalper">Scalper (minutes)</option>
-          <option value="day">Day trader (hours)</option>
-          <option value="swing">Swing trader (days)</option>
-          <option value="position">Position trader (weeks+)</option>
+          <option value="">{g.select}</option>
+          <option value="scalper">{g.styles.scalper}</option>
+          <option value="day">{g.styles.day}</option>
+          <option value="swing">{g.styles.swing}</option>
+          <option value="position">{g.styles.position}</option>
         </select>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelCls} htmlFor="goal-size">
-            Account size
+            {g.accountSize}
           </label>
           <input
             id="goal-size"
             className={`${inputCls} mt-1.5`}
             value={accountSize}
             onChange={(e) => setAccountSize(e.target.value)}
-            placeholder="e.g. 10000"
+            placeholder={g.accountSizePlaceholder}
             inputMode="decimal"
           />
         </div>
         <div>
           <label className={labelCls} htmlFor="goal-target">
-            Monthly target %
+            {g.target}
           </label>
           <input
             id="goal-target"
             className={`${inputCls} mt-1.5`}
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            placeholder="e.g. 5"
+            placeholder={g.targetPlaceholder}
             inputMode="decimal"
           />
         </div>
         <div>
           <label className={labelCls} htmlFor="goal-dd">
-            Max drawdown %
+            {g.maxDd}
           </label>
           <input
             id="goal-dd"
             className={`${inputCls} mt-1.5`}
             value={maxDd}
             onChange={(e) => setMaxDd(e.target.value)}
-            placeholder="e.g. 10"
+            placeholder={g.maxDdPlaceholder}
             inputMode="decimal"
           />
         </div>
         <div>
           <label className={labelCls} htmlFor="goal-risk">
-            Risk per trade %
+            {g.risk}
           </label>
           <input
             id="goal-risk"
             className={`${inputCls} mt-1.5`}
             value={risk}
             onChange={(e) => setRisk(e.target.value)}
-            placeholder="e.g. 1"
+            placeholder={g.riskPlaceholder}
             inputMode="decimal"
           />
         </div>
       </div>
       <div>
         <label className={labelCls} htmlFor="goal-instruments">
-          Instruments you trade
+          {g.instruments}
         </label>
         <input
           id="goal-instruments"
           className={`${inputCls} mt-1.5`}
           value={instruments}
           onChange={(e) => setInstruments(e.target.value)}
-          placeholder="e.g. XAUUSD, EURUSD"
+          placeholder={g.instrumentsPlaceholder}
         />
       </div>
       <div>
         <label className={labelCls} htmlFor="goal-focus">
-          What are you working on right now?
+          {g.focus}
         </label>
         <textarea
           id="goal-focus"
           className={`${inputCls} mt-1.5 min-h-[90px]`}
           value={focus}
           onChange={(e) => setFocus(e.target.value)}
-          placeholder="e.g. Stop moving my stop loss. Stick to London session only."
+          placeholder={g.focusPlaceholder}
           maxLength={2000}
         />
-        <p className="mt-1.5 text-[12px] text-subtle">
-          The AI coach reads this — the more honest, the sharper its feedback.
-        </p>
+        <p className="mt-1.5 text-[12px] text-subtle">{g.focusHelp}</p>
       </div>
       {error && <p className="text-[13px] text-red-600">{error}</p>}
       <div className="flex items-center gap-3 pt-1">
         <button type="submit" disabled={busy} className={primaryBtn}>
-          {busy ? "Saving…" : "Save goals"}
+          {busy ? T.common.saving : g.save}
         </button>
         <Link href="/journal" className={secondaryBtn}>
-          Skip for now
+          {g.skip}
         </Link>
       </div>
     </form>
@@ -402,25 +401,22 @@ export function ConnectWizard({
 }) {
   const [step, setStep] = useState<Step>(initialStep);
   const credentialsFirst = initialStep === "credentials";
+  const c = useT().journalConnect;
 
   return (
     <div className="mx-auto max-w-xl px-5 py-8 sm:px-8 lg:py-10">
       <div className="rise">
-        <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-          AI Trading Assistant · Setup
-        </p>
+        <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{c.eyebrow}</p>
         <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">
-          {step === "credentials" ? "Connect your MT5" : "Set your goals"}
+          {step === "credentials" ? c.titleConnect : c.titleGoals}
         </h1>
         {credentialsFirst && (
           <p className="mt-2 text-[13px] font-semibold text-subtle">
-            Step {step === "credentials" ? "1" : "2"} of 2
+            {fmt(c.stepOf, { n: step === "credentials" ? 1 : 2 })}
           </p>
         )}
         <p className="mt-2 text-[15px] leading-relaxed text-subtle">
-          {step === "credentials"
-            ? "Read-only access via your investor password. Trades import automatically — usually within a few minutes."
-            : "The journal measures every stat and habit against what YOU are trying to achieve."}
+          {step === "credentials" ? c.subConnect : c.subGoals}
         </p>
       </div>
 

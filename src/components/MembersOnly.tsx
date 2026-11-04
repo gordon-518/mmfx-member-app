@@ -1,5 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { getT } from "@/i18n/server";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages/types";
 
 /** Reusable "members-only" lock/upsell panel. Any member-exclusive page renders
  *  this in place of its content when the viewer isn't a funded member. Drives to
@@ -10,32 +13,34 @@ export interface Perk {
   label: string;
 }
 
-const DEFAULT_PERKS: Perk[] = [
-  {
-    label: "Team MM — the private VIP signals channel",
-    icon: (
-      <path d="M4 11l16-7-7 16-2.5-6.5L4 11Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-    ),
-  },
-  {
-    label: "The AI trading journal",
-    icon: (
-      <>
-        <rect x="5" y="3.5" width="14" height="17" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </>
-    ),
-  },
-  {
-    label: "Automated EAs — coming soon",
-    icon: (
-      <>
-        <rect x="4.5" y="7" width="15" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M9 7V4.5M15 7V4.5M9.5 12h.01M14.5 12h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </>
-    ),
-  },
-];
+function defaultPerks(l: Messages["locked"]): Perk[] {
+  return [
+    {
+      label: l.perkTeam,
+      icon: (
+        <path d="M4 11l16-7-7 16-2.5-6.5L4 11Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      ),
+    },
+    {
+      label: l.perkJournal,
+      icon: (
+        <>
+          <rect x="5" y="3.5" width="14" height="17" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </>
+      ),
+    },
+    {
+      label: l.perkEas,
+      icon: (
+        <>
+          <rect x="4.5" y="7" width="15" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M9 7V4.5M15 7V4.5M9.5 12h.01M14.5 12h.01" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </>
+      ),
+    },
+  ];
+}
 
 function PerkIcon({ children }: { children: ReactNode }) {
   return (
@@ -47,15 +52,17 @@ function PerkIcon({ children }: { children: ReactNode }) {
   );
 }
 
-export function MembersOnly({
+export async function MembersOnly({
   feature,
   blurb,
-  perks = DEFAULT_PERKS,
+  perks,
 }: {
   feature: string;
   blurb: string;
   perks?: Perk[];
 }) {
+  const l = (await getT()).locked;
+  const list = perks ?? defaultPerks(l);
   return (
     <div className="mx-auto max-w-xl px-5 py-14 sm:py-20">
       <div className="rise relative overflow-hidden rounded-3xl border border-orange/20 bg-card p-7 text-center shadow-soft-lg sm:p-10">
@@ -74,15 +81,15 @@ export function MembersOnly({
             </svg>
           </span>
 
-          <p className="mt-6 text-[13px] font-semibold uppercase tracking-[0.2em] text-orange">Members only</p>
+          <p className="mt-6 text-[13px] font-semibold uppercase tracking-[0.2em] text-orange">{l.membersOnly}</p>
           <h1 className="mt-2 font-display text-[26px] font-bold leading-tight tracking-tight text-ink sm:text-3xl">
-            {feature} is for MM System members
+            {fmt(l.membersTitle, { feature })}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-subtle">{blurb}</p>
 
           {/* perks */}
           <ul className="mx-auto mt-7 grid max-w-sm gap-2.5 text-left">
-            {perks.map((p, i) => (
+            {list.map((p, i) => (
               <li
                 key={i}
                 className="rise flex items-center gap-3 rounded-xl border border-line bg-paper/60 px-3.5 py-3"
@@ -98,14 +105,12 @@ export function MembersOnly({
             href="/upgrade"
             className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
           >
-            Become a member
+            {l.become}
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="transition-transform group-hover:translate-x-0.5">
               <path d="M3 8h9M8.5 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
-          <p className="mt-3.5 text-[12.5px] text-faint">
-            You&apos;re on a free trial — fund your own broker account to unlock everything.
-          </p>
+          <p className="mt-3.5 text-[12.5px] text-faint">{l.trialNote}</p>
         </div>
       </div>
     </div>

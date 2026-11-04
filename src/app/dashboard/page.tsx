@@ -7,7 +7,14 @@ import { LESSONS, MODULES } from "@/app/course/courseData";
 import type { DimensionScores } from "@/lib/kys/types";
 import { TradingAccountGate } from "./TradingAccountGate";
 import type { SpotlightSlide } from "./Spotlight";
-import { getNews, type NewsItem } from "@/lib/forexNews";
+import { getNews, type NewsCard } from "@/lib/forexNews";
+import { getLocale, getT } from "@/i18n/server";
+import { dayLabel, shortDateLabel } from "@/i18n/dates";
+import { lessonText, moduleText } from "@/i18n/course";
+import { sessionLabel } from "@/lib/sessions";
+import { INTL_LOCALE } from "@/i18n/config";
+import { fmt } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages/types";
 
 function Centered({
   eyebrow,
@@ -41,38 +48,37 @@ function Centered({
 
 // Pure: format an ISO date (YYYY-MM-DD or full timestamp) to "11 Jun". Kept out
 // of the component body so the date read isn't flagged as impure during render.
-function fmtDay(value: string): string {
-  const d = new Date(value.length <= 10 ? `${value}T00:00:00Z` : value);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+// The evergreen slides. Built per request from the reader's dictionary; the
+// course count comes from the syllabus itself rather than a typed "19".
+function evergreenSlides(t: Messages): SpotlightSlide[] {
+  const d = t.dashboard;
+  return [
+    {
+      key: "course",
+      eyebrow: fmt(d.slideCourseEyebrow, { n: LESSONS.length }),
+      title: d.slideCourseTitle,
+      body: d.slideCourseBody,
+      cta: { label: d.slideCourseCta, href: "/course" },
+      image: { src: "/dashboard/spotlight-course.jpg", alt: d.slideCourseAlt },
+    },
+    {
+      key: "fundamental",
+      eyebrow: d.slideFundamentalEyebrow,
+      title: d.slideFundamentalTitle,
+      body: d.slideFundamentalBody,
+      cta: { label: d.slideFundamentalCta, href: "/bots/fundamental" },
+      image: { src: "/dashboard/spotlight-fundamental.jpg", alt: d.slideFundamentalAlt },
+    },
+    {
+      key: "know-your-style",
+      eyebrow: d.slideKysEyebrow,
+      title: d.slideKysTitle,
+      body: d.slideKysBody,
+      cta: { label: d.slideKysCta, href: "/bots/know-your-style" },
+      image: { src: "/dashboard/spotlight-knowstyle.jpg", alt: d.slideKysAlt },
+    },
+  ];
 }
-
-const COURSE_SLIDE: SpotlightSlide = {
-  key: "course",
-  eyebrow: "Education · 19 lessons",
-  title: "Learn the MM System",
-  body: "The full curriculum, basic to advanced — the read, the tools, and how to manage the trade.",
-  cta: { label: "Open the course", href: "/course" },
-  image: { src: "/dashboard/spotlight-course.jpg", alt: "The MM System course on a laptop" },
-};
-
-const FUNDAMENTAL_SLIDE: SpotlightSlide = {
-  key: "fundamental",
-  eyebrow: "Bots · Macro",
-  title: "The Fundamental Desk",
-  body: "The live macro read on gold — the current fundamental picture driving XAU/USD, on demand.",
-  cta: { label: "Open the desk", href: "/bots/fundamental" },
-  image: { src: "/dashboard/spotlight-fundamental.jpg", alt: "MM Analyst fundamental desk on a phone" },
-};
-
-const KNOWSTYLE_SLIDE: SpotlightSlide = {
-  key: "know-your-style",
-  eyebrow: "Bots · Profile",
-  title: "Know Your Style",
-  body: "Find your trader archetype — answer a few questions and get a profile tailored to how you trade.",
-  cta: { label: "Take the quiz", href: "/bots/know-your-style" },
-  image: { src: "/dashboard/spotlight-knowstyle.jpg", alt: "A trader studying gold charts" },
-};
 
 // Whole days from now until an ISO timestamp, rounded up. Kept out of the
 // component body so the time read isn't flagged as impure during render.
@@ -90,14 +96,16 @@ export interface DashboardBrief {
 
 export default async function DashboardPage() {
   const access = await getAccess();
+  const t = await getT();
+  const intl = INTL_LOCALE[await getLocale()];
 
   if (!access.signedIn) {
     return (
       <Centered
-        eyebrow="No session"
-        title="You're not signed in"
-        body="Sign in to open your desk."
-        cta={{ href: "/login", label: "Go to login" }}
+        eyebrow={t.dashboard.notSignedInEyebrow}
+        title={t.dashboard.notSignedInTitle}
+        body={t.dashboard.notSignedInBody}
+        cta={{ href: "/login", label: t.dashboard.goToLogin }}
       />
     );
   }
@@ -105,9 +113,9 @@ export default async function DashboardPage() {
   if (!access.profile) {
     return (
       <Centered
-        eyebrow="Setting up"
-        title="Preparing your desk"
-        body="We couldn't load your profile just yet. Refresh in a moment — if it persists, sign out and back in."
+        eyebrow={t.dashboard.settingUpEyebrow}
+        title={t.dashboard.settingUpTitle}
+        body={t.dashboard.settingUpBody}
       />
     );
   }
@@ -131,7 +139,7 @@ export default async function DashboardPage() {
   // a single upgrade-nudge slide instead of gated content.
   let slides: SpotlightSlide[];
   let brief: DashboardBrief | null = null;
-  let news: NewsItem[] = [];
+  let news: NewsCard[] = [];
   if (locked) {
     // Free plan (conversion-fix 2.3): Daily Analysis is open to every signed-in
     // user, so lead with today's read, then what funding unlocks.
@@ -152,12 +160,10 @@ export default async function DashboardPage() {
         : null;
       slides.push({
         key: "analysis",
-        eyebrow: `Desk · XAU/USD · ${fmtDay(latest.published_on)}`,
+        eyebrow: fmt(t.dashboard.slideAnalysisEyebrow, { date: dayLabel(latest.published_on, intl) }),
         title: latest.title,
-        body:
-          latest.description ??
-          "The read on gold, session by session — bias, levels and the thesis behind them.",
-        cta: { label: "Watch the read", href: "/daily-analysis" },
+        body: latest.description ?? t.dashboard.slideAnalysisBody,
+        cta: { label: t.dashboard.slideAnalysisCta, href: "/daily-analysis" },
         image: coverUrl
           ? { src: coverUrl, alt: latest.title, fit: "contain", dark: true }
           : { src: "/dashboard/spotlight-live.jpg", alt: latest.title },
@@ -165,10 +171,10 @@ export default async function DashboardPage() {
     }
     slides.push({
       key: "upgrade",
-      eyebrow: "Free plan",
-      title: "Unlock the rest of your desk",
-      body: "The indicator suite, the full course, the library and live classes open when you fund your account.",
-      cta: { label: "See what unlocks", href: "/upgrade" },
+      eyebrow: t.dashboard.slideFreeEyebrow,
+      title: t.dashboard.slideFreeTitle,
+      body: t.dashboard.slideFreeBody,
+      cta: { label: t.dashboard.slideFreeCta, href: "/upgrade" },
       image: { src: "/dashboard/spotlight-course.jpg", alt: "" },
     });
   } else {
@@ -199,12 +205,10 @@ export default async function DashboardPage() {
         : null;
       slides.push({
         key: "analysis",
-        eyebrow: `Desk · XAU/USD · ${fmtDay(latest.published_on)}`,
+        eyebrow: fmt(t.dashboard.slideAnalysisEyebrow, { date: dayLabel(latest.published_on, intl) }),
         title: latest.title,
-        body:
-          latest.description ??
-          "The read on gold, session by session — bias, levels and the thesis behind them.",
-        cta: { label: "Watch the read", href: "/daily-analysis" },
+        body: latest.description ?? t.dashboard.slideAnalysisBody,
+        cta: { label: t.dashboard.slideAnalysisCta, href: "/daily-analysis" },
         image: coverUrl
           ? { src: coverUrl, alt: latest.title, fit: "contain", dark: true }
           : { src: "/dashboard/spotlight-live.jpg", alt: latest.title },
@@ -214,27 +218,27 @@ export default async function DashboardPage() {
     if (nextClass) {
       slides.push({
         key: "live",
-        eyebrow: `Live · ${fmtDay(nextClass.starts_at)}`,
+        eyebrow: fmt(t.dashboard.slideLiveEyebrow, { date: dayLabel(nextClass.starts_at, intl) }),
         title: nextClass.title,
-        body: "Live on the charts with the desk. Join the next session and trade it with us.",
-        cta: { label: "Join the class", href: "/live-classes" },
-        image: { src: "/dashboard/spotlight-course-alt.jpg", alt: "Live trading class" },
+        body: t.dashboard.slideLiveBody,
+        cta: { label: t.dashboard.slideLiveCta, href: "/live-classes" },
+        image: { src: "/dashboard/spotlight-course-alt.jpg", alt: t.dashboard.slideLiveAlt },
       });
     }
 
     // Evergreen variety — keep the rotation fresh beyond desk + education.
-    slides.push(COURSE_SLIDE, FUNDAMENTAL_SLIDE, KNOWSTYLE_SLIDE);
+    slides.push(...evergreenSlides(t));
 
     brief = {
       bias: latest?.bias ?? null,
-      session: latest?.session_tag ?? null,
-      latestDate: latest ? fmtDay(latest.published_on) : null,
+      session: sessionLabel(latest?.session_tag, t.dailyAnalysis.sessions),
+      latestDate: latest ? dayLabel(latest.published_on, intl) : null,
       nextClassInDays: nextClass ? daysUntil(nextClass.starts_at) : null,
     };
 
     // Top gold/macro headlines for the dashboard teaser (cached fetch shared
     // with /news, so no extra quota burn).
-    news = (await getNews()).slice(0, 6);
+    news = (await getNews()).slice(0, 6).map((n) => ({ ...n, dateLabel: shortDateLabel(n.date, intl, false) }));
   }
 
   // conversion-fix 4.2 — the onboarding card, for trial and Free users until
@@ -254,12 +258,13 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   // Client-safe syllabus for the track: slugs and titles only.
+  // ...in the reader's language: titles come from the syllabus dictionary.
   const courseTrack = MODULES.map((m) => ({
     id: m.id,
-    title: m.title,
+    title: moduleText(t, m.id, m).title,
     lessons: LESSONS.filter((l) => l.number >= m.from && l.number <= m.to).map((l) => ({
       slug: l.slug,
-      title: l.title,
+      title: lessonText(t, l.slug, l).title,
     })),
   }));
 

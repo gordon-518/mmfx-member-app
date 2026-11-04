@@ -34,7 +34,7 @@ export default async function JournalConnectPage({
       email={profile.email}
       accountStatus={profile.account_status}
       memberTier={gate.viewer.tier}
-      isAdmin
+      isAdmin={profile.is_admin}
     >
       <ConnectWizard
         initialStep={step === "goals" ? "goals" : "credentials"}

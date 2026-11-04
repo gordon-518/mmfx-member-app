@@ -1,4 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { MESSAGES } from "@/i18n/messages";
+import { en } from "@/i18n/messages/en";
+import { LOCALES } from "@/i18n/config";
+import { MONEY_CLAIM, leaves } from "@/i18n/moneyClaims";
 import {
   ONBOARDING_STEPS,
   PUBLIC_CHANNEL_URL,
@@ -20,10 +24,21 @@ describe("onboarding checklist", () => {
     ]);
   });
 
-  it("gives every step a goal and a target to hit after it", () => {
-    for (const s of ONBOARDING_STEPS) {
-      expect(s.goal.length, s.key).toBeGreaterThan(20);
-      expect(s.target.length, s.key).toBeGreaterThan(10);
+  it("gives every step a title, blurb, goal and target in every language", () => {
+    for (const [locale, t] of Object.entries(MESSAGES)) {
+      for (const s of ONBOARDING_STEPS) {
+        const copy = t.onboarding.steps[s.key];
+        expect(copy.title.length, `${locale}/${s.key}`).toBeGreaterThan(2);
+        expect(copy.goal.length, `${locale}/${s.key}`).toBeGreaterThan(8);
+        expect(copy.target.length, `${locale}/${s.key}`).toBeGreaterThan(5);
+      }
+    }
+  });
+
+  it("makes no earnings claims in any language", () => {
+    for (const locale of LOCALES) {
+      const offending = leaves(MESSAGES[locale].onboarding).filter(([, text]) => MONEY_CLAIM[locale].test(text));
+      expect(offending, locale).toEqual([]);
     }
   });
 
@@ -74,26 +89,24 @@ describe("parseOnboarding", () => {
 });
 
 describe("deskPitchFor", () => {
-  it("tailors the tier step to the KYS archetype", () => {
-    expect(deskPitchFor("The Analysis Paralyser")).toMatch(/over-think/);
+  it("tailors the tier step by archetype ID — what profiles actually store", () => {
+    expect(deskPitchFor(en, "analysis_paralyser")).toMatch(/over-think/);
+    expect(deskPitchFor(en, "news_trader")).toMatch(/Fundamental Desk/);
   });
-  it("falls back to the general line", () => {
-    expect(deskPitchFor(null)).toBe(ONBOARDING_STEPS[5].blurb);
-    expect(deskPitchFor("The Unknown Type")).toBe(ONBOARDING_STEPS[5].blurb);
+  it("is in the reader's language, with the Fundamental Desk named as it is everywhere", () => {
+    expect(deskPitchFor(MESSAGES["zh-Hans"], "news_trader")).toMatch(/^Fundamental Desk 会解读/);
+    expect(deskPitchFor(MESSAGES.ms, "news_trader")).toMatch(/^Fundamental Desk membaca faktor makro/);
   });
-  it("keeps every step's own copy free of money claims", () => {
-    for (const s of ONBOARDING_STEPS) {
-      for (const text of [s.title, s.blurb, s.goal, s.target]) {
-        expect(text, s.key).not.toMatch(/\b(profits?|profitable|profitably|returns?|earns?|earnings|guaranteed?|income|rich)\b/i);
-      }
-    }
+  it("no longer matches on a display name, and falls back to the general line", () => {
+    expect(deskPitchFor(en, "The News Trader")).toBe(en.onboarding.steps.desk.blurb);
+    expect(deskPitchFor(en, null)).toBe(en.onboarding.steps.desk.blurb);
+    expect(deskPitchFor(en, "not_an_archetype")).toBe(en.onboarding.steps.desk.blurb);
   });
-
-  it("never promises returns", () => {
-    for (const a of ["The Analysis Paralyser", "The Emotional Revenge Trader", "The Reckless Gambler",
-      "The Signal Dependent", "The Indicator Stacker", "The System Hopper", "The Brand New Beginner", "The News Trader"]) {
-      // Whole words: "learn" contains "earn" and is fine.
-      expect(deskPitchFor(a)).not.toMatch(/\b(profits?|profitable|returns?|earns?|earnings|guaranteed?|income)\b/i);
+  it("covers every archetype in every language", () => {
+    const ids = ["reckless_gambler", "analysis_paralyser", "signal_dependent", "indicator_stacker",
+      "emotional_revenge_trader", "news_trader", "system_hopper", "brand_new_beginner"];
+    for (const t of Object.values(MESSAGES)) {
+      for (const id of ids) expect(deskPitchFor(t, id)).not.toBe(t.onboarding.steps.desk.blurb);
     }
   });
 });

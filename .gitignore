@@ -54,3 +54,6 @@ __pycache__/
 # Agency pack media (128MB of Higgsfield video) — delivered out-of-band, not in git
 agency-pack/assets/higgsfield/
 MMFX-Agency-Pack*.zip
+
+# scripts/auth-email-templates.mjs --apply keeps the pre-push templates here
+supabase/templates/auth-emails.backup.json

@@ -1,0 +1,15 @@
+export const skillTrack = {
+  title: "What you're building",
+  openCourse: "Open the course →",
+  levelOf: "Level {n} of {total}",
+  notStarted: "Not started",
+  lessonsDone: "{done} of {total} lessons",
+  startLesson1: "Start lesson 1: {title}",
+  carryOn: "Carry on: {title}",
+  habits: "Your habits",
+  sixDimensions: "Six dimensions",
+  weakest: "Weakest: {name} — closer to “{pole}” than you want.",
+  notMeasured: "Not measured yet",
+  notMeasuredBody: "Know Your Style scores you on six dimensions and names the habit costing you the most. Six minutes, and this fills in.",
+  takeAssessment: "Take the assessment",
+} as const;

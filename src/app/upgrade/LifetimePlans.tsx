@@ -5,11 +5,14 @@ import {
   LIFETIME_PLANS,
   LIFETIME_PLAN_ORDER,
   CONTACT_TELEGRAM_URL,
+  lifetimeCopy,
   lifetimePrice,
   lifetimeWhatsAppUrl,
   type LifetimePlan,
 } from "@/lib/lifetimePlans";
 import { logUpgradeClick } from "./actions";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
 
 // The US/UK plans on /upgrade (conversion-fix Phase 6). Two lifetime plans,
 // paid once; the trader messages us with the plan named, pays, and an admin
@@ -23,10 +26,12 @@ function track(channel: "whatsapp" | "telegram") {
 }
 
 export function LifetimePlans({ currentPlan }: { currentPlan: LifetimePlan | null }) {
+  const l = useT().upgrade.lifetime;
   return (
     <ol className="mt-3 space-y-3">
       {LIFETIME_PLAN_ORDER.map((plan) => {
         const info = LIFETIME_PLANS[plan];
+        const copy = lifetimeCopy(plan, l);
         const isCurrent = currentPlan === plan;
         const covered = currentPlan === "team_mentorship" && plan === "team";
         const isAddOn = currentPlan === "team" && plan === "team_mentorship";
@@ -40,13 +45,13 @@ export function LifetimePlans({ currentPlan }: { currentPlan: LifetimePlan | nul
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <p className="font-display text-xl font-bold tracking-tight text-ink">{info.name}</p>
               <span className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-                {isCurrent ? "Your plan" : covered ? "Included" : "Lifetime · one payment"}
+                {isCurrent ? l.yourPlan : covered ? l.included : l.oneTime}
               </span>
             </div>
             <p className="mt-1 font-display text-3xl font-bold tracking-tight text-orange">{lifetimePrice(plan)}</p>
-            <p className="mt-1 text-[13.5px] text-subtle">{info.pitch}</p>
+            <p className="mt-1 text-[13.5px] text-subtle">{copy.pitch}</p>
             <ul className="mt-4 space-y-1.5">
-              {info.includes.map((line) => (
+              {copy.includes.map((line) => (
                 <li key={line} className="flex gap-2 text-[13.5px] text-ink">
                   <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-orange" />
                   {line}
@@ -63,7 +68,7 @@ export function LifetimePlans({ currentPlan }: { currentPlan: LifetimePlan | nul
                   className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto"
                 >
                   <WhatsAppIcon className="h-[17px] w-[17px]" />
-                  {isAddOn ? "Add the Mentorship" : `Get ${info.name}`}
+                  {isAddOn ? l.addMentorship : fmt(l.getPlan, { plan: info.name })}
                 </a>
                 <a
                   href={CONTACT_TELEGRAM_URL}
@@ -73,7 +78,7 @@ export function LifetimePlans({ currentPlan }: { currentPlan: LifetimePlan | nul
                   className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto"
                 >
                   <TelegramIcon className="h-[17px] w-[17px]" />
-                  Telegram
+                  {l.telegram}
                 </a>
               </div>
             )}

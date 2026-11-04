@@ -17,6 +17,8 @@ export interface Ebook {
   file: string;
   /** Display-only fields (not used by the delivery route). */
   category: string;
+  /** The category's key in the i18n dictionary (library.categories). */
+  categoryKey: "complete" | "core" | "quickStart";
   tone: EbookTone;
   /** The cornerstone book — rendered as the featured flagship. */
   featured?: boolean;
@@ -32,6 +34,7 @@ export const EBOOKS: Ebook[] = [
       "The full written system, start to finish — every stage of the workflow in one reference you can keep coming back to.",
     file: "MM_System_eBook.pdf",
     category: "Complete system",
+    categoryKey: "complete",
     tone: "ink",
     featured: true,
     whatsInside: [
@@ -46,6 +49,7 @@ export const EBOOKS: Ebook[] = [
     blurb: "The MM System end to end — bias, zone, trigger, risk, manage.",
     file: "01_The_Five_Stage_Workflow.pdf",
     category: "Core",
+    categoryKey: "core",
     tone: "peach",
   },
   {
@@ -54,6 +58,7 @@ export const EBOOKS: Ebook[] = [
     blurb: "When the thesis breaks — where the stop sits and why.",
     file: "02_Decision_Trees_and_Invalidation.pdf",
     category: "Core",
+    categoryKey: "core",
     tone: "ink",
   },
   {
@@ -62,6 +67,7 @@ export const EBOOKS: Ebook[] = [
     blurb: "The desk reference for sessions, levels, and checklists.",
     file: "03_Cheat_Sheets_and_Quick_Reference.pdf",
     category: "Quick-start",
+    categoryKey: "quickStart",
     tone: "paper",
   },
 ];

@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { isDemoUser } from "@/lib/showcase";
 import { ATTR_CID, CID_MAX } from "@/lib/attribution/touch";
+import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from "@/i18n/config";
+import { negotiateLocale } from "@/i18n/negotiate";
 
 // Post-click attribution. Every link we tag carries ?cid=…; this is the one
 // place that sees it, because the reader lands on an ordinary page and the cid
@@ -70,6 +72,43 @@ export async function proxy(request: NextRequest, event?: NextFetchEvent) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // A member's language follows the account: setLocale() writes it to
+  // user_metadata, and here it is copied into this device's cookie when the
+  // two disagree — onto the request too, so this very render is already in
+  // the right language. The auth cookies the session refresh may have just
+  // set are carried across onto the rebuilt response.
+  // The shared showcase account keeps no language of its own: each viewer's
+  // browser decides (setLocale doesn't save it either).
+  const savedLocale = isDemoUser(user?.email) ? undefined : user?.user_metadata?.locale;
+  if (isLocale(savedLocale) && request.cookies.get(LOCALE_COOKIE)?.value !== savedLocale) {
+    request.cookies.set(LOCALE_COOKIE, savedLocale);
+    const carried = supabaseResponse.cookies.getAll();
+    supabaseResponse = NextResponse.next({ request });
+    carried.forEach((c) => supabaseResponse.cookies.set(c));
+    supabaseResponse.cookies.set(LOCALE_COOKIE, savedLocale, {
+      path: "/",
+      maxAge: LOCALE_COOKIE_MAX_AGE,
+      sameSite: "lax",
+    });
+  }
+
+  // A member who never picked a language reads the app in the one their
+  // browser asked for, or one they picked before signing in. Save that once,
+  // so their emails come in the language the app shows them. Never when the
+  // account already holds a value (fn_adopt_locale won't overwrite one, so a
+  // call would only repeat on every request), never for the shared showcase
+  // account. A browser's English needs no saving — it's the default — but an
+  // English the member picked does, or a Chinese browser could adopt over it.
+  const hasSavedLocale = Object.prototype.hasOwnProperty.call(user?.user_metadata ?? {}, "locale");
+  if (user && !isDemoUser(user.email) && !hasSavedLocale) {
+    const picked = request.cookies.get(LOCALE_COOKIE)?.value;
+    const shown = isLocale(picked) ? picked : negotiateLocale(request.headers.get("accept-language"));
+    if (isLocale(picked) || shown !== DEFAULT_LOCALE) {
+      const write = rpc("fn_adopt_locale", { p_user: user.id, p_locale: shown });
+      if (write) event?.waitUntil?.(write);
+    }
+  }
 
   // First-run roadmap gate: brand-new users (signed up on/after the ship date,
   // who haven't dismissed the roadmap) are sent to /welcome once. Uses only the

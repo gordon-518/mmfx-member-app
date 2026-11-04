@@ -1,4 +1,8 @@
 import type { ReactNode } from "react";
+import { getT } from "@/i18n/server";
+import { fmt } from "@/i18n/format";
+import { TRIAL_DAYS } from "@/lib/trial/days";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 /** Visual shell shared by every auth screen (login, signup, forgot password).
  *  Full-bleed warm atmosphere + desktop brand panel; the form column renders
@@ -31,7 +35,9 @@ function Check() {
   );
 }
 
-export function AuthShell({ children }: { children: ReactNode }) {
+export async function AuthShell({ children }: { children: ReactNode }) {
+  const t = await getT();
+  const a = t.auth;
   return (
     <main className="relative flex min-h-screen justify-center overflow-hidden bg-paper">
       {/* Full-bleed warm atmosphere on <main> — its edges are the viewport, not
@@ -51,19 +57,14 @@ export function AuthShell({ children }: { children: ReactNode }) {
 
           <div className="relative max-w-md">
             <h1 className="rise font-display text-4xl font-bold leading-[1.08] tracking-tight text-ink xl:text-5xl" style={{ animationDelay: "0.05s" }}>
-              Trade gold with a system, not a guess.
+              {a.shellHeadline}
             </h1>
             <p className="rise mt-5 text-[15px] leading-relaxed text-subtle" style={{ animationDelay: "0.12s" }}>
-              The full MM System for XAU/USD — indicators, daily analysis, live
-              classes, and signals, in one calm place built for discipline.
+              {a.shellBody}
             </p>
 
             <ul className="rise mt-8 space-y-3.5" style={{ animationDelay: "0.18s" }}>
-              {[
-                "14 days of full access, free",
-                "Daily analysis + a few high-conviction signals a day",
-                "Indicators, the video course & live classes with the desk",
-              ].map((item) => (
+              {[fmt(a.shellPoint1, { n: TRIAL_DAYS }), a.shellPoint2, a.shellPoint3].map((item) => (
                 <li key={item} className="flex items-start gap-3 text-[15px] text-ink">
                   <Check />
                   <span className="leading-snug">{item}</span>
@@ -73,15 +74,20 @@ export function AuthShell({ children }: { children: ReactNode }) {
           </div>
 
           <p className="rise relative text-[13px] text-faint" style={{ animationDelay: "0.24s" }}>
-            Education-first. Trade the London &amp; New York sessions.
+            {a.shellFooter}
           </p>
         </aside>
 
         {/* ---------- Form panel ---------- */}
         <section className="flex items-center justify-center px-6 py-12 sm:px-10">
           <div className="w-full max-w-sm">
-            <div className="mb-10 lg:hidden">
-              <Logo />
+            <div className="mb-8 flex items-center justify-between gap-3">
+              <div className="lg:hidden">
+                <Logo />
+              </div>
+              <div className="ml-auto w-[11.5rem]">
+                <LanguageSwitcher compact />
+              </div>
             </div>
             {children}
           </div>

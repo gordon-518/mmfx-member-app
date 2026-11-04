@@ -10,13 +10,25 @@ import type { RulesResult } from "@/lib/journal/rules";
 import type { Intervention } from "@/lib/journal/interventions";
 import type { GameState } from "@/lib/journal/gamification";
 import { friendlySyncError } from "@/lib/journal/syncError";
+import { journalApiError } from "@/lib/journal/apiErrors";
+import {
+  directionLabel,
+  emotionLabel,
+  sessionLabel,
+  styleLabel,
+  weekdayLabel,
+} from "@/lib/journal/labels";
+import { useLocale, useT } from "@/i18n/client";
+import { INTL_LOCALE } from "@/i18n/config";
+import { fmt, plural } from "@/i18n/format";
+import type { Messages } from "@/i18n/messages/types";
 import { InterventionBanner } from "./InterventionBanner";
 import { JournalHero } from "./JournalHero";
 import { MissionCard } from "./MissionCard";
 import { LeaksToBeat } from "./LeaksToBeat";
 import { RulesCard } from "./RulesCard";
 import { InfoTip } from "./InfoTip";
-import { money, pct, fmtTime, fmtDuration, profitFactorLabel } from "./format";
+import { money, pct, fmtDay, fmtTime, fmtDuration, profitFactorLabel, splitFirst } from "./format";
 import {
   JOURNAL_EMOTIONS,
   type JournalAccountRow,
@@ -30,22 +42,28 @@ import { DrawdownChart, EquityCurveChart, PnlHistogram, RadarChart } from "./cha
 
 // Client half of /journal (Phase 2). Data arrives fully-computed from the server
 // component; mutations go through /api/journal/* and re-render via
-// router.refresh().
+// router.refresh(). Words come from the journal dictionaries; the reader's
+// locale also picks the date format (INTL_LOCALE).
+
+type J = Messages["journal"];
 
 const PAGE_SIZE = 25;
 
-function greeting(): string {
+function greeting(g: J["greeting"]): string {
   const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  return h < 12 ? g.morning : h < 18 ? g.afternoon : g.evening;
 }
 
-const STATE_CHIP: Record<string, { label: string; cls: string }> = {
-  connecting: { label: "Connecting…", cls: "bg-amber-100 text-amber-800" },
-  deployed: { label: "Connected", cls: "bg-accent-soft text-accent-ink" },
-  failed: { label: "Connection failed", cls: "bg-red-100 text-red-700" },
+const STATE_CHIP: Record<string, { key: keyof J["state"]; cls: string }> = {
+  connecting: { key: "connecting", cls: "bg-amber-100 text-amber-800" },
+  deployed: { key: "deployed", cls: "bg-accent-soft text-accent-ink" },
+  failed: { key: "failed", cls: "bg-red-100 text-red-700" },
 };
 
 function AccountCard({ account }: { account: JournalAccountRow }) {
+  const T = useT();
+  const j = T.journal;
+  const intl = INTL_LOCALE[useLocale()];
   const router = useRouter();
   const [busy, setBusy] = useState<"sync" | "disconnect" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -64,24 +82,22 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
       const res = await fetch(`/api/journal/accounts/${account.id}/sync`, {
         method: "POST",
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       setMessage(
-        res.ok ? "Sync queued — refreshing shortly." : body.error ?? "Sync failed"
+        res.ok
+          ? j.account.syncQueued
+          : journalApiError(res.status, body, j.errors, j.account.syncFailed)
       );
       if (res.ok) setTimeout(() => router.refresh(), 8000);
     } catch {
-      setMessage("Network error — please try again");
+      setMessage(j.networkError);
     } finally {
       setBusy(null);
     }
   }
 
   async function disconnect() {
-    if (
-      !window.confirm(
-        "Disconnect this account? Your trade history stays in the journal."
-      )
-    ) {
+    if (!window.confirm(j.account.disconnectConfirm)) {
       return;
     }
     setBusy("disconnect");
@@ -90,9 +106,9 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
         method: "DELETE",
       });
       if (res.ok) router.refresh();
-      else setMessage("Could not disconnect — please try again");
+      else setMessage(j.account.disconnectFailed);
     } catch {
-      setMessage("Network error — please try again");
+      setMessage(j.networkError);
     } finally {
       setBusy(null);
     }
@@ -101,9 +117,9 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
   // Member-safe error copy — never leak MetaApi billing / provisioning / DB
   // detail to the card (the raw string stays in the DB for admin debugging).
   const failMsg =
-    account.state === "failed" ? friendlySyncError(account.state_detail) : null;
+    account.state === "failed" ? friendlySyncError(account.state_detail, T.journalEngine) : null;
   const syncMsg =
-    account.state === "deployed" ? friendlySyncError(account.sync_error) : null;
+    account.state === "deployed" ? friendlySyncError(account.sync_error, T.journalEngine) : null;
 
   return (
     <section className="rise rounded-2xl border border-line bg-card px-5 py-3.5 shadow-soft">
@@ -111,7 +127,7 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
         <span
           className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${chip.cls}`}
         >
-          {chip.label}
+          {j.state[chip.key]}
         </span>
         <div className="flex min-w-0 items-baseline gap-2">
           <h2 className="truncate font-display text-[15px] font-bold text-ink">
@@ -122,18 +138,20 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
           </span>
         </div>
         <span className="hidden text-[12px] text-faint md:inline">
-          Synced {account.last_synced_at ? fmtTime(account.last_synced_at) : "never"}
+          {account.last_synced_at
+            ? fmt(j.synced, { time: fmtTime(account.last_synced_at, intl) })
+            : j.syncedNever}
         </span>
 
         <div className="ml-auto flex items-center gap-4">
           <div className="text-right">
-            <p className="text-[10px] uppercase tracking-wide text-faint">Balance</p>
+            <p className="text-[10px] uppercase tracking-wide text-faint">{j.account.balance}</p>
             <p className="font-display text-[15px] font-bold text-ink">
               {money(account.balance, account.currency)}
             </p>
           </div>
           <div className="hidden text-right sm:block">
-            <p className="text-[10px] uppercase tracking-wide text-faint">Equity</p>
+            <p className="text-[10px] uppercase tracking-wide text-faint">{j.account.equity}</p>
             <p className="font-display text-[15px] font-bold text-ink">
               {money(account.equity, account.currency)}
             </p>
@@ -144,14 +162,14 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
               disabled={busy !== null || account.state !== "deployed"}
               className="cursor-pointer rounded-lg bg-orange px-3 py-1.5 text-[12px] font-semibold text-white transition-all hover:bg-[#f24e12] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {busy === "sync" ? "Queuing…" : "Sync"}
+              {busy === "sync" ? j.account.queuing : j.account.sync}
             </button>
             <button
               onClick={disconnect}
               disabled={busy !== null}
               className="cursor-pointer rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12px] font-semibold text-ink transition-colors hover:border-red-300 hover:text-red-600 disabled:opacity-50"
             >
-              {busy === "disconnect" ? "…" : "Disconnect"}
+              {busy === "disconnect" ? "…" : j.account.disconnect}
             </button>
           </div>
         </div>
@@ -161,7 +179,7 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
         <p className="mt-2 text-[13px] text-red-600">
           {failMsg.message}{" "}
           <Link href="/journal/connect" className="font-semibold underline">
-            Retry
+            {j.account.retry}
           </Link>
         </p>
       )}
@@ -172,7 +190,7 @@ function AccountCard({ account }: { account: JournalAccountRow }) {
             <>
               {" "}
               <Link href="/journal/connect" className="font-semibold underline">
-                Reconnect
+                {j.account.reconnect}
               </Link>
             </>
           )}
@@ -202,6 +220,7 @@ function Kpi({
   infoAlign?: "left" | "right";
   delta?: KpiDelta | null;
 }) {
+  const vsPrev = useT().journal.kpi.vsPrev;
   return (
     <div className="rounded-2xl border border-line bg-card p-4 shadow-soft">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-subtle">
@@ -228,7 +247,7 @@ function Kpi({
           >
             {delta.text}
           </span>
-          <span className="text-faint"> vs prev</span>
+          <span className="text-faint"> {vsPrev}</span>
         </p>
       ) : hint ? (
         <p className="mt-0.5 text-[11px] text-subtle">{hint}</p>
@@ -243,7 +262,7 @@ function kpiDelta(
   cur: number | null | undefined,
   prev: number | null | undefined,
   kind: "money" | "pct" | "num",
-  opts: { higherIsBetter?: boolean; currency?: string | null } = {}
+  opts: { higherIsBetter?: boolean; currency?: string | null; pts?: string } = {}
 ): KpiDelta | null {
   if (cur == null || prev == null) return null;
   const diff = cur - prev;
@@ -255,7 +274,7 @@ function kpiDelta(
     kind === "money"
       ? money(Math.abs(diff), opts.currency ?? undefined)
       : kind === "pct"
-        ? `${(Math.abs(diff) * 100).toFixed(1)} pts`
+        ? fmt(opts.pts ?? "{n} pts", { n: (Math.abs(diff) * 100).toFixed(1) })
         : Math.abs(diff).toFixed(2);
   return { text: `${up ? "▲" : "▼"} ${mag}`, tone: (up === higherIsBetter ? "up" : "down") };
 }
@@ -284,11 +303,15 @@ function BreakdownCard({
   title,
   rows,
   currency,
+  label = (key) => key,
 }: {
   title: string;
   rows: { key: string; count: number; netProfit: number; winRate: number }[];
   currency: string | null;
+  /** The row's name in the reader's language (session and weekday keys are data). */
+  label?: (key: string) => string;
 }) {
+  const c = useT().journal.charts;
   // Sorted horizontal bars read faster than a table for "where do I make money".
   const sorted = [...rows].sort((a, b) => b.netProfit - a.netProfit);
   const max = Math.max(1, ...sorted.map((r) => Math.abs(r.netProfit)));
@@ -296,7 +319,7 @@ function BreakdownCard({
     <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
       <h3 className="mb-2.5 font-display text-[15px] font-bold text-ink">{title}</h3>
       {sorted.length === 0 ? (
-        <p className="text-[13px] text-subtle">No trades in this range.</p>
+        <p className="text-[13px] text-subtle">{c.noTradesInRange}</p>
       ) : (
         <div className="space-y-1">
           {sorted.map((r) => {
@@ -309,7 +332,7 @@ function BreakdownCard({
                 {/* name + P&L on top — money can be any width without breaking */}
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="truncate font-display text-[13px] font-semibold text-ink">
-                    {r.key}
+                    {label(r.key)}
                   </span>
                   <span
                     className={`shrink-0 font-display text-[13px] font-bold tabular-nums ${
@@ -328,7 +351,7 @@ function BreakdownCard({
                     />
                   </div>
                   <span className="shrink-0 text-[10.5px] tabular-nums text-faint">
-                    {pct(r.winRate)} win
+                    {fmt(c.winShare, { pct: pct(r.winRate) })}
                   </span>
                 </div>
               </div>
@@ -352,6 +375,8 @@ function NotesEditor({
   const [emotion, setEmotion] = useState(trade.emotion ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const T = useT();
+  const j = T.journal;
 
   async function save() {
     setBusy(true);
@@ -370,13 +395,13 @@ function NotesEditor({
         }),
       });
       if (!res.ok) {
-        const b = await res.json();
-        setError(b.error ?? "Could not save");
+        const b = await res.json().catch(() => ({}));
+        setError(journalApiError(res.status, b, j.errors, j.trades.saveFailed));
         return;
       }
       onSaved();
     } catch {
-      setError("Network error");
+      setError(j.networkError);
     } finally {
       setBusy(false);
     }
@@ -390,7 +415,7 @@ function NotesEditor({
       <textarea
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        placeholder="What happened on this trade? Setup, execution, mistakes…"
+        placeholder={j.trades.notePlaceholder}
         className={`${inputCls} min-h-[64px]`}
         maxLength={2000}
       />
@@ -398,7 +423,7 @@ function NotesEditor({
         <input
           value={tags}
           onChange={(e) => setTags(e.target.value)}
-          placeholder="tags, comma separated (e.g. breakout, london)"
+          placeholder={j.trades.tagsPlaceholder}
           className={inputCls}
         />
         <select
@@ -406,10 +431,10 @@ function NotesEditor({
           onChange={(e) => setEmotion(e.target.value)}
           className={inputCls}
         >
-          <option value="">How did it feel?</option>
+          <option value="">{j.trades.howFelt}</option>
           {JOURNAL_EMOTIONS.map((e) => (
             <option key={e} value={e}>
-              {e}
+              {emotionLabel(e, T.journalEngine)}
             </option>
           ))}
         </select>
@@ -420,7 +445,7 @@ function NotesEditor({
         disabled={busy}
         className="cursor-pointer rounded-lg bg-orange px-4 py-2 text-[13px] font-semibold text-white transition-all hover:bg-[#f24e12] disabled:opacity-50"
       >
-        {busy ? "Saving…" : "Save journal"}
+        {busy ? T.common.saving : j.trades.save}
       </button>
     </div>
   );
@@ -445,6 +470,9 @@ function TradesTable({
   currency: string | null;
 }) {
   const router = useRouter();
+  const T = useT();
+  const j = T.journal;
+  const intl = INTL_LOCALE[useLocale()];
   const [page, setPage] = useState(0);
   const [openId, setOpenId] = useState<string | null>(null);
   const pages = Math.max(1, Math.ceil(trades.length / PAGE_SIZE));
@@ -453,7 +481,7 @@ function TradesTable({
   return (
     <section className="rounded-2xl border border-line bg-card shadow-soft">
       <div className="flex items-center justify-between px-6 pt-5">
-        <h2 className="font-display text-lg font-bold text-ink">Trade history</h2>
+        <h2 className="font-display text-lg font-bold text-ink">{j.trades.title}</h2>
         {pages > 1 && (
           <div className="flex items-center gap-2 text-[13px] text-subtle">
             <button
@@ -474,20 +502,18 @@ function TradesTable({
           </div>
         )}
       </div>
-      <p className="px-6 pt-1 text-[12px] text-subtle">
-        Click a trade to add a note, tags and how it felt.
-      </p>
+      <p className="px-6 pt-1 text-[12px] text-subtle">{j.trades.hint}</p>
       <div className="mt-3 overflow-x-auto pb-2">
         <table className="w-full min-w-[720px] text-left text-[13px]">
           <thead>
             <tr className="border-b border-line text-[11px] uppercase tracking-wider text-subtle">
-              <th className="px-6 py-2.5 font-semibold">Symbol</th>
-              <th className="px-3 py-2.5 font-semibold">Side</th>
-              <th className="px-3 py-2.5 font-semibold">Lots</th>
-              <th className="px-3 py-2.5 font-semibold">Close</th>
-              <th className="px-3 py-2.5 font-semibold">Duration</th>
-              <th className="px-3 py-2.5 font-semibold">Journal</th>
-              <th className="px-6 py-2.5 text-right font-semibold">Net P&L</th>
+              <th className="px-6 py-2.5 font-semibold">{j.trades.symbol}</th>
+              <th className="px-3 py-2.5 font-semibold">{j.trades.side}</th>
+              <th className="px-3 py-2.5 font-semibold">{j.trades.lots}</th>
+              <th className="px-3 py-2.5 font-semibold">{j.trades.close}</th>
+              <th className="px-3 py-2.5 font-semibold">{j.trades.duration}</th>
+              <th className="px-3 py-2.5 font-semibold">{j.trades.journal}</th>
+              <th className="px-6 py-2.5 text-right font-semibold">{j.trades.netPnl}</th>
             </tr>
           </thead>
           <tbody>
@@ -503,14 +529,14 @@ function TradesTable({
                       t.direction === "buy" ? "text-emerald-600" : "text-red-500"
                     }`}
                   >
-                    {t.direction}
+                    {directionLabel(t.direction, T.journalEngine)}
                   </td>
                   <td className="px-3 py-2.5">{t.volume}</td>
                   <td className="px-3 py-2.5 text-subtle">
-                    {fmtTime(t.close_time)}
+                    {fmtTime(t.close_time, intl)}
                   </td>
                   <td className="px-3 py-2.5 text-subtle">
-                    {fmtDuration(t.duration_sec)}
+                    {fmtDuration(t.duration_sec, j.durations)}
                   </td>
                   <td className="px-3 py-2.5">
                     <span className="flex items-center gap-1.5">
@@ -520,12 +546,12 @@ function TradesTable({
                             EMOTION_CLS[t.emotion] ?? "bg-line text-subtle"
                           }`}
                         >
-                          {t.emotion}
+                          {emotionLabel(t.emotion, T.journalEngine)}
                         </span>
                       )}
                       {t.note && <span title={t.note}>📝</span>}
                       {!t.emotion && !t.note && (
-                        <span className="text-[12px] text-subtle">add…</span>
+                        <span className="text-[12px] text-subtle">{j.trades.add}</span>
                       )}
                     </span>
                   </td>
@@ -563,22 +589,16 @@ function TradesTable({
   );
 }
 
-const STATUS_CHIP: Record<string, { label: string; cls: string }> = {
-  ahead: { label: "Ahead of plan", cls: "bg-emerald-100 text-emerald-700" },
-  on_track: { label: "On track", cls: "bg-sky-100 text-sky-700" },
-  behind: { label: "Behind plan", cls: "bg-amber-100 text-amber-800" },
-  at_risk: { label: "At risk", cls: "bg-red-100 text-red-700" },
+const STATUS_CHIP: Record<string, { key: keyof J["coach"]["status"]; cls: string }> = {
+  ahead: { key: "ahead", cls: "bg-emerald-100 text-emerald-700" },
+  on_track: { key: "on_track", cls: "bg-sky-100 text-sky-700" },
+  behind: { key: "behind", cls: "bg-amber-100 text-amber-800" },
+  at_risk: { key: "at_risk", cls: "bg-red-100 text-red-700" },
 };
-
-// Split off the first sentence so the coach can lead with a punchy verdict and
-// tuck the rest behind a tap.
-function splitFirst(text: string): [string, string] {
-  const m = text.match(/^([\s\S]*?[.!?])\s+([\s\S]*)$/);
-  return m ? [m[1], m[2]] : [text, ""];
-}
 
 function SummaryMore({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
+  const c = useT().journal.coach;
   return (
     <div>
       {open && <p className="mt-1.5 text-[14px] leading-relaxed text-ink/80">{text}</p>}
@@ -587,7 +607,7 @@ function SummaryMore({ text }: { text: string }) {
         onClick={() => setOpen((o) => !o)}
         className="mt-1 cursor-pointer text-[12.5px] font-semibold text-accent-ink hover:underline"
       >
-        {open ? "Hide summary ⌃" : "Read full summary ⌄"}
+        {open ? c.hideSummary : c.readSummary}
       </button>
     </div>
   );
@@ -635,6 +655,10 @@ function CoachCard({
   hasClosedTrades: boolean;
 }) {
   const router = useRouter();
+  const T = useT();
+  const j = T.journal;
+  const c = j.coach;
+  const intl = INTL_LOCALE[useLocale()];
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const outOfQuota = reportsRemaining <= 0;
@@ -646,12 +670,12 @@ function CoachCard({
       const res = await fetch("/api/journal/report/generate", { method: "POST" });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
-        setError(b.error ?? "Could not generate the report");
+        setError(journalApiError(res.status, b, j.errors, c.failed, { cap: reportCap }));
         return;
       }
       router.refresh();
     } catch {
-      setError("Network error — please try again");
+      setError(j.networkError);
     } finally {
       setBusy(false);
     }
@@ -667,21 +691,16 @@ function CoachCard({
             D
           </span>
           <div>
-            <h2 className="font-display text-lg font-bold text-ink">Don’s read</h2>
+            <h2 className="font-display text-lg font-bold text-ink">{c.title}</h2>
             <p className="text-[12px] text-subtle">
-              {report
-                ? `AI coach · ${new Date(report.report_date).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                  })}`
-                : "AI coach"}
+              {report ? fmt(c.aiCoachOn, { date: fmtDay(report.report_date, intl) }) : c.aiCoach}
             </p>
           </div>
           {chip && (
             <span
               className={`ml-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${chip.cls}`}
             >
-              {chip.label}
+              {c.status[chip.key]}
             </span>
           )}
         </div>
@@ -692,17 +711,17 @@ function CoachCard({
             className="cursor-pointer rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {busy
-              ? "Analysing…"
+              ? c.analysing
               : !hasClosedTrades
-                ? "No closed trades yet"
+                ? c.noClosed
                 : outOfQuota
-                  ? "Daily limit reached"
+                  ? c.limitReached
                   : report
-                    ? "Regenerate"
-                    : "Generate today’s report"}
+                    ? c.regenerate
+                    : c.generate}
           </button>
           <span className="text-[11px] text-subtle">
-            {reportsRemaining} of {reportCap} left today
+            {fmt(c.leftToday, { n: reportsRemaining, cap: reportCap })}
           </span>
         </div>
       </div>
@@ -725,7 +744,7 @@ function CoachCard({
               {report.habits.some((h) => h.kind === "good") && (
                 <div>
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                    What&apos;s working
+                    {c.working}
                   </p>
                   <div className="space-y-2">
                     {report.habits
@@ -739,7 +758,7 @@ function CoachCard({
               {report.habits.some((h) => h.kind === "bad") && (
                 <div>
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-amber-700">
-                    What&apos;s leaking
+                    {c.leaking}
                   </p>
                   <div className="space-y-2">
                     {report.habits
@@ -756,7 +775,7 @@ function CoachCard({
           {report.tips.length > 0 && (
             <div>
               <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-subtle">
-                Do this next
+                {c.next}
               </p>
               <div className="space-y-2.5">
                 {report.tips.map((t, i) => {
@@ -778,54 +797,44 @@ function CoachCard({
           )}
         </div>
       ) : (
-        <p className="mt-3 text-[14px] leading-relaxed text-subtle">
-          Generate an AI read of your trading — it measures your habits against
-          your goals, flags what’s working and what isn’t, and gives concrete
-          trade-management tips. Generate one anytime — up to {reportCap} a day.
-        </p>
+        <p className="mt-3 text-[14px] leading-relaxed text-subtle">{fmt(c.empty, { cap: reportCap })}</p>
       )}
     </section>
   );
 }
 
 function GoalsCard({ goals }: { goals: JournalGoalsRow | null }) {
+  const T = useT();
+  const g = T.journal.goals;
   return (
     <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
       <div className="flex items-center justify-between">
-        <p className="text-[12px] font-semibold uppercase tracking-wider text-subtle">
-          Your goals
-        </p>
+        <p className="text-[12px] font-semibold uppercase tracking-wider text-subtle">{g.title}</p>
         <Link
           href="/journal/connect?step=goals"
           className="text-[13px] font-semibold text-accent-ink hover:underline"
         >
-          {goals ? "Edit" : "Set goals"}
+          {goals ? g.edit : g.set}
         </Link>
       </div>
       {goals ? (
         <div className="mt-2 space-y-1 text-[14px] text-ink">
           <p>
             {[
-              goals.style && `${goals.style} trader`,
-              goals.monthly_target_pct != null &&
-                `${goals.monthly_target_pct}%/mo target`,
-              goals.max_drawdown_pct != null &&
-                `${goals.max_drawdown_pct}% max DD`,
-              goals.risk_per_trade_pct != null &&
-                `${goals.risk_per_trade_pct}% risk/trade`,
+              goals.style && styleLabel(goals.style, T.journalEngine),
+              goals.monthly_target_pct != null && fmt(g.target, { n: goals.monthly_target_pct }),
+              goals.max_drawdown_pct != null && fmt(g.maxDd, { n: goals.max_drawdown_pct }),
+              goals.risk_per_trade_pct != null && fmt(g.risk, { n: goals.risk_per_trade_pct }),
             ]
               .filter(Boolean)
-              .join(" · ") || "Goals saved"}
+              .join(" · ") || g.saved}
           </p>
           {goals.focus_text && (
             <p className="text-[13px] italic text-subtle">“{goals.focus_text}”</p>
           )}
         </div>
       ) : (
-        <p className="mt-2 text-[14px] text-subtle">
-          Tell the journal what you’re aiming for — the AI coach measures every
-          habit against it.
-        </p>
+        <p className="mt-2 text-[14px] text-subtle">{g.empty}</p>
       )}
     </section>
   );
@@ -834,13 +843,28 @@ function GoalsCard({ goals }: { goals: JournalGoalsRow | null }) {
 // --- Performance (date-filterable) ------------------------------------------
 
 type RangeKey = "7d" | "30d" | "90d" | "ytd" | "all" | "custom";
-const PRESETS: { key: RangeKey; label: string }[] = [
-  { key: "7d", label: "7D" },
-  { key: "30d", label: "30D" },
-  { key: "90d", label: "90D" },
-  { key: "ytd", label: "YTD" },
-  { key: "all", label: "All" },
+const PRESETS: { key: RangeKey; label: keyof J["performance"]["presets"] }[] = [
+  { key: "7d", label: "d7" },
+  { key: "30d", label: "d30" },
+  { key: "90d", label: "d90" },
+  { key: "ytd", label: "ytd" },
+  { key: "all", label: "all" },
 ];
+
+/** "12 closed trades from 2026-10-05 to today", in the reader's word order. */
+function rangeLine(
+  P: J["performance"],
+  n: number,
+  fromDate: string | null,
+  toDate: string | null,
+  toToday: boolean
+): string {
+  const count = plural(n, P.countOne, P.countOther);
+  if (fromDate && toDate) return fmt(P.rangeFromTo, { count, from: fromDate, to: toDate });
+  if (fromDate) return fmt(toToday ? P.rangeFromToday : P.rangeFrom, { count, from: fromDate });
+  if (toDate) return fmt(P.rangeTo, { count, to: toDate });
+  return count;
+}
 
 function presetStart(key: RangeKey, now: Date): string | null {
   const d = new Date(now);
@@ -863,6 +887,10 @@ function PerformanceSection({
   currency: string | null;
   accountBalance: number | null;
 }) {
+  const T = useT();
+  const j = T.journal;
+  const K = j.kpi;
+  const P = j.performance;
   const [range, setRange] = useState<RangeKey>("30d");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -920,15 +948,15 @@ function PerformanceSection({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-xl font-bold text-ink">Performance</h2>
+        <h2 className="font-display text-xl font-bold text-ink">{P.title}</h2>
         <div className="flex flex-wrap items-center gap-1.5">
           {PRESETS.map((p) => (
             <button key={p.key} onClick={() => setRange(p.key)} className={pill(range === p.key)}>
-              {p.label}
+              {P.presets[p.label]}
             </button>
           ))}
           <button onClick={() => setRange("custom")} className={pill(range === "custom")}>
-            Custom
+            {P.custom}
           </button>
           {range === "custom" && (
             <span className="flex items-center gap-1.5">
@@ -942,122 +970,128 @@ function PerformanceSection({
 
       {closed.length === 0 ? (
         <section className="rounded-2xl border border-line bg-card p-6 text-center shadow-soft">
-          <p className="text-[14px] text-subtle">
-            No closed trades yet — history appears here after the first sync completes.
-          </p>
+          <p className="text-[14px] text-subtle">{P.noClosed}</p>
         </section>
       ) : (
         <>
           <p className="-mt-3 text-[12px] text-subtle">
-            {filtered.length} closed trade{filtered.length === 1 ? "" : "s"}
-            {fromDate ? ` from ${fromDate}` : ""}
-            {toDate ? ` to ${toDate}` : range !== "all" && range !== "custom" ? " to today" : ""}
+            {rangeLine(P, filtered.length, fromDate, toDate, range !== "all" && range !== "custom")}
           </p>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi
-              label="Net P&L"
+              label={K.netPnl}
               value={money(a.netProfit, currency)}
               tone={a.netProfit > 0 ? "up" : a.netProfit < 0 ? "down" : undefined}
-              hint={`${a.closedCount} closed`}
+              hint={fmt(K.netPnlHint, { n: a.closedCount })}
               delta={kpiDelta(a.netProfit, prior?.netProfit ?? null, "money", { currency })}
-              info="Sum of realised profit and loss across the closed trades in this range, after commission and swap."
+              info={K.netPnlInfo}
             />
             <Kpi
-              label="Win rate"
+              label={K.winRate}
               value={pct(a.winRate)}
-              delta={kpiDelta(a.winRate, prior?.winRate ?? null, "pct")}
-              info="Percentage of the closed trades in this range that finished in profit."
+              delta={kpiDelta(a.winRate, prior?.winRate ?? null, "pct", { pts: K.pts })}
+              info={K.winRateInfo}
               infoAlign="right"
             />
             <Kpi
-              label="Profit factor"
+              label={K.profitFactor}
               value={profitFactorLabel(a)}
               delta={kpiDelta(a.profitFactor, prior?.profitFactor ?? null, "num")}
-              info="Gross profit ÷ gross loss. Above 1.0 means your winners outweigh your losers."
+              info={K.profitFactorInfo}
             />
             <Kpi
-              label="Max drawdown"
+              label={K.maxDrawdown}
               value={money(-a.maxDrawdown, currency)}
               tone={a.maxDrawdown > 0 ? "down" : undefined}
               hint={a.maxDrawdownPct == null ? undefined : pct(a.maxDrawdownPct)}
               delta={kpiDelta(a.maxDrawdown, prior?.maxDrawdown ?? null, "money", { higherIsBetter: false, currency })}
-              info="Largest peak-to-trough drop in cumulative P&L over this range."
+              info={K.maxDrawdownInfo}
               infoAlign="right"
             />
             <Kpi
-              label="Payoff (R:R)"
+              label={K.payoff}
               value={a.payoffRatio == null ? "—" : a.payoffRatio.toFixed(2)}
-              hint="avg win ÷ avg loss"
+              hint={K.payoffHint}
               delta={kpiDelta(a.payoffRatio, prior?.payoffRatio ?? null, "num")}
-              info="Average winning trade divided by the average losing trade."
+              info={K.payoffInfo}
             />
             <Kpi
-              label="Expectancy"
+              label={K.expectancy}
               value={money(a.expectancy, currency)}
-              hint="per trade"
+              hint={K.expectancyHint}
               delta={kpiDelta(a.expectancy, prior?.expectancy ?? null, "money", { currency })}
-              info="Average P&L per trade: (win% × avg win) − (loss% × avg loss)."
+              info={K.expectancyInfo}
               infoAlign="right"
             />
             <Kpi
-              label="Best / worst"
+              label={K.bestWorst}
               value={`${money(a.largestWin, currency)} / ${money(a.largestLoss, currency)}`}
-              info="Your single largest winning trade and largest losing trade in this range."
+              info={K.bestWorstInfo}
             />
             <Kpi
-              label="Streaks"
-              value={`${a.longestWinStreak}W · ${a.longestLossStreak}L`}
+              label={K.streaks}
+              value={fmt(K.streaksValue, { w: a.longestWinStreak, l: a.longestLossStreak })}
               hint={
                 a.currentStreak === 0
-                  ? "no current streak"
-                  : `current ${Math.abs(a.currentStreak)}${a.currentStreak > 0 ? "W" : "L"}`
+                  ? K.streakNone
+                  : fmt(a.currentStreak > 0 ? K.streakWin : K.streakLoss, { n: Math.abs(a.currentStreak) })
               }
-              info="Your longest run of consecutive wins and consecutive losses in this range; the hint shows your current active streak."
+              info={K.streaksInfo}
               infoAlign="right"
             />
             <Kpi
-              label="Avg win / loss"
+              label={K.avgWinLoss}
               value={`${money(a.avgWin, currency)} / ${money(a.avgLoss == null ? null : -a.avgLoss, currency)}`}
-              info="Average profit on your winning trades and average loss on your losing trades."
+              info={K.avgWinLossInfo}
             />
             <Kpi
-              label="Avg size"
-              value={a.avgLots == null ? "—" : `${a.avgLots} lots`}
-              info="Average position size, in lots, across the closed trades in this range."
+              label={K.avgSize}
+              value={a.avgLots == null ? "—" : fmt(j.lots, { n: a.avgLots })}
+              info={K.avgSizeInfo}
               infoAlign="right"
             />
             <Kpi
-              label="Max exposure"
-              value={`${a.maxConcurrentOpen} open`}
-              hint="concurrent positions"
-              info="The most positions you had open at the same time in this range."
+              label={K.maxExposure}
+              value={fmt(K.openCount, { n: a.maxConcurrentOpen })}
+              hint={K.maxExposureHint}
+              info={K.maxExposureInfo}
             />
             <Kpi
-              label="Avg hold"
-              value={fmtDuration(a.avgDurationSec)}
-              info="Average time a trade stayed open, from entry to exit."
+              label={K.avgHold}
+              value={fmtDuration(a.avgDurationSec, j.durations)}
+              info={K.avgHoldInfo}
               infoAlign="right"
             />
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <ChartCard title="Cumulative P&L" subtitle="Closed trades, in order">
+            <ChartCard title={j.charts.cumulative} subtitle={j.charts.cumulativeSub}>
               <EquityCurveChart points={a.equityCurve} />
             </ChartCard>
-            <ChartCard title="Drawdown" subtitle="Distance below running peak">
+            <ChartCard title={j.charts.drawdown} subtitle={j.charts.drawdownSub}>
               <DrawdownChart points={a.drawdownCurve} />
             </ChartCard>
           </div>
 
-          <ChartCard title="P&L distribution" subtitle="How your winners and losers are spread">
+          <ChartCard title={j.charts.distribution} subtitle={j.charts.distributionSub}>
             <PnlHistogram bins={a.pnlHistogram} />
           </ChartCard>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <BreakdownCard title="By symbol" rows={a.bySymbol} currency={currency} />
-            <BreakdownCard title="By session" rows={a.bySession} currency={currency} />
-            <BreakdownCard title="By weekday" rows={a.byWeekday} currency={currency} />
+            <BreakdownCard title={j.charts.bySymbol} rows={a.bySymbol} currency={currency} />
+            <BreakdownCard
+              title={j.charts.bySession}
+              rows={a.bySession}
+              currency={currency}
+              label={(k) => sessionLabel(k, T.journalEngine)}
+            />
+            <BreakdownCard
+              title={j.charts.byWeekday}
+              rows={a.byWeekday}
+              currency={currency}
+              label={(k) => weekdayLabel(k, T.journalEngine)}
+            />
           </div>
 
           {filtered.length > 0 && <TradesTable trades={filtered} currency={currency} />}
@@ -1068,10 +1102,11 @@ function PerformanceSection({
 }
 
 function TraderRadar({ analytics, game }: { analytics: JournalAnalytics; game: GameState }) {
+  const j = useT().journal;
   const axes = [
-    { label: "Win rate", value: analytics.winRate ?? 0 },
+    { label: j.kpi.winRate, value: analytics.winRate ?? 0 },
     {
-      label: "Profit",
+      label: j.radar.profit,
       // all-wins (no losers) reads as a full-strength profit axis, not zero
       value:
         analytics.profitFactor == null
@@ -1080,14 +1115,14 @@ function TraderRadar({ analytics, game }: { analytics: JournalAnalytics; game: G
             : 0
           : Math.min(1, analytics.profitFactor / 2.5),
     },
-    { label: "R:R", value: Math.min(1, (analytics.payoffRatio ?? 0) / 3) },
-    { label: "Discipline", value: (game.score ?? 0) / 100 },
-    { label: "Consist.", value: 1 - Math.min(1, analytics.maxDrawdownPct ?? 0) },
+    { label: j.radar.rr, value: Math.min(1, (analytics.payoffRatio ?? 0) / 3) },
+    { label: j.hero.discipline, value: (game.score ?? 0) / 100 },
+    { label: j.radar.consistency, value: 1 - Math.min(1, analytics.maxDrawdownPct ?? 0) },
   ];
   return (
     <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
-      <h3 className="font-display text-[15px] font-bold text-ink">Your trading profile</h3>
-      <p className="mt-0.5 text-[12px] text-subtle">Five dimensions, one glance</p>
+      <h3 className="font-display text-[15px] font-bold text-ink">{j.radar.title}</h3>
+      <p className="mt-0.5 text-[12px] text-subtle">{j.radar.sub}</p>
       <div className="mt-1">
         <RadarChart axes={axes} />
       </div>
@@ -1098,6 +1133,7 @@ function TraderRadar({ analytics, game }: { analytics: JournalAnalytics; game: G
 // Connected, but the first sync hasn't produced closed trades yet. A branded
 // "we're on it" state beats an empty dashboard.
 function FirstRunPanel({ connecting }: { connecting: boolean }) {
+  const f = useT().journal.firstRun;
   return (
     <div className="mt-6 rounded-3xl border border-line bg-card p-8 text-center shadow-soft">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
@@ -1115,12 +1151,10 @@ function FirstRunPanel({ connecting }: { connecting: boolean }) {
         </svg>
       </div>
       <h2 className="mt-4 font-display text-xl font-bold text-ink">
-        {connecting ? "Pulling your trading history…" : "No closed trades yet"}
+        {connecting ? f.pullingTitle : f.noTradesTitle}
       </h2>
       <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-subtle">
-        {connecting
-          ? "We’re importing your trades from MetaTrader — this can take a few minutes. Your dashboard fills in automatically as they land."
-          : "As soon as you close a trade it appears here, and your performance, coach and leaks light up."}
+        {connecting ? f.pullingBody : f.noTradesBody}
       </p>
       <div className="mx-auto mt-6 grid max-w-md grid-cols-3 gap-3" aria-hidden>
         {[0, 1, 2].map((i) => (
@@ -1131,7 +1165,7 @@ function FirstRunPanel({ connecting }: { connecting: boolean }) {
         href="/journal/connect?step=goals"
         className="mt-6 inline-block text-[13px] font-semibold text-accent-ink hover:underline"
       >
-        Set your goals while you wait →
+        {f.setGoals}
       </Link>
     </div>
   );
@@ -1178,8 +1212,12 @@ export function JournalDashboard({
   currency: string | null;
   accountBalance: number | null;
 }) {
+  const T = useT();
+  const j = T.journal;
+  const intl = INTL_LOCALE[useLocale()];
   const closed = trades.filter((t) => t.status === "closed");
   const open = trades.filter((t) => t.status === "open");
+  const hello = greeting(j.greeting);
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 lg:py-10">
@@ -1187,37 +1225,34 @@ export function JournalDashboard({
       <div className="mb-6 flex items-baseline justify-between gap-4">
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">
-            AI Trading Assistant
+            {T.nav.aiAssistant}
           </p>
           <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink">
-            {greeting()}
-            {profileName ? `, ${profileName}` : ""}
+            {profileName ? fmt(j.greeting.named, { greeting: hello, name: profileName }) : hello}
           </h1>
         </div>
         <p className="shrink-0 text-right text-[12px] text-subtle">
           {accounts[0]?.last_synced_at
-            ? `Synced ${fmtTime(accounts[0].last_synced_at)}`
-            : "Not synced"}
+            ? fmt(j.synced, { time: fmtTime(accounts[0].last_synced_at, intl) })
+            : j.notSynced}
           <br />
-          {closed.length} trades
+          {plural(closed.length, j.tradesOne, j.tradesOther)}
         </p>
       </div>
 
       {accounts.length === 0 ? (
         <section className="rise mt-7 rounded-2xl border border-line bg-card p-8 text-center shadow-soft">
           <h2 className="font-display text-xl font-bold text-ink">
-            Connect your MT5 account
+            {j.empty.title}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-subtle">
-            Read-only via your investor password — we can never trade or
-            withdraw, and your password is never stored. Your history imports
-            automatically.
+            {j.empty.body}
           </p>
           <Link
             href="/journal/connect"
             className="mt-5 inline-block cursor-pointer rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
           >
-            Connect MT5
+            {j.empty.cta}
           </Link>
         </section>
       ) : (
@@ -1260,7 +1295,7 @@ export function JournalDashboard({
               {open.length > 0 && (
                 <section className="rounded-2xl border border-line bg-card p-5 shadow-soft">
                   <p className="text-[12px] font-semibold uppercase tracking-wider text-subtle">
-                    Open positions ({open.length})
+                    {fmt(j.openPositions, { n: open.length })}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {open.map((t) => (
@@ -1273,9 +1308,9 @@ export function JournalDashboard({
                             t.direction === "buy" ? "text-emerald-600" : "text-red-500"
                           }`}
                         >
-                          {t.direction}
+                          {directionLabel(t.direction, T.journalEngine)}
                         </span>
-                        {t.symbol} · {t.volume} lots
+                        {fmt(j.positionLine, { symbol: t.symbol, volume: t.volume })}
                       </span>
                     ))}
                   </div>

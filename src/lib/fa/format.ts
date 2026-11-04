@@ -3,7 +3,12 @@
 // one set of rules, and the arithmetic is unit-tested.
 
 import type { Analysis, Invalidation, SummaryInstrument } from "./types";
-import { ASSET_CLASS_LABELS, deskInstrument } from "./types";
+import { ASSET_CLASS_ORDER, deskInstrument } from "./types";
+import { fmt } from "@/i18n/format";
+import { en } from "@/i18n/messages/en";
+import type { Messages } from "@/i18n/messages/types";
+
+type Desk = Messages["fundamental"];
 
 /**
  * Decimals a price level is quoted to. The desk's own dashboard prints
@@ -71,32 +76,41 @@ export function humanize(text: string | null | undefined): string {
 /** "12m ago" / "3h 5m ago" — relative to `now` so it stays testable. */
 export function formatAge(
   iso: string | null | undefined,
-  now: number = Date.now()
+  now: number = Date.now(),
+  w: Pick<Desk, "ageMinutes" | "ageHours"> = en.fundamental
 ): string {
   if (!iso) return "—";
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "—";
   const minutes = Math.max(0, Math.round((now - then) / 60_000));
-  if (minutes < 60) return `${minutes}m ago`;
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m ago`;
+  if (minutes < 60) return fmt(w.ageMinutes, { m: minutes });
+  return fmt(w.ageHours, { h: Math.floor(minutes / 60), m: minutes % 60 });
 }
 
-/** "21 Oct, 07:01 UTC" — the desk quotes every timestamp in UTC. */
-export function formatUtc(iso: string | null | undefined): string {
+/**
+ * "21 Oct, 07:01 UTC" — the desk quotes every timestamp in UTC. `intl` is the
+ * reader's Intl locale; call this on the server (see src/i18n/dates.ts).
+ */
+export function formatUtc(
+  iso: string | null | undefined,
+  intl = "en-GB",
+  stamp: string = en.fundamental.utcStamp
+): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  const date = d.toLocaleDateString("en-GB", {
+  const date = d.toLocaleDateString(intl, {
     day: "2-digit",
     month: "short",
     timeZone: "UTC",
   });
-  const time = d.toLocaleTimeString("en-GB", {
+  const time = d.toLocaleTimeString(intl, {
     hour: "2-digit",
     minute: "2-digit",
+    hourCycle: "h23",
     timeZone: "UTC",
   });
-  return `${date}, ${time} UTC`;
+  return fmt(stamp, { date, time });
 }
 
 export interface TheLine {
@@ -164,9 +178,16 @@ export function inWatchZone(
 }
 
 /** "Holds while price stays below the H4 50 EMA" — one line, from the filter. */
-export function trendFilterSentence(a: Analysis): string {
+export function trendFilterSentence(a: Analysis, w: Desk["thesis"] = en.fundamental.thesis): string {
   const tf = a.invalidation.trend_filter;
-  return `Holds while price stays ${tf.required_position} the ${tf.timeframe} ${tf.period} ${tf.indicator}`;
+  // The desk writes "above" / "below"; anything else is shown as it came.
+  const position =
+    tf.required_position === "above"
+      ? w.positionAbove
+      : tf.required_position === "below"
+        ? w.positionBelow
+        : tf.required_position;
+  return fmt(w.trendHolds, { position, filter: `${tf.timeframe} ${tf.period} ${tf.indicator}` });
 }
 
 export interface AssetGroup {
@@ -180,10 +201,13 @@ export interface AssetGroup {
  * instruments outside our registry are dropped: we can't name them or link to
  * them safely, and showing an untitled tile is worse than showing none.
  */
-export function groupByAssetClass(rows: SummaryInstrument[]): AssetGroup[] {
-  return ASSET_CLASS_LABELS.map(({ key, label }) => ({
+export function groupByAssetClass(
+  rows: SummaryInstrument[],
+  labels: Desk["assetClasses"] = en.fundamental.assetClasses
+): AssetGroup[] {
+  return ASSET_CLASS_ORDER.map((key) => ({
     key,
-    label,
+    label: labels[key],
     items: rows.filter((r) => deskInstrument(r.id)?.assetClass === key),
   })).filter((g) => g.items.length > 0);
 }

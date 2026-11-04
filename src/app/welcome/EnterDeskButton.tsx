@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useT } from "@/i18n/client";
 
 // Getting out of here and into the app.
 //
@@ -27,6 +28,7 @@ export function MarkRoadmapSeen() {
 
 export function EnterDeskButton({ variant = "primary" }: { variant?: "primary" | "header" }) {
   const [loading, setLoading] = useState(false);
+  const t = useT();
 
   async function enter() {
     setLoading(true);
@@ -59,7 +61,7 @@ export function EnterDeskButton({ variant = "primary" }: { variant?: "primary" |
         disabled={loading}
         className="group inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-4 py-2 text-[13px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {loading ? "Opening…" : "Enter your desk"}
+        {loading ? t.welcome.opening : t.welcome.enterDesk}
         {arrow}
       </button>
     );
@@ -72,7 +74,7 @@ export function EnterDeskButton({ variant = "primary" }: { variant?: "primary" |
       disabled={loading}
       className="group inline-flex cursor-pointer items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg disabled:cursor-not-allowed disabled:opacity-70"
     >
-      {loading ? "Opening…" : "Enter your desk"}
+      {loading ? t.welcome.opening : t.welcome.enterDesk}
       {arrow}
     </button>
   );

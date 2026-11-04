@@ -3,6 +3,7 @@ import { serviceClient } from "@/lib/journal/api";
 import { sendEmail } from "@/lib/sendpulse";
 import { depositDmReminderEmail } from "@/lib/depositEmails";
 import { depositRef } from "@/lib/depositRef";
+import { emailLocales } from "@/lib/email/locale";
 
 // The 24-hour "message Admin Amelia" reminder (Gordon, 15 Sep). A member who
 // submitted a deposit but hasn't clicked "Message Admin Amelia" within 24
@@ -40,12 +41,14 @@ async function run(req: NextRequest) {
   }
 
   const due = (data ?? []) as DueReminder[];
+  const locales = await emailLocales(db, due.map((r) => r.member_id));
   let sent = 0;
   for (const r of due) {
     const mail = depositDmReminderEmail({
       name: r.full_name,
       amount: Number(r.amount),
       ref: depositRef(r.member_id),
+      locale: locales?.get(r.member_id) ?? "en",
     });
     const res = await sendEmail({ to: { name: r.full_name ?? r.email, email: r.email }, from: FROM, ...mail });
     if (res.ok) sent += 1;

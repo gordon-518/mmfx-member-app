@@ -2,6 +2,9 @@ import { requireFeature } from "@/lib/access";
 import { LockedFeature } from "@/components/LockedFeature";
 import { AppShell } from "@/components/AppShell";
 import { ExternalIcon, SignalsIcon, AnalysisIcon } from "@/components/icons";
+import { RiskNotice } from "@/components/RiskNotice";
+import { getLocale, getT } from "@/i18n/server";
+import type { Messages } from "@/i18n/messages/types";
 
 // ---------------------------------------------------------------------------
 // Telegram destinations. VIP is live; the three below are PLACEHOLDERS — Gordon
@@ -16,12 +19,14 @@ const TELEGRAM_ANDROID = "https://play.google.com/store/apps/details?id=org.tele
 
 // Operational facts (not return promises) — Gordon confirms/edits. Real
 // performance lives in the weekly-performance channel linked below.
-const SIGNAL_STATS = [
-  { label: "Calls a day", value: "3–5" },
-  { label: "Risk : reward", value: "1 : 2+" },
-  { label: "Sessions", value: "London · NY" },
-  { label: "Performance recap", value: "Weekly" },
-];
+function signalStats(s: Messages["signals"]) {
+  return [
+    { label: s.statCalls, value: "3–5" },
+    { label: s.statRr, value: "1 : 2+" },
+    { label: s.statSessions, value: s.statSessionsValue },
+    { label: s.statRecap, value: s.statRecapValue },
+  ];
+}
 // ---------------------------------------------------------------------------
 
 function TelegramIcon({ size = 16 }: { size?: number }) {
@@ -32,48 +37,38 @@ function TelegramIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-const CHANNELS = [
-  {
-    key: "performance",
-    title: "Weekly Performance",
-    desc: "Every week's results posted in full — the track record, in the open.",
-    href: PERFORMANCE_URL,
-    icon: AnalysisIcon,
-  },
-  {
-    key: "feedback",
-    title: "Community & Feedback",
-    desc: "Real member feedback and results from people trading the calls.",
-    href: FEEDBACK_URL,
-    icon: SignalsIcon,
-  },
-];
+function channels(s: Messages["signals"]) {
+  return [
+    { key: "performance", title: s.performanceTitle, desc: s.performanceBody, href: PERFORMANCE_URL, icon: AnalysisIcon },
+    { key: "feedback", title: s.feedbackTitle, desc: s.feedbackBody, href: FEEDBACK_URL, icon: SignalsIcon },
+  ];
+}
 
 export default async function SignalsPage() {
   // Gate (conversion-fix 2.2): signed-out -> /login; locked -> preview.
   const gate = await requireFeature("signals");
   if (gate.locked) return <LockedFeature feature="signals" gate={gate} />;
   const profile = gate.profile;
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  const s = t.signals;
 
   return (
     <AppShell email={profile.email} accountStatus={profile.account_status} memberTier={gate.viewer.tier} isAdmin={profile.is_admin}>
       <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:py-10">
         {/* Header */}
         <div className="rise">
-          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">Live · XAU/USD</p>
-          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">The signals desk</h1>
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">
-            A few high-conviction gold calls a day — entry, stop and target, written down before the
-            click. No filler. When there&apos;s nothing worth taking, we say so.
-          </p>
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{s.eyebrow}</p>
+          <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{s.title}</h1>
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{s.subtitle}</p>
+          {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{s.contentNote}</p>}
         </div>
 
         {/* Stats strip */}
         <div className="rise mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {SIGNAL_STATS.map((s) => (
-            <div key={s.label} className="rounded-2xl border border-line bg-card p-4 shadow-soft">
-              <p className="font-display text-xl font-bold tracking-tight text-ink">{s.value}</p>
-              <p className="mt-0.5 text-[12px] text-subtle">{s.label}</p>
+          {signalStats(s).map((stat) => (
+            <div key={stat.label} className="rounded-2xl border border-line bg-card p-4 shadow-soft">
+              <p className="font-display text-xl font-bold tracking-tight text-ink">{stat.value}</p>
+              <p className="mt-0.5 text-[12px] text-subtle">{stat.label}</p>
             </div>
           ))}
         </div>
@@ -89,23 +84,21 @@ export default async function SignalsPage() {
             <SignalsIcon width={26} height={26} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">Live · Telegram</p>
-            <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-ink">MMFX Signals Channel</h2>
-            <p className="mt-1 text-[14px] leading-relaxed text-subtle">
-              The calls post here as they&apos;re taken. Turn notifications on so you don&apos;t miss the window.
-            </p>
+            <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{s.channelEyebrow}</p>
+            <h2 className="mt-1 font-display text-xl font-bold tracking-tight text-ink">{s.channelTitle}</h2>
+            <p className="mt-1 text-[14px] leading-relaxed text-subtle">{s.channelBody}</p>
           </div>
           <span className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-orange px-5 py-3 text-[14px] font-semibold text-white shadow-soft transition-all group-hover:bg-[#f24e12]">
-            Open the channel <ExternalIcon width={15} height={15} />
+            {s.openChannel} <ExternalIcon width={15} height={15} />
           </span>
         </a>
 
         {/* Other channels */}
         <p className="rise mb-4 mt-10 text-[12px] font-semibold uppercase tracking-wider text-faint">
-          More from the desk
+          {s.more}
         </p>
         <div className="rise grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {CHANNELS.map((c) => (
+          {channels(s).map((c) => (
             <a
               key={c.key}
               href={c.href}
@@ -119,7 +112,7 @@ export default async function SignalsPage() {
               <h3 className="mt-4 font-display text-[16px] font-bold tracking-tight text-ink">{c.title}</h3>
               <p className="mt-1.5 flex-1 text-[13px] leading-relaxed text-subtle">{c.desc}</p>
               <span className="mt-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-orange transition-colors group-hover:text-accent-ink">
-                Open on Telegram <ExternalIcon width={13} height={13} />
+                {s.openTelegram} <ExternalIcon width={13} height={13} />
               </span>
             </a>
           ))}
@@ -131,10 +124,8 @@ export default async function SignalsPage() {
             <TelegramIcon size={24} />
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="font-display text-[17px] font-bold tracking-tight text-ink">New to Telegram?</h3>
-            <p className="mt-1 text-[14px] leading-relaxed text-subtle">
-              Every channel above lives on Telegram. Grab the free app, then tap any link to join.
-            </p>
+            <h3 className="font-display text-[17px] font-bold tracking-tight text-ink">{s.newTitle}</h3>
+            <p className="mt-1 text-[14px] leading-relaxed text-subtle">{s.newBody}</p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2.5">
             <a
@@ -158,10 +149,7 @@ export default async function SignalsPage() {
 
         {/* Compliance footer */}
         <footer className="mt-10 border-t border-line pt-6">
-          <p className="text-[12px] leading-relaxed text-faint">
-            Trading involves risk, including the possible loss of capital. No returns are guaranteed.
-            Past performance is not indicative of future results.
-          </p>
+          <RiskNotice pastPerformance className="text-[12px] leading-relaxed text-faint" />
         </footer>
       </div>
     </AppShell>

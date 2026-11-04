@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { grantTVAccess } from "@/lib/tv/client";
 import { tvEntitlement, type TvProfileRow } from "@/lib/tv/resolveTvAccounts";
-import { validateTradingViewUsername } from "@/lib/tvUsername";
+import { tvErrorCodeFromDb, validateTradingViewUsername } from "@/lib/tvUsername";
 
 
 export async function setTradingViewUsernameFromStrategies(formData: FormData) {
@@ -13,7 +13,7 @@ export async function setTradingViewUsernameFromStrategies(formData: FormData) {
 
   const check = validateTradingViewUsername(username);
   if (!check.ok) {
-    redirect(`/strategies?tv_error=${encodeURIComponent(check.message)}`);
+    redirect(`/strategies?tv_error=${check.code}`);
   }
 
   const supabase = await createClient();
@@ -29,7 +29,7 @@ export async function setTradingViewUsernameFromStrategies(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/strategies?tv_error=${encodeURIComponent(error.message)}`);
+    redirect(`/strategies?tv_error=${tvErrorCodeFromDb(error.message)}`);
   }
 
   // Grant TV access immediately — non-blocking, cron is the safety net

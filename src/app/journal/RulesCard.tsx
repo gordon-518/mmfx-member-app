@@ -4,11 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Breach, RulesResult } from "@/lib/journal/rules";
 import type { JournalRulesConfig, JournalTradeRow } from "@/lib/journal/types";
+import { directionLabel, sessionLabel } from "@/lib/journal/labels";
+import { journalApiError } from "@/lib/journal/apiErrors";
+import { useLocale, useT } from "@/i18n/client";
+import { INTL_LOCALE } from "@/i18n/config";
+import { fmt, plural } from "@/i18n/format";
+import { fmtDay } from "./format";
 
 // Discipline rules editor + per-rule adherence + breach log. The discipline
 // score itself now lives in the hero ring (JournalHero); this card owns the
 // rules the score is measured against. PUT /api/journal/rules → router.refresh().
 
+// The session keys the rules config stores (sessionOf's names); the buttons
+// show them in the reader's language.
 const SESSIONS = ["London", "New York", "Asian"] as const;
 
 function BreachRow({
@@ -19,6 +27,8 @@ function BreachRow({
   tradesById: Map<string, JournalTradeRow>;
 }) {
   const [open, setOpen] = useState(false);
+  const T = useT();
+  const intl = INTL_LOCALE[useLocale()];
   const when = breach.when.slice(0, 10);
   return (
     <div className="rounded-xl border border-line p-3">
@@ -40,12 +50,16 @@ function BreachRow({
             return (
               <div key={id} className="flex justify-between text-subtle">
                 <span>
-                  {t.symbol} {t.direction} · {t.volume} lots ·{" "}
-                  {t.close_time ? new Date(t.close_time).toLocaleDateString() : ""}
+                  {fmt(T.journal.trades.line, {
+                    symbol: t.symbol,
+                    side: directionLabel(t.direction, T.journalEngine),
+                    volume: t.volume,
+                    date: fmtDay(t.close_time, intl),
+                  })}
                 </span>
                 <span className={t.net_profit < 0 ? "text-red-600" : "text-emerald-600"}>
                   {t.net_profit < 0 ? "−" : "+"}$
-                  {Math.abs(t.net_profit).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  {Math.abs(t.net_profit).toLocaleString("en-US", { maximumFractionDigits: 2 })}
                 </span>
               </div>
             );
@@ -128,6 +142,8 @@ function RulesEditor({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const T = useT();
+  const r = T.journal.rules;
   const [draft, setDraft] = useState<Draft>(config);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -146,13 +162,13 @@ function RulesEditor({
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
-        setError(b.error ?? "Could not save rules");
+        setError(journalApiError(res.status, b, T.journal.errors, r.saveFailed));
         return;
       }
       onClose();
       router.refresh();
     } catch {
-      setError("Network error — please try again");
+      setError(T.journal.networkError);
     } finally {
       setBusy(false);
     }
@@ -161,28 +177,28 @@ function RulesEditor({
   return (
     <div className="mt-4 rounded-xl border border-line bg-paper/50 p-4">
       <NumRule
-        label="Max daily loss"
+        label={r.maxDailyLoss}
         rule={draft.max_daily_loss}
         set={(v) => patch("max_daily_loss", v)}
         pctToggle
       />
       <NumRule
-        label="Max trades per day"
+        label={r.maxTrades}
         rule={draft.max_trades_per_day}
         set={(v) => patch("max_trades_per_day", v)}
-        suffix="trades"
+        suffix={r.tradesUnit}
       />
       <NumRule
-        label="Stop after N losses in a row"
+        label={r.consecLosses}
         rule={draft.max_consec_losses}
         set={(v) => patch("max_consec_losses", v)}
-        suffix="losses"
+        suffix={r.lossesUnit}
       />
       <NumRule
-        label="Max position size"
+        label={r.maxLots}
         rule={draft.max_lots}
         set={(v) => patch("max_lots", v)}
-        suffix="lots"
+        suffix={r.lotsUnit}
       />
       <div className="flex items-center gap-2 border-t border-line/60 py-2.5">
         <input
@@ -191,8 +207,8 @@ function RulesEditor({
           onChange={(e) => patch("instruments_only", { enabled: e.target.checked })}
           className="h-4 w-4 accent-orange"
         />
-        <span className="text-[13px] font-medium text-ink">Trade only my instruments</span>
-        <span className="text-[11px] text-subtle">(from your goals)</span>
+        <span className="text-[13px] font-medium text-ink">{r.instrumentsOnly}</span>
+        <span className="text-[11px] text-subtle">{r.fromGoals}</span>
       </div>
       <div className="border-t border-line/60 py-2.5">
         <label className="flex items-center gap-2">
@@ -204,7 +220,7 @@ function RulesEditor({
             }
             className="h-4 w-4 accent-orange"
           />
-          <span className="text-[13px] font-medium text-ink">Trade only these sessions</span>
+          <span className="text-[13px] font-medium text-ink">{r.sessionsOnly}</span>
         </label>
         <div className="mt-2 flex flex-wrap gap-2 pl-6">
           {SESSIONS.map((s) => {
@@ -224,7 +240,7 @@ function RulesEditor({
                   on ? "bg-orange text-white" : "border border-line-strong text-ink"
                 }`}
               >
-                {s}
+                {sessionLabel(s, T.journalEngine)}
               </button>
             );
           })}
@@ -238,13 +254,13 @@ function RulesEditor({
           disabled={busy}
           className="cursor-pointer rounded-lg bg-orange px-4 py-2 text-[13px] font-semibold text-white transition-all hover:bg-[#f24e12] disabled:opacity-50"
         >
-          {busy ? "Saving…" : "Save rules"}
+          {busy ? T.common.saving : r.save}
         </button>
         <button
           onClick={onClose}
           className="cursor-pointer rounded-lg border border-line-strong px-4 py-2 text-[13px] font-semibold text-ink"
         >
-          Cancel
+          {T.common.cancel}
         </button>
       </div>
     </div>
@@ -263,18 +279,20 @@ export function RulesCard({
   trades: JournalTradeRow[];
 }) {
   const [editing, setEditing] = useState(false);
+  const T = useT();
+  const r = T.journal.rules;
   const tradesById = new Map(trades.map((t) => [t.id, t]));
   const hasRules = rules.perRule.length > 0;
 
   return (
     <section id="rules" className="rounded-2xl border border-line bg-card p-6 shadow-soft">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg font-bold text-ink">Discipline rules</h2>
+        <h2 className="font-display text-lg font-bold text-ink">{r.title}</h2>
         <button
           onClick={() => setEditing((e) => !e)}
           className="text-[13px] font-semibold text-accent-ink hover:underline"
         >
-          {editing ? "Close" : hasRules ? "Edit rules" : "Set rules"}
+          {editing ? T.common.close : hasRules ? r.edit : r.set}
         </button>
       </div>
 
@@ -285,16 +303,16 @@ export function RulesCard({
               <div key={p.rule} className="flex items-center justify-between text-[13px]">
                 <span className="text-ink">{p.title}</span>
                 {p.inert ? (
-                  <span className="text-[12px] text-amber-700">set instruments in goals</span>
+                  <span className="text-[12px] text-amber-700">{r.inert}</span>
                 ) : (
                   <span
                     className={`font-semibold ${
                       p.breachCount === 0 ? "text-emerald-600" : "text-amber-600"
                     }`}
                   >
-                    {p.kept}/{p.total} {p.unit}s clean
+                    {fmt(p.unit === "day" ? r.daysClean : r.tradesClean, { kept: p.kept, total: p.total })}
                     {p.breachCount > 0
-                      ? ` · ${p.breachCount} break${p.breachCount > 1 ? "s" : ""}`
+                      ? ` · ${plural(p.breachCount, r.breaksOne, r.breaksOther)}`
                       : ""}
                   </span>
                 )}
@@ -305,7 +323,7 @@ export function RulesCard({
           {rules.breaches.length > 0 && (
             <div className="mt-5">
               <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-subtle">
-                Recent breaks
+                {r.recent}
               </p>
               <div className="space-y-2">
                 {rules.breaches.slice(0, 8).map((b, i) => (
@@ -317,11 +335,7 @@ export function RulesCard({
         </>
       ) : (
         !editing && (
-          <p className="mt-3 text-[14px] leading-relaxed text-subtle">
-            Set your own trading rules — a daily loss cap, a trade limit, position
-            size, sessions. The journal checks your synced trades against them and
-            builds your discipline score and streak.
-          </p>
+          <p className="mt-3 text-[14px] leading-relaxed text-subtle">{r.empty}</p>
         )
       )}
 

@@ -68,3 +68,16 @@ describe("parseReportMarkdown", () => {
     expect(parseReportMarkdown("")).toEqual([]);
   });
 });
+
+describe('the italic footer', () => {
+  it('becomes a note, without its asterisks', () => {
+    const blocks = parseReportMarkdown('Body.\n\n---\n*交易涉及风险。*\n\n*Trading involves risk.*');
+    expect(blocks.map(b => b.kind)).toEqual(['paragraph', 'note', 'note']);
+    expect(blocks[2]).toEqual({ kind: 'note', spans: [{ text: 'Trading involves risk.', bold: false }] });
+  });
+
+  it('leaves bold lines and bullets alone', () => {
+    expect(parseReportMarkdown('**All bold**')[0].kind).toBe('paragraph');
+    expect(parseReportMarkdown('* a bullet')[0].kind).toBe('list');
+  });
+});

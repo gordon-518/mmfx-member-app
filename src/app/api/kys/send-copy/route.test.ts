@@ -34,9 +34,10 @@ const fullMember = {
   daysLeft: 5,
 };
 
+// The client sends the archetype's ID; the route names it for the email.
 const validBody = {
-  archetype: "The Sniper",
-  resultHtml: "<html><body><h1>The Sniper</h1></body></html>",
+  archetype: "news_trader",
+  resultHtml: "<html><body><h1>The News Trader</h1></body></html>",
 };
 
 beforeEach(() => {
@@ -86,14 +87,14 @@ describe("POST /api/kys/send-copy", () => {
 
   it("missing resultHtml → 400", async () => {
     getAccessMock.mockResolvedValue(fullMember);
-    const res = await POST(req({ archetype: "The Sniper" }));
+    const res = await POST(req({ archetype: "news_trader" }));
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ ok: false, reason: "bad_payload" });
   });
 
   it("empty resultHtml → 400", async () => {
     getAccessMock.mockResolvedValue(fullMember);
-    const res = await POST(req({ archetype: "X", resultHtml: "   " }));
+    const res = await POST(req({ archetype: "news_trader", resultHtml: "   " }));
     expect(res.status).toBe(400);
   });
 
@@ -108,7 +109,7 @@ describe("POST /api/kys/send-copy", () => {
     const arg = sendEmailMock.mock.calls[0][0];
     expect(arg.to.email).toBe("me@example.com"); // session email, never the payload
     expect(arg.from.email).toBe("hello@marketmakersfx.net");
-    expect(arg.subject).toBe("Your Know Your Style result — The Sniper");
+    expect(arg.subject).toBe("Your Know Your Style result — The News Trader");
     expect(arg.html).toBe(validBody.resultHtml); // resultHtml used directly
     expect(arg.attachments).toBeUndefined();
   });
@@ -123,18 +124,37 @@ describe("POST /api/kys/send-copy", () => {
     const [book, email, vars] = addContactToBookMock.mock.calls[0];
     expect(book).toBe("kysbook");
     expect(email).toBe("me@example.com");
-    expect(vars.kys_archetype).toBe("The Sniper");
+    // SendPulse keeps getting the English display name, as it always has.
+    expect(vars.kys_archetype).toBe("The News Trader");
     expect(vars.kys_last_used).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
-  it("records completion on the profile via fn_mark_kys_completed", async () => {
+  it("records completion on the profile with the archetype ID, never the name", async () => {
     getAccessMock.mockResolvedValue(fullMember);
     sendEmailMock.mockResolvedValue({ ok: true, detail: {} });
 
     await POST(req(validBody));
     expect(rpcMock).toHaveBeenCalledWith("fn_mark_kys_completed", {
-      p_archetype: "The Sniper",
+      p_archetype: "news_trader",
     });
+  });
+
+  it("still accepts the English display name from a page open before the change", async () => {
+    getAccessMock.mockResolvedValue(fullMember);
+    sendEmailMock.mockResolvedValue({ ok: true, detail: {} });
+
+    const res = await POST(req({ ...validBody, archetype: "The News Trader" }));
+    expect(res.status).toBe(200);
+    expect(rpcMock).toHaveBeenCalledWith("fn_mark_kys_completed", { p_archetype: "news_trader" });
+  });
+
+  it("rejects an archetype that isn't one of the eight → 400, nothing sent", async () => {
+    getAccessMock.mockResolvedValue(fullMember);
+    const res = await POST(req({ ...validBody, archetype: "The Sniper" }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ ok: false, reason: "bad_payload" });
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 
   it("completion-recording failure never blocks the email — still ok:true", async () => {
@@ -174,7 +194,7 @@ describe("POST /api/kys/send-copy", () => {
   it("rejects an oversized HTML body → 400", async () => {
     getAccessMock.mockResolvedValue(fullMember);
     const huge = "<p>" + "x".repeat(300_001) + "</p>";
-    const res = await POST(req({ archetype: "X", resultHtml: huge }));
+    const res = await POST(req({ archetype: "news_trader", resultHtml: huge }));
     expect(res.status).toBe(400);
   });
 });

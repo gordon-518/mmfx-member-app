@@ -1,11 +1,15 @@
 import type { JournalTradeRow, JournalGoalsRow } from "./types";
 import type { JournalAnalytics } from "./analytics";
 import { sessionOf as sessionForHour, dayKey } from "./analytics";
+import { fmt, plural } from "@/i18n/format";
+import { en } from "@/i18n/messages/en";
+import { sessionLabel, weekdayLabel, type JournalEngineMessages } from "./labels";
 
 // Pure leak detection. Trades passed in are already windowed (last 90d) by the
 // caller so this stays deterministic (no Date). Every leak links to the exact
 // trades behind it; only patterns that COST money are leaks — profitable ones
-// come back as strengths.
+// come back as strengths. Titles and details are written in the reader's
+// language (m); the coach prompt uses the English default.
 
 export type LeakType =
   | "revenge_trading"
@@ -55,8 +59,10 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export function detectLeaks(
   trades: JournalTradeRow[],
   goals: JournalGoalsRow | null,
-  analytics: JournalAnalytics
+  analytics: JournalAnalytics,
+  m: JournalEngineMessages = en.journalEngine
 ): LeakResult {
+  const L = m.leaks;
   const closed = trades
     .filter((t) => t.status === "closed" && t.close_time)
     .sort((a, b) => (a.close_time as string).localeCompare(b.close_time as string));
@@ -78,12 +84,12 @@ export function detectLeaks(
     if (ids.length)
       candidates.push({
         type: "revenge_trading",
-        title: "Trading after losses",
+        title: L.revengeTradingTitle,
         dollarImpact: r2(sum),
         tier: "actual",
         tradeCount: ids.length,
         tradeIds: ids,
-        detail: `${ids.length} trades taken after ${CONSEC_LOSSES}+ losses in a row.`,
+        detail: plural(ids.length, L.revengeTradingOne, L.revengeTradingOther, { k: CONSEC_LOSSES }),
       });
   }
 
@@ -107,14 +113,14 @@ export function detectLeaks(
     if (ids.length)
       candidates.push({
         type: "revenge_sizing",
-        title: "Sizing up after losses",
+        title: L.revengeSizingTitle,
         dollarImpact: r2(excess),
         // what-if, not a booked loss: it assumes loss scales linearly with size,
         // so it shouldn't sit in the "real cash leaks" tier a member can dispute.
         tier: "what_if",
         tradeCount: ids.length,
         tradeIds: ids,
-        detail: `Estimated extra loss from trading bigger than your ${baseline}-lot baseline after a loss.`,
+        detail: fmt(L.revengeSizingDetail, { lots: baseline }),
       });
   }
 
@@ -142,12 +148,12 @@ export function detectLeaks(
     if (ids.length)
       candidates.push({
         type: "overtrading",
-        title: "Overtrading",
+        title: L.overtradingTitle,
         dollarImpact: r2(sum),
         tier: "actual",
         tradeCount: ids.length,
         tradeIds: ids,
-        detail: `${days} day(s) with more than ${OVERTRADING_THRESHOLD} trades.`,
+        detail: plural(days, L.overtradingOne, L.overtradingOther, { k: OVERTRADING_THRESHOLD }),
       });
   }
 
@@ -168,12 +174,12 @@ export function detectLeaks(
       if (ids.length)
         candidates.push({
           type: "off_plan",
-          title: "Trading off your plan",
+          title: L.offPlanTitle,
           dollarImpact: r2(sum),
           tier: "actual",
           tradeCount: ids.length,
           tradeIds: ids,
-          detail: `Trades outside your instruments: ${[...syms].join(", ")}.`,
+          detail: fmt(L.offPlanDetail, { symbols: [...syms].join(", ") }),
         });
     }
   }
@@ -206,15 +212,16 @@ export function detectLeaks(
       }
     }
     if (best) {
-      const label = best.key.split(":")[1];
+      const [dim, value] = best.key.split(":");
+      const slot = dim === "session" ? sessionLabel(value, m) : weekdayLabel(value, m);
       candidates.push({
         type: "worst_slot",
-        title: `Your worst time slot (${label})`,
+        title: fmt(L.worstSlotTitle, { slot }),
         dollarImpact: r2(best.net),
         tier: "actual",
         tradeCount: best.ids.length,
         tradeIds: best.ids,
-        detail: `${label} trades are your biggest bleed.`,
+        detail: fmt(L.worstSlotDetail, { slot }),
       });
     }
   }
@@ -232,14 +239,16 @@ export function detectLeaks(
       if (impact < 0)
         candidates.push({
           type: "skewed_rr",
-          title: "Cutting winners short",
+          title: L.skewedTitle,
           dollarImpact: r2(impact),
           tier: "what_if",
           tradeCount: winIds.length,
           tradeIds: winIds,
-          detail: `Avg loss is ${r2(Math.abs(al) / aw)}× your avg win. Matching them → ${r2(
-            projected
-          )} vs your actual ${r2(analytics.netProfit)} (what-if).`,
+          detail: fmt(L.skewedDetail, {
+            ratio: r2(Math.abs(al) / aw),
+            projected: r2(projected),
+            actual: r2(analytics.netProfit),
+          }),
         });
     }
   }
@@ -262,14 +271,12 @@ export function detectLeaks(
     if (ids.length)
       candidates.push({
         type: "blowup_losses",
-        title: "Oversized losses",
+        title: L.blowupTitle,
         dollarImpact: r2(-excess),
         tier: "excess",
         tradeCount: ids.length,
         tradeIds: ids,
-        detail: `${ids.length} loss(es) more than ${OUTLIER_MULT}× your typical ${r2(
-          typical
-        )}.`,
+        detail: plural(ids.length, L.blowupOne, L.blowupOther, { k: OUTLIER_MULT, typical: r2(typical) }),
       });
   }
 

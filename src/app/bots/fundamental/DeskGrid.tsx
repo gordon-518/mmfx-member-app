@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { formatAge, groupByAssetClass } from "@/lib/fa/format";
 import { deskInstrument, type SummaryInstrument } from "@/lib/fa/types";
+import type { Messages } from "@/i18n/messages/types";
+import { getT } from "@/i18n/server";
+import { fmt } from "@/i18n/format";
 import { BiasPill, ConvictionBar, StateBadge } from "./parts";
 
 // The desk's hub: every instrument's current read at a glance, grouped by
 // asset class. One /api/summary call feeds the whole grid.
 
-function Tile({ row, delay }: { row: SummaryInstrument; delay: number }) {
+function Tile({ row, delay, desk }: { row: SummaryInstrument; delay: number; desk: Messages["fundamental"] }) {
   const meta = deskInstrument(row.id);
+  const nickname = (desk.nicknames as Record<string, string | undefined>)[row.id] ?? meta?.nickname;
   // A registry instrument the desk hasn't synthesized yet: show it, say so,
   // and don't link to a thesis that doesn't exist.
   const open = row.available && row.bias != null;
@@ -19,14 +23,14 @@ function Tile({ row, delay }: { row: SummaryInstrument; delay: number }) {
             {row.display}
           </p>
           <p className="mt-0.5 text-[12px] font-medium text-faint">
-            {meta?.nickname ?? row.asset_class}
+            {nickname ?? row.asset_class}
           </p>
         </div>
         {open ? (
           <StateBadge state={row.state} />
         ) : (
           <span className="rounded-full border border-line bg-paper px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-faint">
-            soon
+            {desk.soon}
           </span>
         )}
       </div>
@@ -35,10 +39,10 @@ function Tile({ row, delay }: { row: SummaryInstrument; delay: number }) {
         {open ? (
           <BiasPill bias={row.bias} />
         ) : (
-          <span className="text-[12px] text-faint">No thesis yet</span>
+          <span className="text-[12px] text-faint">{desk.noThesisYet}</span>
         )}
         {open && row.generated_at && (
-          <span className="text-[11px] text-faint">{formatAge(row.generated_at)}</span>
+          <span className="text-[11px] text-faint">{formatAge(row.generated_at, undefined, desk)}</span>
         )}
       </div>
 
@@ -73,8 +77,9 @@ function Tile({ row, delay }: { row: SummaryInstrument; delay: number }) {
   );
 }
 
-export function DeskGrid({ rows }: { rows: SummaryInstrument[] }) {
-  const groups = groupByAssetClass(rows);
+export async function DeskGrid({ rows }: { rows: SummaryInstrument[] }) {
+  const desk = (await getT()).fundamental;
+  const groups = groupByAssetClass(rows, desk.assetClasses);
   // The rise animation staggers across the whole grid, not per section, so
   // each tile's delay comes from its position in the flattened order.
   const order = new Map(groups.flatMap((g) => g.items).map((i, idx) => [i.id, idx]));
@@ -90,7 +95,7 @@ export function DeskGrid({ rows }: { rows: SummaryInstrument[] }) {
                 {group.label}
               </h2>
               <span className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-                {live}/{group.items.length} live
+                {fmt(desk.liveCount, { live, total: group.items.length })}
               </span>
             </div>
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -98,6 +103,7 @@ export function DeskGrid({ rows }: { rows: SummaryInstrument[] }) {
                 <Tile
                   key={row.id}
                   row={row}
+                  desk={desk}
                   delay={((order.get(row.id) ?? 0) + 1) * 0.04}
                 />
               ))}

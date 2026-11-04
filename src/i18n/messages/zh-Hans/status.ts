@@ -1,0 +1,27 @@
+import type { Messages } from "../types";
+
+export const status: Messages["status"] = {
+  trialEyebrow: "试用期 · 完整权限",
+  trialTitleOne: "试用期还剩 {n} 天",
+  trialTitleOther: "试用期还剩 {n} 天",
+  trialBody: "试用期间，MM Desk 的所有功能都向你开放。",
+  trialCta: "随时锁定你的权限",
+  retrialEyebrow: "再次试用 · 完整权限",
+  retrialTitleOne: "再次试用还剩 {n} 天",
+  retrialTitleOther: "再次试用还剩 {n} 天",
+  retrialBody: "这是你最后一次试用——之后不会再有新的试用。",
+  retrialCta: "在结束前锁定你的权限",
+  memberEyebrow: "会员",
+  memberTitle: "你是已入金会员",
+  memberBody: "你的 MM Desk 持续开放。把握每个交易时段。",
+  freeEyebrow: "免费方案",
+  freeTitle: "你目前使用免费方案",
+  freeBody: "每日分析、信号频道、经济日历、新闻、交易风格测评和模块 1 仍然开放。为账户入金即可解锁其余功能。",
+  seeWhatUnlocks: "查看可解锁内容",
+  refreeTitle: "你目前使用免费方案——入金即可解锁其余功能",
+  refreeBody: "此账户已没有更多试用机会。免费工具仍然开放。",
+  endedEyebrow: "会员资格已结束",
+  endedTitle: "你的会员资格已被移除",
+  endedBody: "如果你认为这是个错误，请联系我们。",
+  endedCta: "恢复你的权限",
+};

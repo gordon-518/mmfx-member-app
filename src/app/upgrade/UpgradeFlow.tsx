@@ -6,16 +6,22 @@ import {
   UserPlusIcon, WalletIcon, ChatIcon, CheckIcon, SwapIcon, SparkIcon, TelegramIcon, WhatsAppIcon,
 } from "@/components/icons";
 import { logUpgradeClick } from "./actions";
-import { ADMIN_TELEGRAM_URL } from "@/lib/depositRef";
+import { ADMIN_DISPLAY_NAME, ADMIN_TELEGRAM_URL } from "@/lib/depositRef";
 import {
   OCTA_SIGNUP, DUPOIN_SIGNUP, OCTA_CHANGE_IB, ELEV8_CHANGE_IB, IB_NUMBER, SWITCH_REASON,
 } from "@/lib/brokerLinks";
 import type { Region } from "@/lib/brokerRegion";
+import { useT } from "@/i18n/client";
+import { fmt } from "@/i18n/format";
+import { rich } from "@/i18n/rich";
+import type { Messages } from "@/i18n/messages/types";
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
+type Flow = Messages["upgrade"]["flow"];
 export type { Region } from "@/lib/brokerRegion";
 
 // --- Funnel links (see memory mmfx-broker-funnel) ----------------------------
+// The WhatsApp prefills stay English in every language: the desk reads them.
 const WHATSAPP_URL =
   "https://wa.me/6588035858?text=Hi%20MMFX%2C%20requesting%20upgrade.%20Broker%3A%20%5BOcta%2FDupoin%5D%20Account%23%3A%20%5Bnumber%5D%20Tier%3A%20%5BTeam%20MM%2FMentorship%5D";
 const TELEGRAM_SWITCH = ADMIN_TELEGRAM_URL;
@@ -76,7 +82,7 @@ function CtaButton({ cta }: { cta: Cta }) {
 }
 
 /** Animated vertical pathway — nodes stagger in, the spine draws top-to-bottom. */
-function StepPath({ steps }: { steps: Step[] }) {
+function StepPath({ steps, f }: { steps: Step[]; f: Flow }) {
   const reduce = useReducedMotion();
   return (
     <motion.ol
@@ -117,7 +123,7 @@ function StepPath({ steps }: { steps: Step[] }) {
           <div className="min-w-0 flex-1 pt-1">
             <div className="flex items-baseline gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-faint">
-                {s.final ? "Done" : `Step ${i + 1}`}
+                {s.final ? f.done : fmt(f.step, { n: i + 1 })}
               </span>
             </div>
             <h3 className="mt-0.5 font-display text-[17px] font-bold tracking-tight text-ink">
@@ -143,7 +149,7 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
   return (
     <div className="mt-2">
       <span className="block text-[11px] font-semibold uppercase tracking-wider text-faint">{label}</span>
-      <div className={`mt-1 select-all rounded-lg border border-line bg-paper px-3 py-2 text-[13.5px] text-ink ${mono ? "font-mono" : ""}`}>
+      <div lang="en" className={`mt-1 select-all rounded-lg border border-line bg-paper px-3 py-2 text-[13.5px] text-ink ${mono ? "font-mono" : ""}`}>
         {value}
       </div>
     </div>
@@ -152,32 +158,39 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 
 // Tiers count every verified deposit, so $50 is the real starting point
 // (conversion-fix tiers: Foundation $50, Desk $200, Team MM $500).
-const TIER_LADDER = (
-  <>
-    $50 opens Foundation, $200 the Desk and $500 Team MM, and every top-up counts toward the next tier.
-  </>
-);
+function withLadder(f: Flow, template: string, nodes: Record<string, ReactNode> = {}): ReactNode {
+  return rich(fmt(template, { ladder: f.ladder }), nodes);
+}
+
+/** The emphasised "your" in "your account, under your name". */
+function yours(f: Flow): Record<string, ReactNode> {
+  return { your: <em className="font-medium not-italic text-ink">{f.your}</em> };
+}
+
+const admin = { admin: ADMIN_DISPLAY_NAME };
 
 // The deposit form on this page (#submit-deposit) is how a deposit gets
 // verified, so every path ends there instead of "send us your details".
-const FORM_STEP: Step = {
-  icon: ChatIcon,
-  title: "Fill in the form below",
-  body: <>Submit your deposit details with a screenshot, then message Admin Amelia on Telegram so we can reach you. We check it against your account and switch you on.</>,
-  ctas: [{ label: "Go to the form", href: "#submit-deposit", primary: true }],
-};
+function formStep(f: Flow): Step {
+  return {
+    icon: ChatIcon,
+    title: f.formTitle,
+    body: fmt(f.formBody, admin),
+    ctas: [{ label: f.formCta, href: "#submit-deposit", primary: true }],
+  };
+}
 
-function newAccountSteps(region: "octa" | "dupoin"): Step[] {
+function newAccountSteps(f: Flow, region: "octa" | "dupoin"): Step[] {
   const signup = region === "octa" ? OCTA_SIGNUP : DUPOIN_SIGNUP;
-  const brand = region === "octa" ? "Octa or Elev8" : "Dupoin";
+  const brand = region === "octa" ? f.brandOcta : "Dupoin";
   return [
     {
       icon: UserPlusIcon,
-      title: `Open your ${brand} account`,
-      body: <>It takes a couple of minutes, and we&apos;re set as your partner automatically through the link.</>,
+      title: fmt(f.openTitle, { brand }),
+      body: f.openBody,
       ctas: [
         {
-          label: "Open your account",
+          label: f.openCta,
           href: signup,
           primary: true,
           track: { event: "upgrade_broker_link_clicked", props: { broker: region, flow: "new" } },
@@ -186,33 +199,33 @@ function newAccountSteps(region: "octa" | "dupoin"): Step[] {
     },
     {
       icon: WalletIcon,
-      title: "Fund it from $50",
-      body: <>{TIER_LADDER} The capital sits in <em className="font-medium not-italic text-ink">your</em> account, under <em className="font-medium not-italic text-ink">your</em> name. You trade it, you withdraw it — nothing is paid to us.</>,
+      title: f.fundTitle,
+      body: withLadder(f, f.fundBody, yours(f)),
     },
-    FORM_STEP,
+    formStep(f),
     {
       icon: CheckIcon,
-      title: "Your desk reopens",
-      body: <>We confirm your deposit and restore full access — usually within the hour.</>,
+      title: f.reopenTitle,
+      body: f.reopenNew,
       final: true,
     },
   ];
 }
 
-function octaSwitchSteps(): Step[] {
+function octaSwitchSteps(f: Flow): Step[] {
   return [
     {
       icon: SwapIcon,
-      title: "Open the change-partner form",
-      body: <>Keep your existing account — just request a partner change with your broker.</>,
+      title: f.changeTitle,
+      body: f.changeBody,
       ctas: [
         {
-          label: "Octa form",
+          label: f.octaForm,
           href: OCTA_CHANGE_IB,
           track: { event: "upgrade_broker_link_clicked", props: { broker: "octa", flow: "switch" } },
         },
         {
-          label: "Elev8 form",
+          label: f.elev8Form,
           href: ELEV8_CHANGE_IB,
           track: { event: "upgrade_broker_link_clicked", props: { broker: "elev8", flow: "switch" } },
         },
@@ -220,83 +233,82 @@ function octaSwitchSteps(): Step[] {
     },
     {
       icon: SparkIcon,
-      title: "Enter our details",
+      title: f.detailsTitle,
+      // The IB number and reason are pasted into the broker's form, so they
+      // stay exactly as the broker expects them, in English.
       body: (
         <>
-          <Field label="IB number" value={IB_NUMBER} mono />
-          <Field label="Reason for switching" value={`“${SWITCH_REASON}”`} />
+          <Field label={f.ibLabel} value={IB_NUMBER} mono />
+          <Field label={f.reasonLabel} value={`“${SWITCH_REASON}”`} />
+          <p className="mt-2 text-[12.5px] text-faint">{f.pasteExactly}</p>
         </>
       ),
     },
     {
       icon: WalletIcon,
-      title: "Hold at least $50",
-      body: <>{TIER_LADDER} The switch goes through within about an hour.</>,
+      title: f.holdTitle,
+      body: withLadder(f, f.holdOcta),
     },
-    FORM_STEP,
+    formStep(f),
     {
       icon: CheckIcon,
-      title: "Your desk reopens",
-      body: <>Once the switch lands, we restore full access.</>,
+      title: f.reopenTitle,
+      body: f.reopenSwitch,
       final: true,
     },
   ];
 }
 
-function dupoinSwitchSteps(): Step[] {
+function dupoinSwitchSteps(f: Flow): Step[] {
   return [
     {
       icon: WalletIcon,
-      title: "Hold at least $50",
-      body: <>In your existing Dupoin account. {TIER_LADDER}</>,
+      title: f.holdTitle,
+      body: withLadder(f, f.holdDupoin),
     },
     {
       icon: SparkIcon,
-      title: "Find your Dupoin UID",
-      body: <>It&apos;s shown next to your name in your Dupoin profile.</>,
+      title: f.uidTitle,
+      body: f.uidBody,
     },
     {
       icon: ChatIcon,
-      title: "Send Admin Amelia your Full Name + UID",
-      body: <>Message Admin Amelia on Telegram and we&apos;ll process the partner switch with Dupoin by hand.</>,
+      title: fmt(f.sendTitle, admin),
+      body: fmt(f.sendBody, admin),
       ctas: [
-        { label: "Message Admin Amelia", href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon, track: { event: "upgrade_contact_clicked", props: { channel: "telegram" } } },
-        { label: "WhatsApp", href: WHATSAPP_URL, icon: WhatsAppIcon, track: { event: "upgrade_contact_clicked", props: { channel: "whatsapp" } } },
+        { label: fmt(f.messageAdmin, admin), href: TELEGRAM_SWITCH, primary: true, icon: TelegramIcon, track: { event: "upgrade_contact_clicked", props: { channel: "telegram" } } },
+        { label: f.whatsapp, href: WHATSAPP_URL, icon: WhatsAppIcon, track: { event: "upgrade_contact_clicked", props: { channel: "whatsapp" } } },
       ],
     },
-    { ...FORM_STEP, body: <>Once the switch is confirmed, submit your deposit details with a screenshot so we can switch you on.</> },
+    { ...formStep(f), body: f.formDupoin },
     {
       icon: CheckIcon,
-      title: "Your desk reopens",
-      body: <>Once Dupoin confirms the switch, we restore full access.</>,
+      title: f.reopenTitle,
+      body: f.reopenDupoin,
       final: true,
     },
   ];
 }
 
-function ContactCard() {
+function ContactCard({ f }: { f: Flow }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-card shadow-soft">
       <div className="flex items-center justify-center gap-3 border-b border-line bg-accent-soft/40 px-6 py-5">
         <span className="flex h-11 w-11 items-center justify-center rounded-full border border-orange/30 bg-card text-orange shadow-soft">
           <ChatIcon className="h-5 w-5" />
         </span>
-        <p className="font-display text-[18px] font-bold tracking-tight text-ink">
-          Access in your region is arranged directly
-        </p>
+        <p className="font-display text-[18px] font-bold tracking-tight text-ink">{f.contactTitle}</p>
       </div>
       <div className="px-6 py-6 text-center">
-        <p className="text-[15px] leading-relaxed text-subtle">
-          The partnered brokers can&apos;t operate where you are — so we set you up personally. Reach out and we&apos;ll take it from there.
-        </p>
+        <p className="text-[15px] leading-relaxed text-subtle">{f.contactBody}</p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <a href={CONTACT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" onClick={track({ event: "upgrade_contact_clicked", props: { channel: "whatsapp" } })} className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg sm:w-auto">
             <WhatsAppIcon className="h-[17px] w-[17px]" />
-            Contact us on WhatsApp
+            {f.contactWhatsapp}
           </a>
           <a href={CONTACT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" onClick={track({ event: "upgrade_contact_clicked", props: { channel: "telegram" } })} className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-line-strong bg-card px-5 py-2.5 text-[14px] font-semibold text-ink transition-colors hover:border-orange/40 hover:text-accent-ink sm:w-auto">
             <TelegramIcon className="h-[17px] w-[17px]" />
-            Telegram
+            {f.telegram}
           </a>
         </div>
       </div>
@@ -306,19 +318,20 @@ function ContactCard() {
 
 export function UpgradeFlow({ region }: { region: Region }) {
   const [tab, setTab] = useState<"new" | "switch">("new");
+  const f = useT().upgrade.flow;
 
-  if (region === "contact") return <ContactCard />;
+  if (region === "contact") return <ContactCard f={f} />;
 
   const steps =
     tab === "new"
-      ? newAccountSteps(region)
+      ? newAccountSteps(f, region)
       : region === "octa"
-        ? octaSwitchSteps()
-        : dupoinSwitchSteps();
+        ? octaSwitchSteps(f)
+        : dupoinSwitchSteps(f);
 
   const tabs: { key: "new" | "switch"; label: string }[] = [
-    { key: "new", label: "Open a new account" },
-    { key: "switch", label: region === "octa" ? "I trade with Octa / Elev8" : "I trade with Dupoin" },
+    { key: "new", label: f.tabNew },
+    { key: "switch", label: region === "octa" ? f.tabOcta : f.tabDupoin },
   ];
 
   return (
@@ -344,7 +357,7 @@ export function UpgradeFlow({ region }: { region: Region }) {
       </div>
 
       <div className="mt-7">
-        <StepPath key={tab} steps={steps} />
+        <StepPath key={tab} steps={steps} f={f} />
       </div>
     </div>
   );

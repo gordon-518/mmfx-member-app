@@ -225,3 +225,68 @@ describe("proxy — the first-run gate", () => {
     expect(res.headers.get("location")).toBeNull();
   });
 });
+
+// The language a member's emails go out in is the one saved on the account.
+// A member who never picked one reads the app in the language their browser
+// asked for (or one picked before signing in), so the proxy saves that once.
+describe("proxy — adopting the language the app shows", () => {
+  function adoptCalls() {
+    return fetchMock.mock.calls.filter((c) => String(c[0]).includes("/rest/v1/rpc/fn_adopt_locale"));
+  }
+  function page(headers: Record<string, string> = {}) {
+    return new NextRequest("https://app.test/dashboard", { headers });
+  }
+
+  it("saves the browser's language for a member who never picked one", async () => {
+    withUser(WEI);
+    const waitUntil = vi.fn();
+    await proxy(page({ "accept-language": "zh-TW,zh;q=0.9,en;q=0.8" }), { waitUntil } as never);
+    expect(adoptCalls()).toHaveLength(1);
+    expect(bodyOf(adoptCalls()[0])).toEqual({ p_user: WEI.id, p_locale: "zh-Hant" });
+    expect(waitUntil).toHaveBeenCalled();
+  });
+
+  it("prefers a language picked before signing in", async () => {
+    withUser(WEI);
+    await proxy(page({ "accept-language": "en-GB", cookie: "mmfx_locale=ms" }));
+    expect(bodyOf(adoptCalls()[0])).toEqual({ p_user: WEI.id, p_locale: "ms" });
+  });
+
+  it("saves nothing for English, the default", async () => {
+    withUser(WEI);
+    await proxy(page({ "accept-language": "en-US,en;q=0.9" }));
+    expect(adoptCalls()).toHaveLength(0);
+  });
+
+  it("never touches a language the member chose", async () => {
+    withUser({ ...WEI, user_metadata: { locale: "en" } });
+    await proxy(page({ "accept-language": "id-ID" }));
+    expect(adoptCalls()).toHaveLength(0);
+  });
+
+  it("keeps an English pick made before signing in, so a Chinese browser can't override it later", async () => {
+    withUser(WEI);
+    await proxy(page({ "accept-language": "zh-CN", cookie: "mmfx_locale=en" }));
+    expect(bodyOf(adoptCalls()[0])).toEqual({ p_user: WEI.id, p_locale: "en" });
+  });
+
+  it("does nothing when the account already holds a value, even one it can't use", async () => {
+    // The database won't overwrite it either, so calling would only repeat
+    // on every request.
+    withUser({ ...WEI, user_metadata: { locale: "xx" } });
+    await proxy(page({ "accept-language": "zh-CN" }));
+    expect(adoptCalls()).toHaveLength(0);
+  });
+
+  it("leaves the shared showcase account alone", async () => {
+    withUser({ ...WEI, email: "demo@mmfx.test" });
+    await proxy(page({ "accept-language": "ms-MY" }));
+    expect(adoptCalls()).toHaveLength(0);
+  });
+
+  it("does nothing for a signed-out visitor", async () => {
+    withUser(null);
+    await proxy(page({ "accept-language": "ms-MY" }));
+    expect(adoptCalls()).toHaveLength(0);
+  });
+});

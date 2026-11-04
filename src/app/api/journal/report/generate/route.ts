@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireMemberApi, serviceClient } from "@/lib/journal/api";
+import { getLocale } from "@/i18n/server";
 import {
   DAILY_REPORT_CAP,
   generateReport,
@@ -57,7 +58,8 @@ export async function POST() {
     );
   }
 
-  const result = await generateReport(ctx);
+  // Written in the member's language (their language cookie / saved choice).
+  const result = await generateReport(ctx, await getLocale());
   if (!result) {
     await refund();
     return NextResponse.json(

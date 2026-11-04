@@ -1,0 +1,27 @@
+import type { Messages } from "../types";
+
+export const status: Messages["status"] = {
+  trialEyebrow: "Percubaan · Akses penuh",
+  trialTitleOne: "{n} hari lagi dalam tempoh percubaan anda",
+  trialTitleOther: "{n} hari lagi dalam tempoh percubaan anda",
+  trialBody: "Semua di MM Desk dibuka selagi masa berjalan.",
+  trialCta: "Kunci akses anda bila-bila masa",
+  retrialEyebrow: "Percubaan semula · Akses penuh",
+  retrialTitleOne: "{n} hari lagi dalam percubaan semula anda",
+  retrialTitleOther: "{n} hari lagi dalam percubaan semula anda",
+  retrialBody: "Ini percubaan terakhir anda — tiada lagi selepas ini.",
+  retrialCta: "Kunci akses anda sebelum ia tamat",
+  memberEyebrow: "Ahli",
+  memberTitle: "Anda ahli berdeposit",
+  memberBody: "MM Desk anda kekal dibuka. Berdagang mengikut sesi.",
+  freeEyebrow: "Pelan percuma",
+  freeTitle: "Anda menggunakan pelan Percuma",
+  freeBody: "Analisis Harian, saluran isyarat, kalendar, berita, Kenali Gaya Anda dan Modul 1 kekal dibuka. Deposit ke akaun anda untuk membuka yang lain.",
+  seeWhatUnlocks: "Lihat apa yang dibuka",
+  refreeTitle: "Anda menggunakan pelan Percuma — deposit untuk membuka yang lain",
+  refreeBody: "Tiada lagi percubaan untuk akaun ini. Alat percuma kekal dibuka.",
+  endedEyebrow: "Keahlian tamat",
+  endedTitle: "Keahlian anda telah dikeluarkan",
+  endedBody: "Hubungi kami jika anda rasa ini satu kesilapan.",
+  endedCta: "Pulihkan akses anda",
+};

@@ -8,34 +8,35 @@
 // and always warn the user to use their @username rather than a display name.
 // The DB function fn_set_tradingview_username enforces the same shape server-side.
 
-export type TvUsernameCheck = { ok: boolean; message: string };
+import { en } from "@/i18n/messages/en";
+import type { Messages } from "@/i18n/messages/types";
 
-export function validateTradingViewUsername(value: string): TvUsernameCheck {
+/** Why a username was refused. The actions redirect with ?tv_error=<code>, and
+ *  the page shows the message in the reader's language. */
+export type TvErrorCode = keyof Messages["tv"]["errors"];
+
+export type TvUsernameCheck = { ok: true; code: null; message: "" } | { ok: false; code: TvErrorCode; message: string };
+
+export function validateTradingViewUsername(value: string, e: Messages["tv"]["errors"] = en.tv.errors): TvUsernameCheck {
   const v = value.trim();
-  if (!v) {
-    return { ok: false, message: "Enter your TradingView username." };
-  }
-  if (v.includes("@")) {
-    return {
-      ok: false,
-      message: "That looks like an email — enter your TradingView username (the @handle), not your email.",
-    };
-  }
-  if (/\s/.test(v)) {
-    return {
-      ok: false,
-      message: "TradingView usernames have no spaces — enter your @username, not your display name.",
-    };
-  }
-  if (!/^[A-Za-z0-9_]{2,30}$/.test(v)) {
-    return {
-      ok: false,
-      message: "Use only letters, numbers and underscores — this is your TradingView username, not your display name.",
-    };
-  }
-  return { ok: true, message: "" };
+  const fail = (code: TvErrorCode): TvUsernameCheck => ({ ok: false, code, message: e[code] });
+  if (!v) return fail("empty");
+  if (v.includes("@")) return fail("email");
+  if (/\s/.test(v)) return fail("spaces");
+  if (!/^[A-Za-z0-9_]{2,30}$/.test(v)) return fail("chars");
+  return { ok: true, code: null, message: "" };
 }
 
-/** Static reminder shown next to the field. */
-export const TV_USERNAME_HINT =
-  "Use your TradingView username (the @handle), not your display name or email — they're often different. Find it at tradingview.com → your avatar → the @name.";
+/** fn_set_tradingview_username raises the same checks in English; read them back as codes. */
+export function tvErrorCodeFromDb(dbMessage: string): TvErrorCode {
+  if (/cannot be empty/i.test(dbMessage)) return "empty";
+  if (/looks like an email/i.test(dbMessage)) return "email";
+  if (/letters, numbers and underscores/i.test(dbMessage)) return "chars";
+  return "generic";
+}
+
+/** The message for a ?tv_error= value; anything unrecognised reads as generic. */
+export function tvErrorMessage(code: string | null, e: Messages["tv"]["errors"]): string | null {
+  if (!code) return null;
+  return Object.hasOwn(e, code) ? e[code as TvErrorCode] : e.generic;
+}

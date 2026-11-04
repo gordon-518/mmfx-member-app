@@ -1,11 +1,14 @@
 "use client";
 
+import { useT } from "@/i18n/client";
+
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 /** "Continue with Google" + an "or" divider. OAuth manages its own session and
  *  returns to /auth/confirm?code=… where the existing PKCE exchange runs. */
-export function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
+export function GoogleButton({ label }: { label?: string }) {
+  const t = useT();
   const [loading, setLoading] = useState(false);
 
   async function signIn() {
@@ -33,7 +36,7 @@ export function GoogleButton({ label = "Continue with Google" }: { label?: strin
           <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
           <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z" />
         </svg>
-        {loading ? "Redirecting…" : label}
+        {loading ? t.auth.redirecting : label ?? t.auth.googleContinue}
       </button>
       <div className="my-5 flex items-center gap-3">
         <span className="h-px flex-1 bg-line" />

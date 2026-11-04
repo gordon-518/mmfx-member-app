@@ -63,13 +63,27 @@ function claimedRow(over: Row = {}): Row {
   };
 }
 
-/** Minimal chainable Supabase stub; records the rpc args and every update. */
-function stubDb(claimed: Row[], spotlights: Row[] = [], variants: Row[] = []) {
+/** Minimal chainable Supabase stub; records the claim's args, the language
+ *  lookups and every update. `locales` is what fn_user_locales returns. */
+function stubDb(
+  claimed: Row[],
+  spotlights: Row[] = [],
+  variants: Row[] = [],
+  locales: Row[] | { error: string } = [],
+  updateError: (payload: Row) => string | null = () => null
+) {
   const updates: { id: unknown; payload: Row }[] = [];
   const deletes: unknown[] = [];
   const rpcArgs: Row[] = [];
+  const localeLookups: Row[] = [];
   const api = {
-    rpc(_fn: string, args: Row) {
+    rpc(fn: string, args: Row) {
+      if (fn === "fn_user_locales") {
+        localeLookups.push(args);
+        return Promise.resolve(
+          Array.isArray(locales) ? { data: locales, error: null } : { data: null, error: { message: locales.error } }
+        );
+      }
       rpcArgs.push(args);
       return Promise.resolve({ data: claimed, error: null });
     },
@@ -85,7 +99,8 @@ function stubDb(claimed: Row[], spotlights: Row[] = [], variants: Row[] = []) {
           return {
             eq: (_col: string, id: unknown) => {
               updates.push({ id, payload });
-              return Promise.resolve({ data: null, error: null });
+              const message = updateError(payload);
+              return Promise.resolve({ data: null, error: message ? { message } : null });
             },
           };
         },
@@ -102,6 +117,7 @@ function stubDb(claimed: Row[], spotlights: Row[] = [], variants: Row[] = []) {
     _updates: updates,
     _deletes: deletes,
     _rpcArgs: rpcArgs,
+    _localeLookups: localeLookups,
   };
   return api;
 }
@@ -175,6 +191,7 @@ describe("POST /api/cron/email-lifecycle", () => {
           error: null,
           provider_id: "tlr7m5-1bve4z-ik",
           variant: "A",
+          locale: "en",
           subject: "Start with today's gold read",
         },
       },
@@ -316,13 +333,74 @@ describe("POST /api/cron/email-lifecycle", () => {
   });
 
   it("falls back to the default copy when the arm's row has gone", async () => {
-    // Retired between the claim and the render: send the control, not nothing.
+    // Retired between the claim and the render: send the control, not nothing,
+    // and record the control — that is what the reader got.
     const db = stubDb([claimedRow({ flow: "trial", step: "tv", variant: "B" })], [], []);
     serviceClientMock.mockReturnValue(db);
 
     const res = await POST(req() as never);
     expect(await res.json()).toEqual({ claimed: 1, sent: 1, failed: 0, released: 0 });
     expect(renderSpy.mock.calls[0][2].copy).toBeUndefined();
+    expect(db._updates[0].payload).toMatchObject({ variant: "A" });
+  });
+
+  it("sends everyone the English default, and no challenger, when the language lookup fails", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const copy = { subject: "English B", preheader: "p", paragraphs: ["x"], ctaLabel: "Go" };
+    const db = stubDb(
+      [claimedRow({ user_id: "u1", flow: "trial", step: "tv", variant: "B" })],
+      [],
+      [{ flow: "trial", step: "tv", variant_key: "B", copy }],
+      { error: "boom" }
+    );
+    serviceClientMock.mockReturnValue(db);
+
+    await POST(req() as never);
+    const ctx = renderSpy.mock.calls[0][2];
+    expect(ctx.locale).toBe("en");
+    expect(ctx.copy).toBeUndefined();
+    expect(db._updates[0].payload).toMatchObject({ variant: "A", locale: null });
+    spy.mockRestore();
+  });
+
+  it("stamps the send without its language when the column isn't there, so it is never re-sent", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const db = stubDb([claimedRow()], [], [], [], (payload) =>
+      "locale" in payload ? "column email_sends.locale does not exist" : null
+    );
+    serviceClientMock.mockReturnValue(db);
+
+    await POST(req() as never);
+    expect(db._updates).toHaveLength(2);
+    expect(db._updates[1].payload).not.toHaveProperty("locale");
+    expect(db._updates[1].payload).toMatchObject({ ok: true, variant: "A" });
+    spy.mockRestore();
+  });
+
+  it("looks up every reader's language in one call", async () => {
+    const db = stubDb([claimedRow({ send_id: "s1", user_id: "u1" }), claimedRow({ send_id: "s2", user_id: "u2" })]);
+    serviceClientMock.mockReturnValue(db);
+
+    await POST(req() as never);
+    expect(db._localeLookups).toEqual([{ p_ids: ["u1", "u2"] }]);
+  });
+
+  it("sends a reader with a saved language the translated default, never an English challenger", async () => {
+    const copy = { subject: "English B", preheader: "p", paragraphs: ["x"], ctaLabel: "Go" };
+    const db = stubDb(
+      [claimedRow({ user_id: "u1", flow: "trial", step: "tv", variant: "B" })],
+      [],
+      [{ flow: "trial", step: "tv", variant_key: "B", copy }],
+      [{ user_id: "u1", locale: "ms" }]
+    );
+    serviceClientMock.mockReturnValue(db);
+
+    await POST(req() as never);
+    const ctx = renderSpy.mock.calls[0][2];
+    expect(ctx.locale).toBe("ms");
+    expect(ctx.copy).toBeUndefined();
+    // Recorded as arm A in Malay, so it never counts towards challenger B.
+    expect(db._updates[0].payload).toMatchObject({ variant: "A", locale: "ms" });
   });
 
   it("carries the arm into the spotlight's ctx too", async () => {
