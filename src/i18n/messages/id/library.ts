@@ -34,7 +34,7 @@ export const library: Messages["library"] = {
       blurb: "Saat tesis gagal — di mana stop ditempatkan dan mengapa.",
     },
     "cheat-sheets-quick-reference": {
-      blurb: "Referensi meja untuk sesi, level, dan checklist.",
+      blurb: "Referensi MM Desk untuk sesi, level, dan checklist.",
     },
   },
 };

@@ -37,16 +37,16 @@ export const locked: Messages["locked"] = {
     "live-classes": {
       eyebrow: "教育 · 直播",
       title: "直播課程",
-      pitch: "與交易台一起看圖，隨著行情變化即時解讀市場。",
+      pitch: "與 MM Desk 一起看圖，隨著行情變化即時解讀市場。",
       points: {
-        p1: "與交易台一起即時看圖",
+        p1: "與 MM Desk 一起即時看圖",
         p2: "邊看邊提問",
         p3: "往期課程回放",
       },
     },
     "fundamental-desk": {
       eyebrow: "機器人 · 總經",
-      title: "基本面分析台",
+      title: "Fundamental Desk",
       pitch: "黃金的即時總經解讀：用淺顯易懂的方式講清推動 XAU/USD 的基本面。",
       points: {
         p1: "今天是什麼在推動黃金，原因是什麼",
@@ -67,15 +67,15 @@ export const locked: Messages["locked"] = {
     "team-mm": {
       eyebrow: "Team MM · 社群",
       title: "Team MM",
-      pitch: "與交易台一起的私密 Team MM 頻道。",
+      pitch: "與 MM Desk 一起的私密 Team MM 頻道。",
       points: {
-        p1: "直接來自交易台",
+        p1: "直接來自 MM Desk",
         p2: "僅限 Team MM 會員",
         p3: "在 Telegram 上",
       },
     },
   },
-  fallbackTitle: "交易台的這一部分尚未解鎖",
+  fallbackTitle: "MM Desk 的這一部分尚未解鎖",
   fallbackPitch: "為你的帳戶入金後即可開通。",
   openOnEvery: "所有方案均已開放",
   openNow: "你的方案現在可以使用",

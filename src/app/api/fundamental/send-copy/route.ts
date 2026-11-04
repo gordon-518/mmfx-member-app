@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getAccess } from "@/lib/access";
 import { canAccess } from "@/lib/access/features";
 import { sendEmail, addContactToBook } from "@/lib/sendpulse";
-import { fundamentalEmailHtml } from "@/lib/fundamentalEmail";
+import { fundamentalEmailHtml, fundamentalEmailSubject } from "@/lib/fundamentalEmail";
+import { getLocale } from "@/i18n/server";
 import { deskInstrument } from "@/lib/fa/types";
 
 // "Send me a copy" from the Fundamental Desk. The thesis view posts the chosen
@@ -64,15 +65,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, reason: "pdf_unavailable" }, { status: 502 });
   }
 
-  // Email it to the session user — recipient comes from the server session only.
+  // Email it to the session user — recipient comes from the server session only
+  // — in the language they asked for it in.
+  const locale = await getLocale();
   const result = await sendEmail({
     to: {
       name: access.profile.full_name || access.profile.email,
       email: access.profile.email,
     },
     from: { name: "Market Makers FX", email: "hello@marketmakersfx.net" },
-    subject: `Your ${display} fundamental thesis`,
-    html: fundamentalEmailHtml(display),
+    subject: fundamentalEmailSubject(display, locale),
+    html: fundamentalEmailHtml(display, locale),
     attachments: [
       { name: `${instrument.toLowerCase()}_thesis.pdf`, contentBase64: pdfBase64 },
     ],

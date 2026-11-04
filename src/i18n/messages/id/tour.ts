@@ -13,7 +13,7 @@ export const tour: Messages["tour"] = {
     },
     nav: {
       title: "Semuanya ada di menu ini",
-      body: "Seluruh meja ada di sisi kiri, dikelompokkan sesuai cara Anda benar-benar memakainya: membaca pasar, eksekusi, mengelola trade, dan fondasi di bawah ketiganya.",
+      body: "Seluruh MM Desk ada di sisi kiri, dikelompokkan sesuai cara Anda benar-benar memakainya: membaca pasar, eksekusi, mengelola trade, dan fondasi di bawah ketiganya.",
     },
     home: {
       title: "Mulai di sini dan Dasbor",
@@ -21,11 +21,11 @@ export const tour: Messages["tour"] = {
     },
     read: {
       title: "Baca pasar",
-      body: "Buka sesi dengan ini. Analisis Harian adalah bacaan meja tentang emas beserta levelnya; Meja Fundamental membaca faktor makro di sebelas instrumen; Berita dan Kalender memberi tahu apa yang akan datang.",
+      body: "Buka sesi dengan ini. Analisis Harian adalah bacaan MM Desk tentang emas beserta levelnya; Fundamental Desk membaca faktor makro di sebelas instrumen; Berita dan Kalender memberi tahu apa yang akan datang.",
     },
     execute: {
       title: "Eksekusi",
-      body: "Tempat rencana menjadi trade. Sinyal adalah call dari meja, Indikator memasang alat kami di chart TradingView Anda sendiri, dan Strategi adalah sistem yang ditulis sebagai skrip.",
+      body: "Tempat rencana menjadi trade. Sinyal adalah call dari MM Desk, Indikator memasang alat kami di chart TradingView Anda sendiri, dan Strategi adalah sistem yang ditulis sebagai skrip.",
     },
     manage: {
       title: "Kelola trade",
@@ -44,7 +44,7 @@ export const tour: Messages["tour"] = {
       body: "Enam langkah Anda, berurutan, masing-masing dengan manfaatnya dan target setelahnya. Satu per hari sudah cukup.",
     },
     done: {
-      title: "Itulah meja",
+      title: "Itulah MM Desk",
       body: "Anda bisa menjalankan tur ini lagi kapan saja lewat tombol di bagian atas Mulai di sini. Langkah pertama adalah bergabung ke channel publik — hanya butuh sekitar sepuluh detik.",
     },
   },

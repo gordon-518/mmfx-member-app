@@ -4,19 +4,19 @@ export const onboarding: Messages["onboarding"] = {
   steps: {
     telegram: {
       title: "加入公开 Telegram 频道",
-      blurb: "交易台会在这里实时发布交易信号、市场笔记和交易时段动态。",
-      goal: "在信息仍然有用的时候就看到交易台在关注什么，而不是事后才读到。",
+      blurb: "MM Desk 会在这里实时发布交易信号、市场笔记和交易时段动态。",
+      goal: "在信息仍然有用的时候就看到 MM Desk 在关注什么，而不是事后才读到。",
       target: "在下一个交易时段开始前，在手机上打开频道。",
     },
     tv: {
       title: "连接 TradingView",
       blurb: "保存你的 TradingView 用户名，把指标加到你的图表上。",
-      goal: "交易台的工具会在你自己的平台、你自己的图表上画出关键价位。",
+      goal: "MM Desk 的工具会在你自己的平台、你自己的图表上画出关键价位。",
       target: "只需设置一次——之后每个交易时段都在。",
     },
     analysis: {
       title: "观看今天的每日分析",
-      blurb: "交易台按交易时段对黄金的解读：方向、关键价位和交易逻辑。",
+      blurb: "MM Desk 按交易时段对黄金的解读：方向、关键价位和交易逻辑。",
       goal: "每个交易时段开始前，你就知道方向、重要价位，以及什么情况会证明判断错误。",
       target: "先连续看五个交易时段的分析，再据此行动。",
     },
@@ -34,13 +34,13 @@ export const onboarding: Messages["onboarding"] = {
     },
     desk: {
       title: "了解 Desk 方案的内容",
-      blurb: "TradingView 指标与策略脚本、直播课程，以及基本面分析台的宏观解读。",
+      blurb: "TradingView 指标与策略脚本、直播课程，以及 Fundamental Desk 的宏观解读。",
       goal: "在做任何决定之前，清楚知道下一个等级包含什么。",
       target: "得到一个明确的“要”或“不要”——而不是“也许”。",
     },
   },
   stages: {
-    theDesk: "交易台",
+    theDesk: "MM Desk",
     execution: "执行",
     analysis: "分析",
     tradeManagement: "交易管理",
@@ -48,14 +48,14 @@ export const onboarding: Messages["onboarding"] = {
     nextTier: "你的下一个等级",
   },
   deskFor: {
-    analysis_paralyser: "你在入场时想得太多。Desk 的直播课程会展示交易台如何解读交易设置，并坚定执行计划。",
+    analysis_paralyser: "你在入场时想得太多。Desk 的直播课程会展示 MM Desk 如何解读交易设置，并坚定执行计划。",
     emotional_revenge_trader: "Desk 在你和下一笔报复性交易之间，放上一堂直播课和一套有规则的宏观解读。",
     reckless_gambler: "Desk 的直播课程把结构放在第一位：先确定止损位置，再决定仓位大小。",
     signal_dependent: "Desk 的直播课程会讲解每一笔交易的理由，让你不只是照抄信号。",
     indicator_stacker: "Desk 用一份带有完整逻辑的实时解读，取代堆满指标的图表。",
     system_hopper: "Desk 是一套体系，在课堂上实时交易：每天都用同一套规则。",
     brand_new_beginner: "Desk 让你在学习的同时，在课堂上观看这套体系的实盘操作。",
-    news_trader: "基本面分析台会解读每一次波动背后的宏观因素，讲得清楚易懂。",
+    news_trader: "Fundamental Desk 会解读每一次波动背后的宏观因素，讲得清楚易懂。",
   },
   card: {
     gettingStarted: "入门 · {done}/{total}",

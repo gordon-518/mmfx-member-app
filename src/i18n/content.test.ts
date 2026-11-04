@@ -44,6 +44,22 @@ describe("content pages in every language", () => {
     "welcome", "dashboard", "rails", "auth", "status", "tiers", "nav", "skillTrack", "news", "legal",
   ] as const;
 
+  // "MM Desk" and "Fundamental Desk" are names, not words to translate
+  // (Gordon, 4 Nov): Malay and Indonesian "meja" reads as "table", and
+  // 交易台 / 分析台 drift from the name members see everywhere else.
+  it("keeps MM Desk and Fundamental Desk as names in every language", () => {
+    const TRANSLATED_DESK = /\bmeja\b|交易台|分析台|交易枱/i;
+    const NAMED = /Fundamental (Analysis )?Desk/;
+    const english = leaves(MESSAGES.en).filter(([, s]) => NAMED.test(s));
+    expect(english.length).toBeGreaterThan(0);
+    for (const locale of LOCALES) {
+      const all = leaves(MESSAGES[locale]);
+      expect(all.filter(([, s]) => TRANSLATED_DESK.test(s)), locale).toEqual([]);
+      const byPath = new Map(all);
+      for (const [path] of english) expect(byPath.get(path), `${locale} ${path}`).toMatch(NAMED);
+    }
+  });
+
   it("makes no earnings claims in any language", () => {
     for (const locale of LOCALES) {
       for (const ns of PROMOTIONAL) {

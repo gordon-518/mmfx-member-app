@@ -13,7 +13,7 @@ export const tour: Messages["tour"] = {
     },
     nav: {
       title: "Semuanya dalam satu menu ini",
-      body: "Seluruh meja ada di sebelah kiri, dikumpulkan mengikut cara anda benar-benar menggunakannya: membaca pasaran, melaksanakan, mengurus dagangan, dan asas di bawah ketiga-tiganya.",
+      body: "Seluruh MM Desk ada di sebelah kiri, dikumpulkan mengikut cara anda benar-benar menggunakannya: membaca pasaran, melaksanakan, mengurus dagangan, dan asas di bawah ketiga-tiganya.",
     },
     home: {
       title: "Mula di sini dan Papan pemuka",
@@ -21,11 +21,11 @@ export const tour: Messages["tour"] = {
     },
     read: {
       title: "Baca pasaran",
-      body: "Mulakan sesi dengan ini. Analisis Harian ialah bacaan meja tentang emas beserta parasnya; Meja Fundamental membaca faktor makro merentasi sebelas instrumen; Berita dan Kalendar memberitahu apa yang akan datang.",
+      body: "Mulakan sesi dengan ini. Analisis Harian ialah bacaan MM Desk tentang emas beserta parasnya; Fundamental Desk membaca faktor makro merentasi sebelas instrumen; Berita dan Kalendar memberitahu apa yang akan datang.",
     },
     execute: {
       title: "Laksana",
-      body: "Tempat pelan menjadi dagangan. Isyarat ialah isyarat meja, Indikator meletakkan alat kami pada carta TradingView anda sendiri, dan Strategi ialah sistem yang ditulis sebagai skrip.",
+      body: "Tempat pelan menjadi dagangan. Isyarat ialah isyarat MM Desk, Indikator meletakkan alat kami pada carta TradingView anda sendiri, dan Strategi ialah sistem yang ditulis sebagai skrip.",
     },
     manage: {
       title: "Urus dagangan",
@@ -44,7 +44,7 @@ export const tour: Messages["tour"] = {
       body: "Enam langkah anda, mengikut urutan, setiap satu dengan apa yang anda peroleh dan sasaran selepasnya. Satu sehari sudah memadai.",
     },
     done: {
-      title: "Itulah meja",
+      title: "Itulah MM Desk",
       body: "Anda boleh menjalankan lawatan ini semula bila-bila masa melalui butang di bahagian atas Mula di sini. Langkah pertama ialah menyertai saluran awam — ia mengambil masa kira-kira sepuluh saat.",
     },
   },

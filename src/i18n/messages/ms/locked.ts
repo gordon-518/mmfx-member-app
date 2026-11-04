@@ -37,16 +37,16 @@ export const locked: Messages["locked"] = {
     "live-classes": {
       eyebrow: "Pendidikan · Langsung",
       title: "Kelas Langsung",
-      pitch: "Sesi pada carta bersama meja, membaca pasaran semasa ia bergerak.",
+      pitch: "Sesi pada carta bersama MM Desk, membaca pasaran semasa ia bergerak.",
       points: {
-        p1: "Secara langsung pada carta bersama meja",
+        p1: "Secara langsung pada carta bersama MM Desk",
         p2: "Tanya soalan ketika ia berlaku",
         p3: "Rakaman sesi lalu",
       },
     },
     "fundamental-desk": {
       eyebrow: "Bot · Makro",
-      title: "Meja Fundamental",
+      title: "Fundamental Desk",
       pitch: "Analisis makro langsung tentang emas: gambaran fundamental yang menggerakkan XAU/USD, dengan bahasa yang mudah.",
       points: {
         p1: "Apa yang menggerakkan emas hari ini, dan mengapa",
@@ -67,15 +67,15 @@ export const locked: Messages["locked"] = {
     "team-mm": {
       eyebrow: "Team MM · Komuniti",
       title: "Team MM",
-      pitch: "Saluran peribadi Team MM, bersama meja.",
+      pitch: "Saluran peribadi Team MM, bersama MM Desk.",
       points: {
-        p1: "Terus daripada meja",
+        p1: "Terus daripada MM Desk",
         p2: "Ahli Team MM sahaja",
         p3: "Di Telegram",
       },
     },
   },
-  fallbackTitle: "Bahagian meja ini dikunci",
+  fallbackTitle: "Bahagian MM Desk ini dikunci",
   fallbackPitch: "Ia dibuka apabila anda deposit ke akaun anda.",
   openOnEvery: "Dibuka pada setiap pelan",
   openNow: "Dibuka pada pelan anda sekarang",

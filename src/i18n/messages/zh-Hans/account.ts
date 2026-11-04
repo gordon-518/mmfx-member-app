@@ -15,5 +15,5 @@ export const account: Messages["account"] = {
   gateBody: "你已成为入金会员，请绑定你的真实 MT4/MT5 账号。这样你的权限会与你实际交易的账户绑定——旧账户或不活跃的账户就不会让你被误移除。",
   gateHint: "以后更换了交易账户？回来把它更新为你最常使用的那个。",
   gateField: "交易账号",
-  gateSubmit: "保存并打开我的交易台",
+  gateSubmit: "保存并打开我的 MM Desk",
 };

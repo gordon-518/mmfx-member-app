@@ -34,7 +34,7 @@ export const library: Messages["library"] = {
       blurb: "當交易邏輯失效時——停損放在哪裡，以及為什麼。",
     },
     "cheat-sheets-quick-reference": {
-      blurb: "交易台的速查資料：交易時段、關鍵價位和檢查清單。",
+      blurb: "MM Desk 的速查資料：交易時段、關鍵價位和檢查清單。",
     },
   },
 };

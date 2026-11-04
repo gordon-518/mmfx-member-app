@@ -5,6 +5,8 @@ import { renderLifecycle, templateFor } from "@/lib/email/lifecycle";
 import type { LifecycleCopy, LifecycleCtx, LifecycleEmail } from "@/lib/email/lifecycle/types";
 import { tierFor } from "@/lib/tiers";
 import type { AccountStatus } from "@/lib/trial/status";
+import type { Locale } from "@/i18n/config";
+import { emailLocales } from "@/lib/email/locale";
 
 // The lifecycle rail's worker (design doc 2026-09-21 §4). Every five minutes,
 // via Supabase pg_cron + pg_net (job 'email-lifecycle', snippet in the
@@ -102,9 +104,10 @@ const AUDIENCES = new Set(["trial", "expired", "member"]);
 const BIASES = new Set(["bullish", "bearish", "neutral"]);
 
 /** Turn a claimed row into the ctx a template is a pure function of. */
-export function contextFor(row: ClaimedSend, appUrl = APP_URL): LifecycleCtx | null {
+export function contextFor(row: ClaimedSend, appUrl = APP_URL, locale: Locale = "en"): LifecycleCtx | null {
   if (!AUDIENCES.has(row.audience)) return null;
   return {
+    locale,
     firstName: row.first_name,
     audience: row.audience as LifecycleCtx["audience"],
     // The SQL returns the raw inputs; tierFor() stays the one ladder.
@@ -184,6 +187,8 @@ async function run(req: NextRequest) {
 
   const claimed = (data ?? []) as ClaimedSend[];
   const from = parseSender(process.env.EMAIL_FROM_MARKETING);
+  // Each reader's language, one lookup for the batch. English when unknown.
+  const locales = await emailLocales(db, claimed.map((r) => r.user_id));
 
   // The spotlight's copy comes from the brain, not from a template: one read
   // covers every recipient in this batch, since the claim pins one row's id.
@@ -222,6 +227,14 @@ async function run(req: NextRequest) {
     row.variant && row.variant !== "A"
       ? variantCopy.get(`${row.flow}/${row.step}/${row.variant}`)
       : undefined;
+  // The challenger arms are English copy. A reader in another language gets
+  // the translated default instead, and the send is recorded as arm A in
+  // their language — so it is never counted as a challenger it didn't get.
+  // A row whose arm has since been retired renders the control, and is
+  // recorded as the control too.
+  const localeOf = (row: ClaimedSend): Locale => locales.get(row.user_id) ?? "en";
+  const armOf = (row: ClaimedSend): string =>
+    localeOf(row) === "en" && copyFor(row) ? (row.variant as string) : "A";
 
   let sent = 0;
   let failed = 0;
@@ -232,7 +245,7 @@ async function run(req: NextRequest) {
     let why: string | null = null;
 
     try {
-      const ctx = contextFor(row);
+      const ctx = contextFor(row, APP_URL, localeOf(row));
       if (!ctx) {
         why = `no context for audience "${row.audience}"`;
       } else if (row.step === "spotlight") {
@@ -247,7 +260,7 @@ async function run(req: NextRequest) {
         } else {
           mail = renderLifecycle(row.flow, row.step, {
             ...ctx,
-            copy: copyFor(row),
+            copy: armOf(row) === "A" ? undefined : copyFor(row),
             spotlight: {
               subject: s.subject,
               html: s.html,
@@ -259,7 +272,7 @@ async function run(req: NextRequest) {
       } else if (!templateFor(row.flow, row.step)) {
         why = `no template for ${row.flow}/${row.step}`;
       } else {
-        mail = renderLifecycle(row.flow, row.step, { ...ctx, copy: copyFor(row) });
+        mail = renderLifecycle(row.flow, row.step, { ...ctx, copy: armOf(row) === "A" ? undefined : copyFor(row) });
       }
     } catch (e) {
       why = String(e);
@@ -316,7 +329,8 @@ async function run(req: NextRequest) {
         ok,
         error: ok ? null : (why ?? "unknown").slice(0, 2000),
         provider_id: providerId,
-        variant: row.variant ?? "A",
+        variant: armOf(row),
+        locale: localeOf(row),
         subject: mail.subject,
       })
       .eq("id", row.send_id);

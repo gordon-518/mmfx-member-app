@@ -8,7 +8,7 @@ export const nav: Messages["nav"] = {
   sectionManage: "Urus",
   sectionFoundations: "Asas",
   dailyAnalysis: "Analisis Harian",
-  fundamentalDesk: "Meja Fundamental",
+  fundamentalDesk: "Fundamental Desk",
   news: "Berita & Artikel",
   calendar: "Kalendar Ekonomi",
   signals: "Isyarat",

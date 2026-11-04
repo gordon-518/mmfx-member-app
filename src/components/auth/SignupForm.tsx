@@ -12,7 +12,7 @@ import { Captcha, type CaptchaHandle } from "./Captcha";
 import { OtpCodeInput } from "./OtpCodeInput";
 import { recordSignupConversion } from "@/app/signup/actions";
 import { isKnownCountry, type Country } from "@/lib/countries";
-import { useT } from "@/i18n/client";
+import { useLocale, useT } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
 import { rich } from "@/i18n/rich";
 import { TRIAL_DAYS } from "@/lib/trial/days";
@@ -40,6 +40,7 @@ export function SignupForm({
   const [resent, setResent] = useState(false);
   const captchaRef = useRef<CaptchaHandle>(null);
   const t = useT();
+  const locale = useLocale();
   const a = t.auth;
 
   function fail(msg: string) {
@@ -73,7 +74,9 @@ export function SignupForm({
       email,
       password,
       options: {
-        data: { full_name: name.trim(), country, fingerprint: computeFingerprint() },
+        // locale: the language they signed up in. The code email Supabase
+        // sends next is written in it, and so is every email after that.
+        data: { full_name: name.trim(), country, fingerprint: computeFingerprint(), locale },
         captchaToken,
       },
     });

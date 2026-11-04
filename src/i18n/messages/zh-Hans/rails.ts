@@ -21,7 +21,7 @@ export const rails: Messages["rails"] = {
       blurb: "按交易时段解读黄金",
     },
     "fundamental-desk": {
-      title: "基本面分析台",
+      title: "Fundamental Desk",
       blurb: "XAU/USD 实时宏观解读",
     },
     signals: {
@@ -38,7 +38,7 @@ export const rails: Messages["rails"] = {
     },
     "live-classes": {
       title: "直播课程",
-      blurb: "与交易台一起实时看图",
+      blurb: "与 MM Desk 一起实时看图",
     },
     "know-your-style": {
       title: "交易风格测评",

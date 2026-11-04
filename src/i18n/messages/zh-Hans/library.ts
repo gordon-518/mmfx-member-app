@@ -34,7 +34,7 @@ export const library: Messages["library"] = {
       blurb: "当交易逻辑失效时——止损放在哪里，以及为什么。",
     },
     "cheat-sheets-quick-reference": {
-      blurb: "交易台的速查资料：交易时段、关键价位和检查清单。",
+      blurb: "MM Desk 的速查资料：交易时段、关键价位和检查清单。",
     },
   },
 };

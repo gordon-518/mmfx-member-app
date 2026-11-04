@@ -13,23 +13,31 @@
 // The template renders `ctx.copy ?? defaultCopy`, which is the whole mechanism
 // behind variant arms — a challenger is a row of JSON, not a deploy.
 
+import { fmt } from "@/i18n/format";
 import { paragraph } from "@/lib/email/ui";
 import type { EmailPart } from "@/lib/email/ui";
+import { emailMessages, type EmailMessages } from "@/lib/email/i18n";
+import { en } from "@/lib/email/i18n/en";
 import type { LifecycleCopy, LifecycleCtx } from "./types";
 
 /** The one accent colour. */
 export const ORANGE = "#FF5A1F";
 
-export const SIGNOFF = "— Don, Market Makers FX";
+export const SIGNOFF = en.common.signoff;
+
+/** The reader's words: their language's dictionary, English when unset. */
+export function wordsOf(ctx: Pick<LifecycleCtx, "locale">): EmailMessages {
+  return emailMessages(ctx.locale ?? "en");
+}
 
 export function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 /** "Hi Alex," — first word only, so a full name in the column still reads right. */
-export function hi(firstName: string | null): string {
+export function hi(firstName: string | null, words: EmailMessages = en): string {
   const first = firstName?.trim().split(/\s+/)[0];
-  return first ? `Hi ${first},` : "Hi,";
+  return first ? fmt(words.common.hi, { name: first }) : words.common.hiNoName;
 }
 
 /**
@@ -75,16 +83,26 @@ export function preheaderOf(copy: LifecycleCopy): string {
 
 /** The greeting, in both renderings. */
 export function greeting(ctx: LifecycleCtx): EmailPart {
-  const line = hi(ctx.firstName);
+  const line = hi(ctx.firstName, wordsOf(ctx));
   return { html: p(esc(line)), text: line };
 }
 
 /** The signature, in both renderings. */
-export function signoff(): EmailPart {
+export function signoff(ctx: Pick<LifecycleCtx, "locale"> = {}): EmailPart {
+  const line = wordsOf(ctx).common.signoff;
   return {
-    html: `<p style="margin:18px 0 0;font:400 13px/1.6 Inter,Arial,sans-serif;color:#6b665e">${esc(SIGNOFF)}</p>`,
-    text: SIGNOFF,
+    html: `<p style="margin:18px 0 0;font:400 13px/1.6 Inter,Arial,sans-serif;color:#6b665e">${esc(line)}</p>`,
+    text: line,
   };
+}
+
+/**
+ * "The desk writes its analysis in English", for a reader in another
+ * language, under anything the desk wrote. Nothing in English.
+ */
+export function deskWritesEnglish(ctx: Pick<LifecycleCtx, "locale">): EmailPart[] {
+  const line = wordsOf(ctx).common.deskWritesEnglish;
+  return line ? [note(line)] : [];
 }
 
 /** A quiet closing note above the signature — what Free keeps, and the like. */

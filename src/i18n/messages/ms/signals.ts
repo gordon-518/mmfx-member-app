@@ -3,7 +3,7 @@ import type { Messages } from "../types";
 // The signals page. Operational facts, never return promises.
 export const signals: Messages["signals"] = {
   eyebrow: "Langsung · XAU/USD",
-  title: "Meja isyarat",
+  title: "Isyarat MM Desk",
   subtitle: "Beberapa isyarat emas yang lebih yakin setiap hari — kemasukan, henti rugi dan sasaran, ditulis sebelum klik. Tiada isian kosong. Apabila tiada yang berbaloi, kami katakan begitu.",
   statCalls: "Isyarat sehari",
   statRr: "Risiko : ganjaran",
@@ -15,7 +15,7 @@ export const signals: Messages["signals"] = {
   channelTitle: "Saluran Isyarat MMFX",
   channelBody: "Isyarat disiarkan di sini sebaik ia diambil. Hidupkan pemberitahuan supaya anda tidak terlepas peluang.",
   openChannel: "Buka saluran",
-  more: "Lagi daripada meja",
+  more: "Lagi daripada MM Desk",
   openTelegram: "Buka di Telegram",
   performanceTitle: "Prestasi Mingguan",
   performanceBody: "Keputusan setiap minggu disiarkan sepenuhnya — rekod prestasi, secara terbuka.",

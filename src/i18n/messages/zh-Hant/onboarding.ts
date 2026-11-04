@@ -4,19 +4,19 @@ export const onboarding: Messages["onboarding"] = {
   steps: {
     telegram: {
       title: "加入公開 Telegram 頻道",
-      blurb: "交易台會在這裡即時發布交易訊號、市場筆記和交易時段動態。",
-      goal: "在資訊仍然有用的時候就看到交易台在關注什麼，而不是事後才讀到。",
+      blurb: "MM Desk 會在這裡即時發布交易訊號、市場筆記和交易時段動態。",
+      goal: "在資訊仍然有用的時候就看到 MM Desk 在關注什麼，而不是事後才讀到。",
       target: "在下一個交易時段開始前，在手機上開啟頻道。",
     },
     tv: {
       title: "連接 TradingView",
       blurb: "儲存你的 TradingView 使用者名稱，把指標加到你的圖表上。",
-      goal: "交易台的工具會在你自己的平台、你自己的圖表上畫出關鍵價位。",
+      goal: "MM Desk 的工具會在你自己的平台、你自己的圖表上畫出關鍵價位。",
       target: "只需設定一次——之後每個交易時段都在。",
     },
     analysis: {
       title: "觀看今天的每日分析",
-      blurb: "交易台按交易時段對黃金的解讀：方向、關鍵價位和交易邏輯。",
+      blurb: "MM Desk 按交易時段對黃金的解讀：方向、關鍵價位和交易邏輯。",
       goal: "每個交易時段開始前，你就知道方向、重要價位，以及什麼情況會證明判斷錯誤。",
       target: "先連續看五個交易時段的分析，再據此行動。",
     },
@@ -34,13 +34,13 @@ export const onboarding: Messages["onboarding"] = {
     },
     desk: {
       title: "了解 Desk 方案的內容",
-      blurb: "TradingView 指標與策略腳本、直播課程，以及基本面分析台的總經解讀。",
+      blurb: "TradingView 指標與策略腳本、直播課程，以及 Fundamental Desk 的總經解讀。",
       goal: "在做任何決定之前，清楚知道下一個等級包含什麼。",
       target: "得到一個明確的「要」或「不要」——而不是「也許」。",
     },
   },
   stages: {
-    theDesk: "交易台",
+    theDesk: "MM Desk",
     execution: "執行",
     analysis: "分析",
     tradeManagement: "交易管理",
@@ -48,14 +48,14 @@ export const onboarding: Messages["onboarding"] = {
     nextTier: "你的下一個等級",
   },
   deskFor: {
-    analysis_paralyser: "你在進場時想得太多。Desk 的直播課程會展示交易台如何解讀交易設定，並堅定執行計畫。",
+    analysis_paralyser: "你在進場時想得太多。Desk 的直播課程會展示 MM Desk 如何解讀交易設定，並堅定執行計畫。",
     emotional_revenge_trader: "Desk 在你和下一筆報復性交易之間，放上一堂直播課和一套有規則的總經解讀。",
     reckless_gambler: "Desk 的直播課程把結構放在第一位：先確定停損位置，再決定部位大小。",
     signal_dependent: "Desk 的直播課程會講解每一筆交易的理由，讓你不只是照抄訊號。",
     indicator_stacker: "Desk 用一份帶有完整邏輯的即時解讀，取代堆滿指標的圖表。",
     system_hopper: "Desk 是一套體系，在課堂上即時交易：每天都用同一套規則。",
     brand_new_beginner: "Desk 讓你在學習的同時，在課堂上觀看這套體系的實盤操作。",
-    news_trader: "基本面分析台會解讀每一次波動背後的總經因素，講得清楚易懂。",
+    news_trader: "Fundamental Desk 會解讀每一次波動背後的總經因素，講得清楚易懂。",
   },
   card: {
     gettingStarted: "入門 · {done}/{total}",

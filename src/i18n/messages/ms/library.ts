@@ -34,7 +34,7 @@ export const library: Messages["library"] = {
       blurb: "Apabila tesis gagal — di mana henti rugi diletakkan dan mengapa.",
     },
     "cheat-sheets-quick-reference": {
-      blurb: "Rujukan meja untuk sesi, paras dan senarai semak.",
+      blurb: "Rujukan MM Desk untuk sesi, paras dan senarai semak.",
     },
   },
 };
