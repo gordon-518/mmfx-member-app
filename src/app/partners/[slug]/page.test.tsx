@@ -320,3 +320,27 @@ describe("/partners/[slug] — a sponsor", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 });
+
+describe("/partners/[slug]/export — a sponsor's CSVs", () => {
+  const sreq = (qs: string) => new NextRequest(`https://app.test/partners/octa/export${qs}`);
+
+  it("serves the masked client table", async () => {
+    stubSponsor();
+    const res = await GET(sreq(`?key=${KEY}&table=clients`), { params: Promise.resolve({ slug: "octa" }) });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Disposition")).toContain('filename="octa-clients-');
+    const lines = (await res.text()).trimEnd().split("\r\n");
+    expect(lines[0]).toBe("signed_up,country,client,stage,ad,account_number,deposit_total");
+    expect(lines[1]).toBe("2026-11-03,MY,Aisyah R.,Funded,Gold Hook 03,88123456,200.00");
+    expect(lines[2]).toBe("2026-11-02,MY,Wei L.,Active in the app,,,");
+  });
+
+  it("serves the sponsor funnel by default", async () => {
+    stubSponsor();
+    const res = await GET(sreq(`?key=${KEY}`), { params: Promise.resolve({ slug: "octa" }) });
+    expect(res.headers.get("Content-Disposition")).toContain('filename="octa-funnel-');
+    const lines = (await res.text()).trimEnd().split("\r\n");
+    expect(lines[0]).toBe("week,ad,signups,activated,upgrade_viewed,broker_clicked,submitted,funded,deposit_total");
+    expect(lines[1]).toBe("2026-11-02,,120,50,30,12,4,2,350.00");
+  });
+});
