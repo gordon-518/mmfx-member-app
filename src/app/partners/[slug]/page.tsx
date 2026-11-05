@@ -16,7 +16,9 @@ import {
   totals,
   type PartnerRule,
 } from "@/lib/partners/funnel";
+import { loadSponsorData } from "@/lib/sponsors/load";
 import { Seg, Sparkline, Tile } from "./ui";
+import { SponsorDashboard } from "./SponsorDashboard";
 
 // The partner dashboard (design 2026-09-25 §2.6). No login: the link carries
 // a key, the key either matches the stored hash or this is a 404. Everything
@@ -53,8 +55,24 @@ export default async function PartnerPage({
 
   // One answer for a bad slug, an unknown partner, a deactivated one and a
   // wrong key: telling them apart would tell a stranger which slugs exist.
-  const partner = await resolvePartner(partnerDb(), slug, key);
+  const db = partnerDb();
+  const partner = await resolvePartner(db, slug, key);
   if (!partner) notFound();
+
+  if (partner.kind === "sponsor") {
+    // Same CSV convention as the agency page: ?format=csv hands the query to
+    // the export route. table=clients selects the masked client table.
+    if (one(sp.format) === "csv") {
+      const q = new URLSearchParams({ key: key! });
+      for (const k of ["days", "table"] as const) {
+        const v = one(sp[k]);
+        if (v) q.set(k, v);
+      }
+      redirect(`/partners/${partner.slug}/export?${q.toString()}`);
+    }
+    const data = await loadSponsorData(db, partner.slug, sp);
+    return <SponsorDashboard partner={partner} keyParam={key!} data={data} />;
+  }
 
   const range = parseRange(sp);
   const rule = parseRule(one(sp.rule));
@@ -76,7 +94,7 @@ export default async function PartnerPage({
 
   if (one(sp.format) === "csv") redirect(`/partners/${partner.slug}/export${qs({})}`);
 
-  const rows = await fetchFunnel(partnerDb(), {
+  const rows = await fetchFunnel(db, {
     slug: partner.slug,
     since: range.since,
     until: range.until,

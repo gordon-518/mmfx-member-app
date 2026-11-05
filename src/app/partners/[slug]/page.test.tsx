@@ -224,3 +224,99 @@ describe("/partners/[slug]/export — the CSV", () => {
     expect(rpc.mock.calls[0][1]).toMatchObject({ p_rule: "first" });
   });
 });
+
+// ---- sponsors (design 2026-11-05) -----------------------------------------
+
+const OCTA = { slug: "octa", name: "Octa", key_hash: HASH, active: true, kind: "sponsor", brokers: ["octa", "elev8"] };
+const WINDOWS = [{ country: "MY", since: "2026-11-01T00:00:00+00:00", until: null }];
+const SPONSOR_ROWS = [
+  { week: "2026-11-02", label: null, signups: 120, activated: 50, upgrade_viewed: 30, broker_clicked: 12, submitted: 4, funded: 2, deposit_total: 350 },
+  { week: "2026-11-02", label: "Gold Hook 03", signups: 40, activated: 25, upgrade_viewed: 15, broker_clicked: 6, submitted: 2, funded: 1, deposit_total: 200 },
+];
+const CLIENTS = [
+  { total: 2, signed_up: "2026-11-03", country: "MY", display: "Aisyah R.", stage: "funded", ad_label: "Gold Hook 03", account_number: "88123456", deposit_total: 200 },
+  { total: 2, signed_up: "2026-11-02", country: "MY", display: "Wei L.", stage: "activated", ad_label: null, account_number: null, deposit_total: null },
+];
+
+function stubSponsor(partner: Record<string, unknown> | null = OCTA) {
+  rpc = vi.fn(async (fn: string) => {
+    if (fn === "fn_sponsor_windows") return { data: WINDOWS, error: null };
+    if (fn === "fn_sponsor_funnel") return { data: SPONSOR_ROWS, error: null };
+    if (fn === "fn_sponsor_clients") return { data: CLIENTS, error: null };
+    return { data: [], error: null };
+  });
+  partnerDbMock.mockReturnValue({
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: partner, error: null }) }) }),
+    }),
+    rpc,
+  });
+}
+
+function renderSponsor(search: Record<string, string>) {
+  return PartnerPage({
+    params: Promise.resolve({ slug: "octa" }),
+    searchParams: Promise.resolve(search),
+  }).then((el) => renderToStaticMarkup(el));
+}
+
+describe("/partners/[slug] — a sponsor", () => {
+  it("renders the sponsor view: headline, traced, broker-scoped funding", async () => {
+    stubSponsor();
+    const html = await renderSponsor({ key: KEY });
+    expect(html).toContain("Octa");
+    expect(html).toContain("Malaysia from 1 Nov 2026");
+    expect(html).toContain("160"); // 120 + 40 signups
+    expect(html).toContain("Directly traced");
+    expect(html).toContain("Funded with Octa / Elev8");
+    expect(html).toContain("$550");
+    expect(html).toContain("Gold Hook 03");
+  });
+
+  it("never runs the agency funnel", async () => {
+    stubSponsor();
+    await renderSponsor({ key: KEY });
+    expect(rpc.mock.calls.map((c) => c[0])).not.toContain("fn_partner_funnel");
+  });
+
+  it("defaults to the whole deal: the deal start goes to the RPCs", async () => {
+    stubSponsor();
+    await renderSponsor({ key: KEY });
+    expect(rpc).toHaveBeenCalledWith("fn_sponsor_funnel", expect.objectContaining({ p_slug: "octa", p_since: "2026-11-01T00:00:00.000Z" }));
+    expect(rpc).toHaveBeenCalledWith("fn_sponsor_clients", expect.objectContaining({ p_limit: 50, p_offset: 0 }));
+  });
+
+  it("lists clients masked, with the account number only on the funded row", async () => {
+    stubSponsor();
+    const html = await renderSponsor({ key: KEY });
+    expect(html).toContain("Aisyah R.");
+    expect(html).toContain("Wei L.");
+    expect(html.split("88123456")).toHaveLength(2); // exactly once
+    expect(html).toContain("Active in the app");
+    for (const leak of ["@", "null", "user_id", "uuid"]) {
+      expect(html, leak).not.toContain(leak);
+    }
+  });
+
+  it("carries the key through the range, page and CSV links", async () => {
+    stubSponsor();
+    const html = await renderSponsor({ key: KEY, days: "30" });
+    expect(html).toContain(`key=${KEY}`);
+    expect(html).toContain("days=7");
+    expect(html).toContain("/partners/octa/export?");
+    expect(html).toContain("table=clients");
+  });
+
+  it("prints the SPN template with this sponsor's slug and stays calm", async () => {
+    stubSponsor();
+    const html = await renderSponsor({ key: KEY });
+    expect(html).toContain("cid=SPN-octa-");
+    expect(html).not.toContain("!");
+  });
+
+  it("404s on a wrong key exactly like an agency", async () => {
+    stubSponsor();
+    await expect(renderSponsor({ key: "0".repeat(64) })).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
