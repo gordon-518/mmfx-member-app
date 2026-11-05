@@ -16,6 +16,9 @@ import {
   totals,
   type PartnerRule,
 } from "@/lib/partners/funnel";
+import { loadSponsorData } from "@/lib/sponsors/load";
+import { Seg, Sparkline, Tile } from "./ui";
+import { SponsorDashboard } from "./SponsorDashboard";
 
 // The partner dashboard (design 2026-09-25 §2.6). No login: the link carries
 // a key, the key either matches the stored hash or this is a 404. Everything
@@ -37,67 +40,6 @@ function one(v: string | string[] | undefined): string | undefined {
   return Array.isArray(v) ? v[0] : v;
 }
 
-// ---- presentation ---------------------------------------------------------
-
-function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-2xl border border-line bg-card p-5 shadow-soft">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">{label}</p>
-      <p className="mt-2 font-display text-[34px] font-bold leading-none tracking-tight text-ink">
-        {value}
-      </p>
-      {sub && <p className="mt-1.5 text-[12px] text-subtle">{sub}</p>}
-    </div>
-  );
-}
-
-// Inline-SVG sparkline, same shape as /stats: no charting dependency.
-function Sparkline({ values }: { values: number[] }) {
-  const W = 120;
-  const H = 28;
-  const pad = 3;
-  if (values.length < 2) return <span className="text-[11px] text-faint">—</span>;
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  const span = max - min || 1;
-  const stepX = (W - pad * 2) / (values.length - 1);
-  const pts = values
-    .map((v, i) => {
-      const x = pad + i * stepX;
-      const y = pad + (H - pad * 2) * (1 - (v - min) / span);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-7 w-[120px]" preserveAspectRatio="none" aria-hidden>
-      <polyline
-        points={pts}
-        fill="none"
-        stroke="var(--color-orange)"
-        strokeWidth={1.6}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function Seg({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
-  return (
-    <a
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={
-        active
-          ? "rounded-lg bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent-ink shadow-soft"
-          : "rounded-lg px-3 py-1.5 text-[13px] font-medium text-subtle transition-colors hover:text-accent-ink"
-      }
-    >
-      {children}
-    </a>
-  );
-}
-
 // ---- page -----------------------------------------------------------------
 
 export default async function PartnerPage({
@@ -113,8 +55,24 @@ export default async function PartnerPage({
 
   // One answer for a bad slug, an unknown partner, a deactivated one and a
   // wrong key: telling them apart would tell a stranger which slugs exist.
-  const partner = await resolvePartner(partnerDb(), slug, key);
+  const db = partnerDb();
+  const partner = await resolvePartner(db, slug, key);
   if (!partner) notFound();
+
+  if (partner.kind === "sponsor") {
+    // Same CSV convention as the agency page: ?format=csv hands the query to
+    // the export route. table=clients selects the masked client table.
+    if (one(sp.format) === "csv") {
+      const q = new URLSearchParams({ key: key! });
+      for (const k of ["days", "table"] as const) {
+        const v = one(sp[k]);
+        if (v) q.set(k, v);
+      }
+      redirect(`/partners/${partner.slug}/export?${q.toString()}`);
+    }
+    const data = await loadSponsorData(db, partner.slug, sp);
+    return <SponsorDashboard partner={partner} keyParam={key!} data={data} />;
+  }
 
   const range = parseRange(sp);
   const rule = parseRule(one(sp.rule));
@@ -136,7 +94,7 @@ export default async function PartnerPage({
 
   if (one(sp.format) === "csv") redirect(`/partners/${partner.slug}/export${qs({})}`);
 
-  const rows = await fetchFunnel(partnerDb(), {
+  const rows = await fetchFunnel(db, {
     slug: partner.slug,
     since: range.since,
     until: range.until,

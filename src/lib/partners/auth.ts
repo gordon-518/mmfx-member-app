@@ -42,9 +42,15 @@ export function keyMatches(key: string | null | undefined, keyHash: string | nul
  *  and the label half is a Meta ad name full of hyphens. */
 export const PARTNER_SLUG = /^[a-z0-9]{2,24}$/;
 
+export type PartnerKind = "agency" | "sponsor";
+
 export interface Partner {
   slug: string;
   name: string;
+  /** agency reads AGY- cids (Ren); sponsor reads its country windows + SPN- cids. */
+  kind: PartnerKind;
+  /** For sponsors: the broker ids that count as "funded with the sponsor". */
+  brokers: string[];
 }
 
 export interface PartnerRow {
@@ -53,6 +59,8 @@ export interface PartnerRow {
   key_hash: string;
   active: boolean;
   report_email?: string | null;
+  kind?: string | null;
+  brokers?: string[] | null;
 }
 
 /** The slice of a Supabase client the lookup needs. */
@@ -85,7 +93,7 @@ export async function resolvePartner(
   try {
     const res = await db
       .from("partners")
-      .select("slug, name, key_hash, active")
+      .select("slug, name, key_hash, active, kind, brokers")
       .eq("slug", slug)
       .maybeSingle();
     row = res.data;
@@ -95,5 +103,10 @@ export async function resolvePartner(
 
   if (!row || !row.active) return null;
   if (!keyMatches(key, row.key_hash)) return null;
-  return { slug: row.slug, name: row.name };
+  return {
+    slug: row.slug,
+    name: row.name,
+    kind: row.kind === "sponsor" ? "sponsor" : "agency",
+    brokers: Array.isArray(row.brokers) ? row.brokers.filter((b): b is string => typeof b === "string") : [],
+  };
 }
