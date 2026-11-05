@@ -30,8 +30,14 @@ describe("feature access map — the plan's tier feature matrix", () => {
     expect(open(as("desk"))).toEqual(DESK);
   });
 
-  it("a trial is Desk-equivalent: everything but the AI assistant and Team MM", () => {
-    expect(open(as("trial"))).toEqual(DESK);
+  it("a trial is Desk plus the AI Trading Assistant — everything but Team MM (Gordon, 5 Nov)", () => {
+    expect(open(as("trial"))).toEqual([...DESK, "ai-trading-assistant"].sort());
+  });
+
+  it("the assistant stays Team MM once paid: Desk and Foundation members don't get it", () => {
+    expect(canAccess("ai-trading-assistant", as("desk"))).toBe(false);
+    expect(canAccess("ai-trading-assistant", as("foundation"))).toBe(false);
+    expect(canAccess("ai-trading-assistant", as("free"))).toBe(false);
   });
 
   it("Team MM reaches everything", () => {

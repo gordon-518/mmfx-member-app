@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getAccess, type AccessProfile } from "@/lib/access/getAccess";
 import { canAccess } from "@/lib/access/features";
-import { tierFor } from "@/lib/tiers";
+import { accessTierFor } from "@/lib/tiers";
 
 // Shared helpers for the journal API routes.
 
@@ -55,15 +55,18 @@ export async function requireAdminApi(): Promise<
 
 /**
  * Team MM variant — the AI Trading Assistant is a Team MM feature (conversion-fix
- * 3.3; the same map the /journal pages use). Admins are allowed through too
- * (support / QA). Everyone else gets a 403, which stops URL access.
+ * 3.3; the same map the /journal pages use), also open during the 14-day trial
+ * (TRIAL_EXTRAS). Admins are allowed through too (support / QA). Everyone else
+ * gets a 403, which stops URL access.
  */
 export async function requireMemberApi(): Promise<
   { profile: AccessProfile } | { response: NextResponse }
 > {
   const guard = await requireFullApi();
   if ("response" in guard) return guard;
-  const viewer = { tier: tierFor(guard.profile), isAdmin: guard.profile.is_admin };
+  // accessTierFor, as the /journal pages use (getAccess): a member who
+  // deposited mid-trial keeps the trial's access until its clock ends.
+  const viewer = { tier: accessTierFor(guard.profile), isAdmin: guard.profile.is_admin };
   if (!canAccess("ai-trading-assistant", viewer)) {
     return {
       response: NextResponse.json({ error: "Team MM only" }, { status: 403 }),
