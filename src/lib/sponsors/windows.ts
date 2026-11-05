@@ -40,9 +40,12 @@ export function dealStart(windows: SponsorWindow[]): Date | null {
 
 const REGION = new Intl.DisplayNames(["en"], { type: "region" });
 
+/** ISO-2 → English name. ICU answers "Unknown Region" for codes it has no
+ *  name for (ZZ is literally that), so the code itself is shown instead. */
 export function countryName(code: string): string {
   try {
-    return REGION.of(code) ?? code;
+    const name = REGION.of(code);
+    return !name || /^unknown region$/i.test(name) ? code : name;
   } catch {
     return code;
   }
