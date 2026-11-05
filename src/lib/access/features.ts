@@ -65,7 +65,16 @@ export function viewerRank(viewer: Viewer): number {
   return viewer.isAdmin && viewer.tier !== "free" ? TIER_RANK.team : TIER_RANK[viewer.tier];
 }
 
+/**
+ * Paid features the 14-day trial opens on top of its Desk-equivalent rank
+ * (Gordon, 5 Nov: the AI Trading Assistant during the trial — connecting still
+ * needs an approved broker server). Once the trial ends they need their own
+ * tier again; a Desk member doesn't get them.
+ */
+export const TRIAL_EXTRAS: ReadonlySet<FeatureKey> = new Set<FeatureKey>(["ai-trading-assistant"]);
+
 export function canAccess(key: FeatureKey, viewer: Viewer): boolean {
+  if (viewer.tier === "trial" && TRIAL_EXTRAS.has(key)) return true;
   return viewerRank(viewer) >= TIER_RANK[FEATURE_MIN_TIER[key]];
 }
 

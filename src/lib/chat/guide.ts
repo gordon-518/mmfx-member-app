@@ -9,7 +9,7 @@
 import { en } from "@/i18n/messages/en";
 import { LOCALES, LOCALE_LABEL } from "@/i18n/config";
 import { fmt } from "@/i18n/format";
-import { FEATURE_HREF, FEATURE_MIN_TIER } from "@/lib/access/features";
+import { FEATURE_HREF, FEATURE_MIN_TIER, TRIAL_EXTRAS } from "@/lib/access/features";
 import { FEATURE_KEYS, type FeatureKey } from "@/lib/access/featureKeys";
 import { CONTENT_VARS } from "@/lib/contentCounts";
 import { PUBLIC_CHANNEL_URL } from "@/lib/onboarding";
@@ -62,7 +62,8 @@ function opensAt(key: FeatureKey): string {
       ? `Module 1 on every plan; all lessons from Foundation ($${TIER_THRESHOLDS.foundation})`
       : "every plan, Free included";
   }
-  return `${en.tiers[min]} ($${TIER_THRESHOLDS[min]} in cumulative deposits) and above`;
+  const paid = `${en.tiers[min]} ($${TIER_THRESHOLDS[min]} in cumulative deposits) and above`;
+  return TRIAL_EXTRAS.has(key) ? `${paid}, and during the 14-day free trial` : paid;
 }
 
 const HOW_TO: readonly string[] = [
@@ -70,7 +71,7 @@ const HOW_TO: readonly string[] = [
   `Getting around: Start here (${APP_URL}/welcome) has the six first steps and the roadmap; its "How to use" button runs a two-minute guided tour of the menu. The Dashboard (${APP_URL}/dashboard) is the daily home.`,
   `Password: ${APP_URL}/forgot-password sends a 6-digit code to the member's email, then they set a new password. Signing in with Google also works for a Google email.`,
   `TradingView indicators and strategy scripts: submit the TradingView username once on ${APP_URL}/indicators (the strategies page uses the same username). Access is granted automatically, usually within 1–3 hours. ${en.tv.hint} If nothing shows after 3 hours, hand off.`,
-  `AI Trading Assistant (${APP_URL}/journal, Team MM): connect an MT5 account with its account number, the broker server and the investor (read-only) password — never the master password. Demo servers aren't accepted. The password is never stored. Once connected it reads closed trades and reviews them against the MM System.`,
+  `AI Trading Assistant (${APP_URL}/journal, Team MM, and open during the 14-day free trial): connect an MT5 account with its account number, the broker server and the investor (read-only) password — never the master password. Demo servers aren't accepted. The password is never stored. Once connected it reads closed trades and reviews them against the MM System.`,
   `Course: ${fmt("Module 1 is open on every plan; all {lessons} lessons open from Foundation.", CONTENT_VARS)} Each lesson has a slide deck to download, and progress is saved to the account.`,
   `Team MM channel (${APP_URL}/team-mm): members on Team MM tap "Request your invite", which opens a private chat with the desk on Telegram; the desk checks and sends a personal invite link. Only @MMFX_BOSS and @MM_3000 are official desk accounts.`,
   `The free public Telegram channel is ${PUBLIC_CHANNEL_URL} — joining it is step one on Start here.`,
@@ -84,7 +85,7 @@ export function buildAppGuide(): string {
   );
   const questions = faq(en.plans).map((f) => `- Q: ${f.q} A: ${f.a}`);
   return [
-    "PAGES (name, link, what it is, which tier opens it; during the trial everything except Team MM's own features is open):",
+    "PAGES (name, link, what it is, which tier opens it; during the 14-day trial everything except the Team MM channel is open, the AI Trading Assistant included):",
     ...pages,
     "HOW TO:",
     ...HOW_TO.map((line) => `- ${line}`),
