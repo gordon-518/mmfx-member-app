@@ -68,14 +68,29 @@ describe("PARTNER_SLUG", () => {
 describe("resolvePartner", () => {
   it("returns the partner for a right key", async () => {
     const { client } = db(REN);
-    await expect(resolvePartner(client, "ren", KEY)).resolves.toEqual({ slug: "ren", name: "Ren" });
+    await expect(resolvePartner(client, "ren", KEY)).resolves.toEqual({
+      slug: "ren",
+      name: "Ren",
+      kind: "agency",
+      brokers: [],
+    });
+  });
+
+  it("carries a sponsor's kind and brokers through", async () => {
+    const { client } = db({ ...REN, slug: "octa", name: "Octa", kind: "sponsor", brokers: ["octa", "elev8"] });
+    await expect(resolvePartner(client, "octa", KEY)).resolves.toEqual({
+      slug: "octa",
+      name: "Octa",
+      kind: "sponsor",
+      brokers: ["octa", "elev8"],
+    });
   });
 
   it("looks the partner up by slug and asks for no secret it does not need", async () => {
     const { client, from, select, eq } = db(REN);
     await resolvePartner(client, "ren", KEY);
     expect(from).toHaveBeenCalledWith("partners");
-    expect(select).toHaveBeenCalledWith("slug, name, key_hash, active");
+    expect(select).toHaveBeenCalledWith("slug, name, key_hash, active, kind, brokers");
     expect(eq).toHaveBeenCalledWith("slug", "ren");
   });
 
