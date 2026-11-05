@@ -50,7 +50,7 @@ export function SponsorDashboard({ partner, keyParam, data }: Props) {
     `?cid=SPN-${partner.slug}-{{ad.name}}&geo=<${geo}>` +
     `&utm_source=meta&utm_medium=paid&utm_campaign={{campaign.name}}`;
   const windowLine = windows.length
-    ? windows.map(describeWindow).join("; ")
+    ? `${windows.map(describeWindow).join("; ")}.`
     : "No sponsorship window is on file yet, so this shows the last 90 days.";
 
   return (
