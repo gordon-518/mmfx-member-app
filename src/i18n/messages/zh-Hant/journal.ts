@@ -251,9 +251,14 @@ export const journal: Messages["journal"] = {
     saveFailed: "無法儲存規則",
   },
   infoTip: "計算方式",
+  // Locked page, account still connected (Gordon, 5 Nov): after the trial only Team MM syncs.
+  notSyncing: {
+    title: "你的 MT5 帳戶未在同步",
+    body: "MT5 {login} 仍保持連接，但免費試用結束後，AI 交易助手只為 Team MM 會員同步——而你還不是 Team MM 會員。升級到 Team MM 後，交易會重新開始同步。",
+  },
   errors: {
     notSignedIn: "你的登入已過期。請重新登入。",
-    noAccess: "AI 交易助手是 Team MM 的功能。",
+    noAccess: "你還不是 Team MM 會員。免費試用結束後，AI 交易助手僅限 Team MM 會員使用。",
     noAccountNumber: "請先在個人資料中新增你的交易帳號。",
     chooseBroker: "請選擇你的經紀商",
     passwordRequired: "請輸入投資者密碼",

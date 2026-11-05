@@ -251,9 +251,14 @@ export const journal: Messages["journal"] = {
     saveFailed: "Tidak bisa menyimpan aturan",
   },
   infoTip: "Cara menghitungnya",
+  // Locked page, account still connected (Gordon, 5 Nov): after the trial only Team MM syncs.
+  notSyncing: {
+    title: "Akun MT5 Anda tidak tersinkron",
+    body: "MT5 {login} masih terhubung, tetapi setelah uji coba gratis Asisten Trading AI hanya melakukan sinkronisasi untuk anggota Team MM — dan Anda belum masuk Team MM. Capai Team MM dan trading Anda akan tersinkron lagi.",
+  },
   errors: {
     notSignedIn: "Sesi Anda sudah berakhir. Silakan masuk lagi.",
-    noAccess: "Asisten Trading AI adalah bagian dari Team MM.",
+    noAccess: "Anda belum masuk Team MM. Setelah uji coba gratis, Asisten Trading AI hanya untuk anggota Team MM.",
     noAccountNumber: "Tambahkan nomor akun trading Anda ke profil terlebih dahulu.",
     chooseBroker: "Pilih broker Anda",
     passwordRequired: "Password investor wajib diisi",
