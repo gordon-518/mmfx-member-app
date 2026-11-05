@@ -44,7 +44,16 @@ function freeLinks(t: Messages): { label: string; feature: FeatureKey }[] {
   ];
 }
 
-export async function LockedFeature({ feature, gate }: { feature: FeatureKey; gate: FeatureGate }) {
+export async function LockedFeature({
+  feature,
+  gate,
+  notice,
+}: {
+  feature: FeatureKey;
+  gate: FeatureGate;
+  /** Something the page needs this member to know first (e.g. a connection that stopped syncing). */
+  notice?: React.ReactNode;
+}) {
   const t = await getT();
   const l = t.locked;
   const known = isLockedKey(feature, t) ? l.features[feature] : null;
@@ -64,6 +73,12 @@ export async function LockedFeature({ feature, gate }: { feature: FeatureKey; ga
           <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{copy.title}</h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{copy.pitch}</p>
         </div>
+
+        {notice && (
+          <div className="rise mt-6" style={{ animationDelay: "40ms" }}>
+            {notice}
+          </div>
+        )}
 
         <div className="rise mt-7" style={{ animationDelay: "80ms" }}>
           <LockedOverlay

@@ -249,9 +249,14 @@ export const journal = {
     saveFailed: "Could not save rules",
   },
   infoTip: "How this is calculated",
+  // Locked page, account still connected (Gordon, 5 Nov): after the trial only Team MM syncs.
+  notSyncing: {
+    title: "Your MT5 account isn't syncing",
+    body: "MT5 {login} is still connected, but after the free trial the AI Trading Assistant only syncs for Team MM members — and you're not on Team MM yet. Reach Team MM and your trades start syncing again.",
+  },
   errors: {
     notSignedIn: "Your session has ended. Sign in again.",
-    noAccess: "The AI Trading Assistant is part of Team MM.",
+    noAccess: "You're not on Team MM yet. After the free trial, the AI Trading Assistant is for Team MM members.",
     noAccountNumber: "Add your trading account number to your profile first.",
     chooseBroker: "Choose your broker",
     passwordRequired: "Investor password is required",

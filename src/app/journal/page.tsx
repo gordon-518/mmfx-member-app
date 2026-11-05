@@ -22,6 +22,7 @@ import type {
 } from "@/lib/journal/types";
 import { JournalDashboard } from "./JournalDashboard";
 import { getT } from "@/i18n/server";
+import { fmt } from "@/i18n/format";
 
 // AI Trading Journal — Phase 2 dashboard. Server component: gate, fetch own
 // rows (RLS-scoped), compute the full analytics set (pure), render the client
@@ -31,9 +32,35 @@ import { getT } from "@/i18n/server";
 
 const TRADES_CAP = 1000;
 
+/**
+ * A member who lost access (trial over, not on Team MM) but still has an MT5
+ * account connected: the sync cron skips it (fn_enqueue_due_sync_jobs), so say
+ * why it stopped and what restarts it. Null when nothing is connected.
+ */
+async function notSyncingNotice(): Promise<React.ReactNode> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("journal_accounts")
+    .select("mt5_login")
+    .neq("state", "disconnected")
+    .limit(1);
+  if (error) console.error("[journal] connected-account lookup failed", error.message);
+  const login = data?.[0]?.mt5_login as string | undefined;
+  if (!login) return null;
+  const words = (await getT()).journal.notSyncing;
+  return (
+    <div role="status" className="rounded-2xl border border-orange/40 bg-orange/5 p-5">
+      <p className="text-[14.5px] font-semibold text-ink">{words.title}</p>
+      <p className="mt-1 max-w-2xl text-[13.5px] leading-relaxed text-subtle">{fmt(words.body, { login })}</p>
+    </div>
+  );
+}
+
 export default async function JournalPage() {
   const gate = await requireFeature("ai-trading-assistant");
-  if (gate.locked) return <LockedFeature feature="ai-trading-assistant" gate={gate} />;
+  if (gate.locked) {
+    return <LockedFeature feature="ai-trading-assistant" gate={gate} notice={await notSyncingNotice()} />;
+  }
   const profile = gate.profile;
   const supabase = await createClient();
   const m = (await getT()).journalEngine;

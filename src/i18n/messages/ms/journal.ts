@@ -251,9 +251,14 @@ export const journal: Messages["journal"] = {
     saveFailed: "Tidak dapat menyimpan peraturan",
   },
   infoTip: "Cara ini dikira",
+  // Locked page, account still connected (Gordon, 5 Nov): after the trial only Team MM syncs.
+  notSyncing: {
+    title: "Akaun MT5 anda tidak disegerakkan",
+    body: "MT5 {login} masih bersambung, tetapi selepas percubaan percuma Pembantu Dagangan AI hanya menyegerakkan untuk ahli Team MM — dan anda belum menyertai Team MM. Capai Team MM dan dagangan anda akan mula disegerakkan semula.",
+  },
   errors: {
     notSignedIn: "Sesi anda telah tamat. Sila log masuk semula.",
-    noAccess: "Pembantu Dagangan AI ialah sebahagian daripada Team MM.",
+    noAccess: "Anda belum menyertai Team MM. Selepas percubaan percuma, Pembantu Dagangan AI hanya untuk ahli Team MM.",
     noAccountNumber: "Tambahkan nombor akaun dagangan anda ke profil anda dahulu.",
     chooseBroker: "Pilih broker anda",
     passwordRequired: "Kata laluan pelabur diperlukan",
