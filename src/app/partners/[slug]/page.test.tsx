@@ -238,9 +238,9 @@ const CLIENTS = [
   { total: 2, signed_up: "2026-11-02", country: "MY", display: "Wei L.", stage: "activated", ad_label: null, account_number: null, deposit_total: null },
 ];
 
-function stubSponsor(partner: Record<string, unknown> | null = OCTA) {
+function stubSponsor(partner: Record<string, unknown> | null = OCTA, windows: unknown[] = WINDOWS) {
   rpc = vi.fn(async (fn: string) => {
-    if (fn === "fn_sponsor_windows") return { data: WINDOWS, error: null };
+    if (fn === "fn_sponsor_windows") return { data: windows, error: null };
     if (fn === "fn_sponsor_funnel") return { data: SPONSOR_ROWS, error: null };
     if (fn === "fn_sponsor_clients") return { data: CLIENTS, error: null };
     return { data: [], error: null };
@@ -312,6 +312,14 @@ describe("/partners/[slug] — a sponsor", () => {
     const html = await renderSponsor({ key: KEY });
     expect(html).toContain("cid=SPN-octa-");
     expect(html).not.toContain("!");
+  });
+
+  it("says the campaign has not started when every window begins in the future", async () => {
+    stubSponsor(OCTA, [{ country: "SG", since: "2099-01-01T00:00:00+00:00", until: null }]);
+    const html = await renderSponsor({ key: KEY });
+    expect(html).toContain("Counting starts when your campaign goes live.");
+    expect(html).not.toContain("Showing");
+    expect(html).toContain("cid=SPN-octa-");
   });
 
   it("404s on a wrong key exactly like an agency", async () => {

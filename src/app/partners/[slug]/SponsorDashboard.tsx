@@ -49,9 +49,12 @@ export function SponsorDashboard({ partner, keyParam, data }: Props) {
   const template =
     `?cid=SPN-${partner.slug}-{{ad.name}}&geo=<${geo}>` +
     `&utm_source=meta&utm_medium=paid&utm_campaign={{campaign.name}}`;
-  const windowLine = windows.length
-    ? `${windows.map(describeWindow).join("; ")}.`
-    : "No sponsorship window is on file yet, so this shows the last 90 days.";
+  // A window that begins in the future is a campaign that has not launched:
+  // every count is zero by construction, and the page should say why.
+  const started = windows.some((w) => new Date(w.since).getTime() <= range.until.getTime());
+  const subline = started
+    ? `${windows.map(describeWindow).join("; ")}. Showing ${fmtDate(range.since.toISOString())} to ${fmtDate(range.until.toISOString())}.`
+    : "Counting starts when your campaign goes live. Nothing to show yet.";
 
   return (
     <main className="min-h-screen bg-paper text-ink">
@@ -68,9 +71,7 @@ export function SponsorDashboard({ partner, keyParam, data }: Props) {
         <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
           {partner.name} <span className="text-orange">·</span> sponsorship
         </h1>
-        <p className="mt-1 text-[13px] text-subtle">
-          {windowLine} Showing {fmtDate(range.since.toISOString())} to {fmtDate(range.until.toISOString())}.
-        </p>
+        <p className="mt-1 text-[13px] text-subtle">{subline}</p>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <div className="inline-flex flex-wrap gap-1 rounded-xl border border-line bg-card p-1 shadow-soft">
