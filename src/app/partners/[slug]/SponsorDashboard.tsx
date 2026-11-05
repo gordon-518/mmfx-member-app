@@ -10,7 +10,7 @@ import { Seg, Tile } from "./ui";
 // with renderToStaticMarkup. Everything personal is masked in SQL before it
 // gets here; this file only lays it out.
 
-const BROKER_NAME: Record<string, string> = { octa: "Octa", elev8: "Elev8", dupoin: "Dupoin" };
+const BROKER_NAME: Record<string, string> = { octa: "Octa", elev8: "Elev8", dupoin: "Dupoin", gtc: "GTC", weby: "Weby" };
 
 export function brokerLabel(brokers: string[]): string {
   const names = brokers.map((b) => BROKER_NAME[b] ?? b);
