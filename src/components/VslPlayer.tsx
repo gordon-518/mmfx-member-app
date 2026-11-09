@@ -62,6 +62,8 @@ function Video({ video, cut, title }: { video: VslKey; cut: Cut; title: string }
           autoPlay
           playsInline
           preload="metadata"
+          // Focusable everywhere: WebKit doesn't count a bare <video> as focusable.
+          tabIndex={0}
           aria-label={title}
           onError={() => setFailed(true)}
           className="absolute inset-0 h-full w-full object-contain"
