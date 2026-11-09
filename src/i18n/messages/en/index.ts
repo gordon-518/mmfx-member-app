@@ -35,6 +35,7 @@ import { tiers } from "./tiers";
 import { tour } from "./tour";
 import { tv } from "./tv";
 import { upgrade } from "./upgrade";
+import { vsl } from "./vsl";
 import { welcome } from "./welcome";
 
 export const en = {
@@ -75,5 +76,6 @@ export const en = {
   tour,
   tv,
   upgrade,
+  vsl,
   welcome,
 } as const;

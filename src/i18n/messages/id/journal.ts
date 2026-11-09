@@ -40,7 +40,7 @@ export const journal: Messages["journal"] = {
     body: "Hanya-baca lewat password investor Anda — kami tidak akan pernah bisa trading atau menarik dana, dan password Anda tidak pernah disimpan. Riwayat Anda diimpor otomatis.",
     cta: "Hubungkan MT5",
     watchTitle: "Lihat dulu cara asisten membaca akun",
-    watchLength: "2 mnt 30 dtk",
+    watchLength: "1 menit",
     watchEyebrow: "Lihat cara kerjanya",
   },
   firstRun: {

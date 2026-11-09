@@ -1,7 +1,7 @@
 // The AI Trading Assistant dashboard (/journal). Metric labels such as
 // "Net P&L" and "Profit factor" describe the member's own numbers; nothing
 // here promises a result. "Don" is the coach's name in every language.
-// empty.watch* are for the walkthrough video PR #69 adds above "Connect MT5".
+// empty.watch* frame the AI Trading Assistant video above "Connect MT5".
 export const journal = {
   greeting: {
     morning: "Good morning",
@@ -38,7 +38,7 @@ export const journal = {
     body: "Read-only via your investor password — we can never trade or withdraw, and your password is never stored. Your history imports automatically.",
     cta: "Connect MT5",
     watchTitle: "See it read an account first",
-    watchLength: "2 min 30 sec",
+    watchLength: "1 min",
     watchEyebrow: "Watch it work",
   },
   firstRun: {

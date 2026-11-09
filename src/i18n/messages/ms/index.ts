@@ -36,6 +36,7 @@ import { tiers } from "./tiers";
 import { tour } from "./tour";
 import { tv } from "./tv";
 import { upgrade } from "./upgrade";
+import { vsl } from "./vsl";
 import { welcome } from "./welcome";
 
 export const ms: Messages = {
@@ -76,5 +77,6 @@ export const ms: Messages = {
   tour,
   tv,
   upgrade,
+  vsl,
   welcome,
 };

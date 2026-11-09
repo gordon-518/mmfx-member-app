@@ -6,6 +6,7 @@ import { KysFlow, type SavedProfile } from "./KysFlow";
 import type { DimensionScores } from "@/lib/kys/types";
 import { toArchetypeId } from "@/lib/kys/archetypes";
 import { getT } from "@/i18n/server";
+import { VslTour } from "@/components/VslPlayer";
 
 // Know Your Style runs natively here (21 Oct) instead of in an iframe. The
 // assessment, the scoring and the report all live in this app now, so the
@@ -53,6 +54,7 @@ export default async function KnowYourStylePage() {
             {t.nav.knowYourStyle}
           </h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{t.kys.subtitle}</p>
+          <VslTour videos={[{ video: "know-your-style" }]} />
         </div>
 
         <KysFlow saved={saved} />

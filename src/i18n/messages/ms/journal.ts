@@ -40,7 +40,7 @@ export const journal: Messages["journal"] = {
     body: "Baca sahaja melalui kata laluan pelabur anda — kami tidak sekali-kali boleh berdagang atau membuat pengeluaran, dan kata laluan anda tidak pernah disimpan. Sejarah anda diimport secara automatik.",
     cta: "Sambungkan MT5",
     watchTitle: "Lihat ia membaca akaun dahulu",
-    watchLength: "2 min 30 saat",
+    watchLength: "1 minit",
     watchEyebrow: "Lihat cara ia berfungsi",
   },
   firstRun: {

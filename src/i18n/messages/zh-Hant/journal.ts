@@ -40,7 +40,7 @@ export const journal: Messages["journal"] = {
     body: "透過投資者密碼唯讀存取——我們永遠無法交易或出金，你的密碼也絕不會被儲存。你的交易紀錄會自動匯入。",
     cta: "連接 MT5",
     watchTitle: "先看看它如何解讀一個帳戶",
-    watchLength: "2 分 30 秒",
+    watchLength: "1 分鐘",
     watchEyebrow: "看看它如何運作",
   },
   firstRun: {

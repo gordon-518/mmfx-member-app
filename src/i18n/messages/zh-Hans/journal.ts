@@ -40,7 +40,7 @@ export const journal: Messages["journal"] = {
     body: "通过投资者密码只读访问——我们永远无法交易或出金，你的密码也绝不会被保存。你的交易记录会自动导入。",
     cta: "连接 MT5",
     watchTitle: "先看看它如何解读一个账户",
-    watchLength: "2 分 30 秒",
+    watchLength: "1 分钟",
     watchEyebrow: "看看它如何运作",
   },
   firstRun: {

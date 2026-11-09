@@ -3,6 +3,8 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { LockedOverlay } from "@/lib/access/LockedOverlay";
 import { FEATURE_HREF, FEATURE_MIN_TIER } from "@/lib/access/features";
+import { FEATURE_VSL } from "@/lib/vsl";
+import { VslPlayer } from "@/components/VslPlayer";
 import { getT } from "@/i18n/server";
 import { unlocksAt } from "@/i18n/tierName";
 import type { Messages } from "@/i18n/messages/types";
@@ -62,6 +64,7 @@ export async function LockedFeature({
     : { eyebrow: t.common.locked, title: l.fallbackTitle, pitch: l.fallbackPitch, points: [] as string[], image: undefined };
   // Tier-specific CTA (conversion-fix 2.4 / 3.3): say which tier opens it.
   const min = FEATURE_MIN_TIER[feature];
+  const video = FEATURE_VSL[feature];
   const { profile, viewer } = gate;
 
   return (
@@ -77,6 +80,13 @@ export async function LockedFeature({
         {notice && (
           <div className="rise mt-6" style={{ animationDelay: "40ms" }}>
             {notice}
+          </div>
+        )}
+
+        {/* The feature's own video: what it does, before what it costs. */}
+        {video && (
+          <div className="rise mt-7 max-w-3xl" style={{ animationDelay: "60ms" }}>
+            <VslPlayer video={video} />
           </div>
         )}
 
