@@ -23,6 +23,7 @@ import { INTL_LOCALE } from "@/i18n/config";
 import { fmt, plural } from "@/i18n/format";
 import type { Messages } from "@/i18n/messages/types";
 import { InterventionBanner } from "./InterventionBanner";
+import { VslPlayer } from "@/components/VslPlayer";
 import { JournalHero } from "./JournalHero";
 import { MissionCard } from "./MissionCard";
 import { LeaksToBeat } from "./LeaksToBeat";
@@ -1241,19 +1242,32 @@ export function JournalDashboard({
       </div>
 
       {accounts.length === 0 ? (
-        <section className="rise mt-7 rounded-2xl border border-line bg-card p-8 text-center shadow-soft">
-          <h2 className="font-display text-xl font-bold text-ink">
-            {j.empty.title}
-          </h2>
-          <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-subtle">
-            {j.empty.body}
-          </p>
-          <Link
-            href="/journal/connect"
-            className="mt-5 inline-block cursor-pointer rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
-          >
-            {j.empty.cta}
-          </Link>
+        <section className="rise mt-7 rounded-2xl border border-line bg-card p-8 shadow-soft">
+          {/* Nobody hands over an investor password to something they haven't
+              seen work, so the walkthrough comes before the ask, not after
+              it (Gordon, 26 Oct). */}
+          <div className="mx-auto max-w-[640px]">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <p className="font-display text-[15px] font-bold tracking-tight text-ink">{j.empty.watchTitle}</p>
+              <span className="text-[12px] text-faint">{j.empty.watchLength}</span>
+            </div>
+            <VslPlayer video="ai-trading-assistant" eyebrow={j.empty.watchEyebrow} />
+          </div>
+
+          <div className="mx-auto mt-8 max-w-[640px] border-t border-line pt-7 text-center">
+            <h2 className="font-display text-xl font-bold text-ink">
+              {j.empty.title}
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-subtle">
+              {j.empty.body}
+            </p>
+            <Link
+              href="/journal/connect"
+              className="mt-5 inline-block cursor-pointer rounded-xl bg-orange px-6 py-3 text-[14px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
+            >
+              {j.empty.cta}
+            </Link>
+          </div>
         </section>
       ) : (
         <>

@@ -41,7 +41,7 @@ describe("content pages in every language", () => {
   const PROMOTIONAL = [
     "signals", "locked", "teamMm", "library", "indicators", "strategies", "liveClasses",
     "calendar", "course", "tour", "dailyAnalysis", "tv", "plans", "upgrade",
-    "welcome", "dashboard", "rails", "auth", "status", "tiers", "nav", "skillTrack", "news", "legal",
+    "welcome", "dashboard", "rails", "auth", "status", "tiers", "nav", "skillTrack", "news", "legal", "vsl",
   ] as const;
 
   // "MM Desk" and "Fundamental Desk" are names, not words to translate

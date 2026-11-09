@@ -10,6 +10,7 @@ import { getLocale, getT } from "@/i18n/server";
 import { en } from "@/i18n/messages/en";
 import { ComplianceText } from "@/components/ComplianceText";
 import { fmt } from "@/i18n/format";
+import { VslTour } from "@/components/VslPlayer";
 
 // The Fundamental Analysis Desk, rendered natively (it used to be an iframe of
 // the desk's own dashboard). One page serves both views so the feature gate
@@ -70,6 +71,7 @@ export default async function FundamentalPage({
         <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{desk.title}</h1>
         <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{desk.subtitle}</p>
         {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{desk.contentNote}</p>}
+        <VslTour videos={[{ video: "fundamental-desk" }]} />
       </div>
 
       {rows === null ? (

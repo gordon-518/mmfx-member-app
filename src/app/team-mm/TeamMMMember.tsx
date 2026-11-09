@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useT } from "@/i18n/client";
 import { fmt } from "@/i18n/format";
+import { VslTour } from "@/components/VslPlayer";
 
 // Team MM — the private VIP desk, for funded members. Invites are added BY HAND
 // (the desk verifies + sends a personal invite) so the link can't be forwarded.
@@ -55,6 +56,7 @@ export function TeamMMMember({ firstName }: { firstName: string }) {
           {firstName ? fmt(tm.welcomeNamed, { name: firstName }) : tm.welcome}
         </h1>
         <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-subtle">{tm.intro}</p>
+        <VslTour videos={[{ video: "team-mm" }]} />
       </div>
 
       {/* The invite card */}

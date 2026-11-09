@@ -7,6 +7,7 @@ import { NewsFeed } from "./NewsFeed";
 import { shortDateLabel } from "@/i18n/dates";
 import { INTL_LOCALE } from "@/i18n/config";
 import { getLocale, getT } from "@/i18n/server";
+import { VslTour } from "@/components/VslPlayer";
 
 export default async function NewsPage({
   searchParams,
@@ -44,6 +45,7 @@ export default async function NewsPage({
             {t.news.intro}
           </p>
           {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{t.news.sourceNote}</p>}
+          <VslTour videos={[{ video: "news" }]} />
         </div>
 
         {/* Pair filter (server-driven — accurate per-pair coverage) */}

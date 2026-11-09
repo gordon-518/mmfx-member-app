@@ -23,6 +23,7 @@ import { getT } from "@/i18n/server";
 import { fmt, plural } from "@/i18n/format";
 import { rich } from "@/i18n/rich";
 import type { Messages } from "@/i18n/messages/types";
+import { VslPlayer } from "@/components/VslPlayer";
 
 // Geo-routed broker funnel (see memory mmfx-broker-funnel): US/UK -> contact,
 // a fixed list of countries -> Dupoin, everyone else (ROW) + unknown -> Octa/Elev8.
@@ -192,6 +193,16 @@ export default async function UpgradePage({
           </div>
         ) : (
           <>
+            {/* How Market Makers is paid, in a minute — the question every tier
+                raises (no fee; the deposit stays in your own account). Not for
+                the US/UK lifetime plans, where it isn't true, and not for a
+                member who has already funded. */}
+            {!isPaid && (
+              <div className="mt-10 max-w-2xl">
+                <VslPlayer video="your-float" />
+              </div>
+            )}
+
             {/* Tier cards */}
             <div className="mt-12 flex flex-wrap items-end justify-between gap-3">
               <SectionHead id="tiers" eyebrow={u.tiersEyebrow} title={u.tiersTitle} sub={u.tiersSub} />

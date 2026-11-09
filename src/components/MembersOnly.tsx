@@ -56,10 +56,13 @@ export async function MembersOnly({
   feature,
   blurb,
   perks,
+  children,
 }: {
   feature: string;
   blurb: string;
   perks?: Perk[];
+  /** Shown under the card, in the same column (e.g. the feature's video). */
+  children?: ReactNode;
 }) {
   const l = (await getT()).locked;
   const list = perks ?? defaultPerks(l);
@@ -113,6 +116,7 @@ export async function MembersOnly({
           <p className="mt-3.5 text-[12.5px] text-faint">{l.trialNote}</p>
         </div>
       </div>
+      {children && <div className="rise mt-8">{children}</div>}
     </div>
   );
 }

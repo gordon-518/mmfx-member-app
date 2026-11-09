@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { MembersOnly } from "@/components/MembersOnly";
 import { TeamMMMember } from "./TeamMMMember";
 import { getT } from "@/i18n/server";
+import { VslPlayer } from "@/components/VslPlayer";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { teamMm } = await getT();
@@ -39,7 +40,10 @@ export default async function TeamMMPage() {
       ) : (
         // data-gate: a language-independent marker for the tier-matrix checks.
         <div data-gate="locked">
-          <MembersOnly feature={t.tiers.team} blurb={t.teamMm.lockedBlurb} />
+          <MembersOnly feature={t.tiers.team} blurb={t.teamMm.lockedBlurb}>
+            {/* What Team MM is, shown rather than told: the invite flow on video. */}
+            <VslPlayer video="team-mm" />
+          </MembersOnly>
         </div>
       )}
     </AppShell>

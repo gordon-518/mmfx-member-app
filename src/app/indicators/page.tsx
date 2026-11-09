@@ -10,6 +10,7 @@ import { setTradingViewUsername } from "./actions";
 import { getT } from "@/i18n/server";
 import { fmt } from "@/i18n/format";
 import { MM_INDICATORS_DISCLAIMER } from "@/lib/content/disclaimer";
+import { VslTour } from "@/components/VslPlayer";
 
 /** "ML Classifier" -> "MLClassifier", the key the dictionary uses. */
 const typeKey = (type: string) => type.replace(/[^A-Za-z]/g, "");
@@ -41,6 +42,7 @@ export default async function IndicatorsPage({
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">
             {fmt(ind.subtitle, { n: INDICATORS.length })}
           </p>
+          <VslTour videos={[{ video: "indicators" }]} />
         </div>
 
         <TvAccessBlock

@@ -10,6 +10,7 @@ import { setTradingViewUsernameFromStrategies } from "./actions";
 import { getT } from "@/i18n/server";
 import { fmt } from "@/i18n/format";
 import { MM_INDICATORS_DISCLAIMER } from "@/lib/content/disclaimer";
+import { VslTour } from "@/components/VslPlayer";
 
 // Published MM TradingView strategy scripts. The .pine source is NEVER served
 // here — these are just links to the public TradingView publications + a chart
@@ -42,6 +43,7 @@ export default async function StrategiesPage({
           <p className="text-[12px] font-semibold uppercase tracking-wider text-orange">{st.eyebrow}</p>
           <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{st.title}</h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{st.subtitle}</p>
+          <VslTour videos={[{ video: "strategies" }, { video: "backtest", label: t.vsl.backtestTour }]} />
         </div>
 
         <TvAccessBlock

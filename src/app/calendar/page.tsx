@@ -13,6 +13,7 @@ import { CalendarClient } from "./CalendarClient";
 import { getLocale, getT } from "@/i18n/server";
 import { INTL_LOCALE } from "@/i18n/config";
 import type { Messages } from "@/i18n/messages/types";
+import { VslTour } from "@/components/VslPlayer";
 
 // "23 – 29 Jun 2026" in the reader's language (UTC, formatted on the server).
 function weekLabel(start: Date, end: Date, intl: string): string {
@@ -62,6 +63,7 @@ export default async function CalendarPage({
           <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{c.title}</h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{c.subtitle}</p>
           {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{c.contentNote}</p>}
+          <VslTour videos={[{ video: "news" }]} />
         </div>
 
         {/* Week navigator */}

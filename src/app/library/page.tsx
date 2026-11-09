@@ -6,6 +6,7 @@ import { EBOOKS, type Ebook, type EbookTone } from "./ebooks";
 import { getLocale, getT } from "@/i18n/server";
 import { fmt } from "@/i18n/format";
 import type { Messages } from "@/i18n/messages/types";
+import { VslTour } from "@/components/VslPlayer";
 
 type Lib = Messages["library"];
 type BookText = { blurb: string; inside?: Record<string, string> };
@@ -115,6 +116,7 @@ export default async function LibraryPage() {
           <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{lib.title}</h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{lib.subtitle}</p>
           {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{lib.contentNote}</p>}
+          <VslTour videos={[{ video: "ebook-library" }]} />
         </div>
 
         {/* Featured flagship */}

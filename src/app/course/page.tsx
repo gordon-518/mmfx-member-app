@@ -9,6 +9,7 @@ import { CourseClient, type ClientLesson } from "./CourseClient";
 import { getLocale, getT } from "@/i18n/server";
 import { fmt } from "@/i18n/format";
 import { lessonText, levelLabel, moduleText } from "@/i18n/course";
+import { VslTour } from "@/components/VslPlayer";
 
 export default async function CoursePage({
   searchParams,
@@ -68,6 +69,7 @@ export default async function CoursePage({
           <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{c.title}</h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{c.subtitle}</p>
           {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{c.contentNote}</p>}
+          <VslTour videos={[{ video: "course" }]} />
         </div>
 
         {lockedCount > 0 && (

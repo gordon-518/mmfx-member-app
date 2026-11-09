@@ -5,6 +5,7 @@ import { ExternalIcon, SignalsIcon, AnalysisIcon } from "@/components/icons";
 import { RiskNotice } from "@/components/RiskNotice";
 import { getLocale, getT } from "@/i18n/server";
 import type { Messages } from "@/i18n/messages/types";
+import { VslTour } from "@/components/VslPlayer";
 
 // ---------------------------------------------------------------------------
 // Telegram destinations. VIP is live; the three below are PLACEHOLDERS — Gordon
@@ -61,6 +62,7 @@ export default async function SignalsPage() {
           <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-ink">{s.title}</h1>
           <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-subtle">{s.subtitle}</p>
           {locale !== "en" && <p className="mt-1.5 text-[12.5px] text-faint">{s.contentNote}</p>}
+          <VslTour videos={[{ video: "signals" }]} />
         </div>
 
         {/* Stats strip */}
