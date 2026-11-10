@@ -3,10 +3,11 @@ import type { ReactNode } from "react";
 import { getT } from "@/i18n/server";
 import { fmt } from "@/i18n/format";
 import type { Messages } from "@/i18n/messages/types";
+import type { MemberTier } from "@/lib/tiers";
 
 /** Reusable "members-only" lock/upsell panel. Any member-exclusive page renders
- *  this in place of its content when the viewer isn't a funded member. Drives to
- *  the /upgrade funnel. Warm-premium, matches the app. */
+ *  this in place of its content when the viewer's tier doesn't open it. Drives
+ *  to the /upgrade funnel. Warm-premium, matches the app. */
 
 export interface Perk {
   icon: ReactNode;
@@ -52,20 +53,52 @@ function PerkIcon({ children }: { children: ReactNode }) {
   );
 }
 
+interface PanelCopy {
+  title: string;
+  cta: string;
+  note: string;
+}
+
+/** What the panel says to this viewer. A live trial or Free is pitched
+ *  membership; a paying member below Team MM is told their tier and offered a
+ *  top-up. A Team MM viewer never sees this panel. */
+function panelCopy(t: Messages, earnedTier: MemberTier, feature: string): PanelCopy {
+  const l = t.locked;
+  if (earnedTier === "trial" || earnedTier === "free") {
+    return {
+      title: fmt(l.membersTitle, { feature }),
+      cta: l.become,
+      note: earnedTier === "trial" ? l.trialNote : l.freeNote,
+    };
+  }
+  return {
+    title: fmt(l.paidTitle, { feature }),
+    cta: fmt(l.paidCta, { feature }),
+    note: fmt(l.paidNote, { tier: t.tiers[earnedTier], feature }),
+  };
+}
+
 export async function MembersOnly({
   feature,
   blurb,
   perks,
+  earnedTier,
   children,
 }: {
   feature: string;
   blurb: string;
   perks?: Perk[];
+  /** What the viewer's deposits have earned (getAccess().earnedTier), not their
+   *  access tier: a member who deposited during the trial still has trial access,
+   *  but is told the tier they're on. */
+  earnedTier: MemberTier;
   /** Shown under the card, in the same column (e.g. the feature's video). */
   children?: ReactNode;
 }) {
-  const l = (await getT()).locked;
+  const t = await getT();
+  const l = t.locked;
   const list = perks ?? defaultPerks(l);
+  const copy = panelCopy(t, earnedTier, feature);
   return (
     <div className="mx-auto max-w-xl px-5 py-14 sm:py-20">
       <div className="rise relative overflow-hidden rounded-3xl border border-orange/20 bg-card p-7 text-center shadow-soft-lg sm:p-10">
@@ -86,7 +119,7 @@ export async function MembersOnly({
 
           <p className="mt-6 text-[13px] font-semibold uppercase tracking-[0.2em] text-orange">{l.membersOnly}</p>
           <h1 className="mt-2 font-display text-[26px] font-bold leading-tight tracking-tight text-ink sm:text-3xl">
-            {fmt(l.membersTitle, { feature })}
+            {copy.title}
           </h1>
           <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-subtle">{blurb}</p>
 
@@ -108,12 +141,12 @@ export async function MembersOnly({
             href="/upgrade"
             className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-orange px-6 py-3.5 text-[15px] font-semibold text-white shadow-soft transition-all hover:bg-[#f24e12] hover:shadow-soft-lg"
           >
-            {l.become}
+            {copy.cta}
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden className="transition-transform group-hover:translate-x-0.5">
               <path d="M3 8h9M8.5 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
-          <p className="mt-3.5 text-[12.5px] text-faint">{l.trialNote}</p>
+          <p className="mt-3.5 text-[12.5px] text-faint">{copy.note}</p>
         </div>
       </div>
       {children && <div className="rise mt-8">{children}</div>}

@@ -39,8 +39,11 @@ export default async function TeamMMPage() {
         <TeamMMMember firstName={firstName} />
       ) : (
         // data-gate: a language-independent marker for the tier-matrix checks.
+        // The note goes by the EARNED tier: a Foundation member still inside their
+        // trial clock has memberTier "trial" (accessTierFor) but is told the tier
+        // they paid for.
         <div data-gate="locked">
-          <MembersOnly feature={t.tiers.team} blurb={t.teamMm.lockedBlurb}>
+          <MembersOnly feature={t.tiers.team} blurb={t.teamMm.lockedBlurb} earnedTier={access.earnedTier}>
             {/* What Team MM is, shown rather than told: the invite flow on video. */}
             <VslPlayer video="team-mm" />
           </MembersOnly>

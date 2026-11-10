@@ -86,5 +86,13 @@ export const locked = {
   perkJournal: "The AI trading journal",
   perkEas: "Automated EAs — coming soon",
   become: "Become a member",
+  // The note under the button, by where the viewer stands: a live trial, Free
+  // (trial ended), or a paid tier below Team MM ({tier}: Foundation or Desk).
   trialNote: "You're on a free trial — fund your own broker account to unlock everything.",
+  freeNote: "You're on Free — fund your own broker account to unlock everything.",
+  paidNote: "You're on {tier} — your deposits so far count toward {feature}, so you only need to top up the difference.",
+  // A paying member below Team MM is already a member, so the title and button
+  // speak to a top-up rather than to joining. {feature} is the top tier, Team MM.
+  paidTitle: "{feature} is the top tier",
+  paidCta: "Top up to {feature}",
 } as const;
