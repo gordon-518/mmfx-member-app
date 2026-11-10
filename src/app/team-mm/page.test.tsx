@@ -84,7 +84,9 @@ describe("/team-mm, for a viewer below Team MM", () => {
   it("tells a Foundation member still inside their trial clock their tier, not that they're on a trial", async () => {
     const out = await render(viewer("member_active", "trial", "foundation"));
     expect(out).toContain("You're on Foundation —");
+    expect(out).toContain("Top up to Team MM");
     expect(out).not.toContain("free trial");
+    expect(out).not.toContain("Become a member");
   });
 
   it("shows a Team MM member the channel, not the lock panel", async () => {

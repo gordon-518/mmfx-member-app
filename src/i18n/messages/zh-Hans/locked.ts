@@ -91,4 +91,6 @@ export const locked: Messages["locked"] = {
   trialNote: "你正在免费试用——为你自己的经纪商账户入金即可解锁全部内容。",
   freeNote: "你目前使用免费方案——为你自己的经纪商账户入金即可解锁全部内容。",
   paidNote: "你目前是 {tier}——之前的入金都会累计计算，只需追加入金补足差额即可达到 {feature}。",
+  paidTitle: "{feature} 是最高等级",
+  paidCta: "追加入金，升级到 {feature}",
 };

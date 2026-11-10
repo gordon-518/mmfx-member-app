@@ -65,6 +65,16 @@ describe("MembersOnly: the note under the button", () => {
       expect(desk, locale).toContain(fmt(l.paidNote, { tier: "Desk", feature: "Team MM" }));
       expect(desk, locale).not.toContain(l.trialNote);
       expect(desk, `${locale}: a placeholder left unfilled`).not.toMatch(/\{\w+\}/);
+
+      // The title and button: a membership pitch on a trial or Free, a top-up for a member.
+      for (const notYetMember of [trial, free]) {
+        expect(notYetMember, locale).toContain(fmt(l.membersTitle, { feature: "Team MM" }));
+        expect(notYetMember, locale).toContain(l.become);
+      }
+      expect(desk, locale).toContain(fmt(l.paidTitle, { feature: "Team MM" }));
+      expect(desk, locale).toContain(fmt(l.paidCta, { feature: "Team MM" }));
+      expect(desk, locale).not.toContain(fmt(l.membersTitle, { feature: "Team MM" }));
+      expect(desk, locale).not.toContain(l.become);
     }
   });
 
@@ -74,7 +84,29 @@ describe("MembersOnly: the note under the button", () => {
       const l = MESSAGES[locale].locked;
       expect(l.freeNote, locale).not.toBe(en.freeNote);
       expect(l.paidNote, locale).not.toBe(en.paidNote);
+      expect(l.paidTitle, locale).not.toBe(en.paidTitle);
+      expect(l.paidCta, locale).not.toBe(en.paidCta);
       expect(new Set([l.trialNote, l.freeNote, l.paidNote]).size, locale).toBe(3);
+    }
+  });
+});
+
+describe("MembersOnly: the title and button", () => {
+  it("pitches membership to a viewer on a trial or on Free", async () => {
+    for (const tier of ["trial", "free"] as const) {
+      const out = await panel(tier);
+      expect(out, tier).toContain("Team MM is for MM System members");
+      expect(out, tier).toContain("Become a member");
+    }
+  });
+
+  it("speaks to a paying member as one: the top tier and a top-up, not a membership pitch", async () => {
+    for (const tier of ["foundation", "desk"] as const) {
+      const out = await panel(tier);
+      expect(out, tier).toContain("Team MM is the top tier");
+      expect(out, tier).toContain("Top up to Team MM");
+      expect(out, tier).not.toContain("Become a member");
+      expect(out, tier).not.toContain("is for MM System members");
     }
   });
 });
