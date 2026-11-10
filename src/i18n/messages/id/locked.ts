@@ -89,4 +89,6 @@ export const locked: Messages["locked"] = {
   perkEas: "EA otomatis — segera hadir",
   become: "Jadi member",
   trialNote: "Anda sedang uji coba gratis — danai akun broker Anda sendiri untuk membuka semuanya.",
+  freeNote: "Anda di paket Gratis — danai akun broker Anda sendiri untuk membuka semuanya.",
+  paidNote: "Anda di {tier} — deposit Anda sejauh ini dihitung untuk {feature}, jadi Anda cukup top up selisihnya.",
 };

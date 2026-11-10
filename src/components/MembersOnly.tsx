@@ -3,10 +3,11 @@ import type { ReactNode } from "react";
 import { getT } from "@/i18n/server";
 import { fmt } from "@/i18n/format";
 import type { Messages } from "@/i18n/messages/types";
+import type { MemberTier } from "@/lib/tiers";
 
 /** Reusable "members-only" lock/upsell panel. Any member-exclusive page renders
- *  this in place of its content when the viewer isn't a funded member. Drives to
- *  the /upgrade funnel. Warm-premium, matches the app. */
+ *  this in place of its content when the viewer's tier doesn't open it. Drives
+ *  to the /upgrade funnel. Warm-premium, matches the app. */
 
 export interface Perk {
   icon: ReactNode;
@@ -52,19 +53,33 @@ function PerkIcon({ children }: { children: ReactNode }) {
   );
 }
 
+/** The small print under the button: a live trial, Free, or the paid tier they're on. */
+function noteFor(t: Messages, earnedTier: MemberTier, feature: string): string {
+  if (earnedTier === "trial") return t.locked.trialNote;
+  if (earnedTier === "free") return t.locked.freeNote;
+  // Foundation or Desk: a Team MM viewer never sees this panel.
+  return fmt(t.locked.paidNote, { tier: t.tiers[earnedTier], feature });
+}
+
 export async function MembersOnly({
   feature,
   blurb,
   perks,
+  earnedTier,
   children,
 }: {
   feature: string;
   blurb: string;
   perks?: Perk[];
+  /** What the viewer's deposits have earned (getAccess().earnedTier), not their
+   *  access tier: a member who deposited during the trial still has trial access,
+   *  but is told the tier they're on. */
+  earnedTier: MemberTier;
   /** Shown under the card, in the same column (e.g. the feature's video). */
   children?: ReactNode;
 }) {
-  const l = (await getT()).locked;
+  const t = await getT();
+  const l = t.locked;
   const list = perks ?? defaultPerks(l);
   return (
     <div className="mx-auto max-w-xl px-5 py-14 sm:py-20">
@@ -113,7 +128,7 @@ export async function MembersOnly({
               <path d="M3 8h9M8.5 4l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
-          <p className="mt-3.5 text-[12.5px] text-faint">{l.trialNote}</p>
+          <p className="mt-3.5 text-[12.5px] text-faint">{noteFor(t, earnedTier, feature)}</p>
         </div>
       </div>
       {children && <div className="rise mt-8">{children}</div>}

@@ -89,4 +89,6 @@ export const locked: Messages["locked"] = {
   perkEas: "自動化 EA——即將推出",
   become: "成為會員",
   trialNote: "你正在免費試用——為你自己的經紀商帳戶入金即可解鎖全部內容。",
+  freeNote: "你目前使用免費方案——為你自己的經紀商帳戶入金即可解鎖全部內容。",
+  paidNote: "你目前是 {tier}——之前的入金都會累計計算，只需追加入金補足差額即可達到 {feature}。",
 };
